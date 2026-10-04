@@ -1,49 +1,101 @@
 # Neon Cube / 霓虹立方体
 
-A first-person cyberpunk arena shooter for Godot 4.x. The entire level lives on the **inside of a giant cube**: all six inner faces are walkable city streets, and gravity reorients toward the surface under the player while crossing cube edges.
+**Neon Cube** is a complete small-scale first-person cyberpunk arena game built with Godot 4.x. The entire combat space is the inside of a giant cube: all six inner faces are walkable city streets, and gravity follows the surface under the player and enemies as they cross cube edges.
 
-## Current playable vertical slice
+## Playable game loop
 
-- Six-sided interior city arena generated procedurally at runtime.
-- Dynamic nearest-face gravity on all 6 faces.
-- Smooth character orientation while gravity flips across cube edges.
-- First-person WASD + mouse movement, jumping and hitscan shooting.
-- Cyberpunk emissive road grid, buildings, signs and HUD.
-- Enemy wave system with face-aware gravity, chase behavior, line-of-sight attacks, health/death and scoring.
-- Optional automatic loading of a Tripo enemy GLB at `assets/models/enemy.glb`.
-- Mixamo animation-name hooks with a procedural enemy fallback, so the project runs without external licensed assets.
-- Public gravity math smoke test.
+The game now has a beginning, escalating campaign, boss finale, loss state and replay loop:
 
-## Engine
+- Main menu and control guide.
+- Six-wave survival campaign.
+- Four regular enemy profiles: grunt, runner, sniper and tank.
+- Final boss: the **Null Warden**, supported by elite units.
+- Victory and game-over screens.
+- Persistent local high score.
+- Pause / resume / restart flow.
+- Health and ammunition pickups.
+- Three switchable hitscan weapons:
+  - Pulse Rifle
+  - Arc Scattergun
+  - Ion Marksman
+- Enemy cross-face pursuit using cube-surface routing with obstacle avoidance.
+- Enemy wave scaling, scoring and boss rewards.
+- Procedural cyberpunk city geometry, emissive road grid and HUD.
+- Procedural synthesized sound cues; no external audio pack required.
+- Optional Tripo enemy model and Mixamo animation hooks with a built-in procedural fallback.
 
-Target: **Godot 4.x** (GDScript). The project uses the GL Compatibility renderer and avoids third-party plugins.
+## Core six-face mechanic
 
-## Run
+Both player and enemies continuously resolve their nearest inside cube face. When an adjacent surface becomes decisively closer, gravity changes to that face while the actor basis smoothly rotates so local up remains opposite gravity. Hysteresis prevents edge jitter.
 
-1. Open this folder in Godot.
-2. Run the main project (`F6/F5`, main scene is already configured).
-3. Click the game window to capture the mouse.
+Enemies on another face route toward the shared cube edge before continuing pursuit, rather than simply trying to walk through the cube interior.
 
-Controls:
+## Controls
 
 - `W A S D`: move
-- Mouse: look
+- Mouse: aim / look
 - `Space`: jump
 - Left mouse: fire
 - `R`: reload
-- `Esc`: release / recapture mouse
+- `1`: Pulse Rifle
+- `2`: Arc Scattergun
+- `3`: Ion Marksman
+- `Esc`: pause / resume
 
-## Core mechanic: six-face gravity
+## Run in Godot
 
-The player is always pulled toward the nearest inside face of the cube. A small hysteresis prevents jitter at edges. When an adjacent wall becomes the closer support surface, the gravity vector changes to that face and the character basis smoothly rotates so local up remains opposite gravity.
+1. Open the repository in Godot 4.x.
+2. Run the project with F6/F5.
+3. Select **START MISSION**.
 
-This creates the intended transition:
+The main scene is `res://scenes/main.tscn`.
 
-`floor -> wall -> ceiling -> opposite wall -> ...`
+## Tripo / Mixamo integration
 
-without teleporting the character or faking level transitions.
+The game does not depend on external services at runtime.
 
-## Project layout
+If `assets/models/enemy.glb` exists, enemies automatically use it in place of the procedural fallback mesh. An embedded `AnimationPlayer` is detected recursively and common Mixamo-style animation aliases are supported:
+
+- Idle / idle
+- Run / run / Walking / walking
+- Attack / attack / Shooting / shooting
+- Death / death / Dying / dying
+
+See `assets/external/README.md` for the asset workflow.
+
+## Cloud / headless validation
+
+The project is deliberately testable in a Linux cloud environment without an interactive GPU/display session.
+
+```bash
+make bootstrap
+make validate
+make test
+# or
+make ci
+```
+
+The validation pipeline:
+
+1. Uses an existing Godot binary or downloads pinned Godot 4.3 stable.
+2. Imports project resources.
+3. Parses every GDScript with `--check-only`.
+4. Boots the full main scene headlessly.
+5. Runs automated tests for:
+   - six-face gravity,
+   - transition hysteresis,
+   - player health/ammo contracts,
+   - three-weapon switching,
+   - cross-face enemy routing,
+   - enemy archetypes and boss profile,
+   - six-wave campaign structure,
+   - full-project startup and UI.
+
+Any emitted Godot `ERROR:` or `SCRIPT ERROR:` output is treated as CI failure.
+
+GitHub Actions runs the same validation on every push and pull request.
+
+## Project structure
 
 ```text
 project.godot
@@ -51,44 +103,25 @@ scenes/
   main.tscn
   player.tscn
   enemy.tscn
+  pickup.tscn
 scripts/
   cube_gravity.gd
   city_builder.gd
   player.gd
   enemy.gd
+  pickup.gd
+  audio_manager.gd
   game.gd
-assets/
-  models/          # optional Tripo enemy.glb
-  animations/      # optional animation source files
-  external/README.md
 tests/
   test_cube_gravity.gd
+  test_face_transitions.gd
+  test_player_contract.gd
+  test_weapon_system.gd
+  test_enemy_routing.gd
+  test_campaign.gd
+  test_project_smoke.gd
 ```
 
-## Replacing the placeholder enemy
+## Current scope
 
-See `assets/external/README.md`. Dropping a compatible Tripo export at `assets/models/enemy.glb` is enough to replace the procedural enemy visual; animations can be supplied through the model's `AnimationPlayer` using the supported Mixamo-style aliases.
-
-## What is intentionally left as follow-on work
-
-The repository already contains a working game loop and the core six-face mechanic. Useful next milestones include animation retargeting polish, navigation around building blocks across face transitions, weapon variety, boss encounters, save/settings menus, audio, VFX optimization and a second authored arena layout.
-
-
-## Cloud / headless validation
-
-The repository is designed to be testable without a desktop session.
-
-```bash
-make bootstrap
-make validate
-make test
-# or: make ci
-```
-
-- `scripts/bootstrap_godot.sh` uses an existing Godot binary when available and otherwise downloads the pinned Godot 4.3 stable Linux x86_64 editor into `.tools/`.
-- `scripts/validate_project.sh` imports resources, parses every GDScript with `--check-only`, and performs a headless main-scene startup smoke test.
-- `scripts/run_tests.sh` runs gravity, face-transition, player-contract and whole-project smoke tests.
-- Validation treats emitted Godot `ERROR:` / `SCRIPT ERROR:` lines as failures instead of relying only on process exit codes.
-- Rendering-only procedural visuals are skipped under Godot's headless display driver while gameplay collision, gravity, spawning and HUD logic remain testable.
-
-GitHub Actions runs the same pipeline on every push and pull request. This makes the baseline suitable for cloud coding agents that do not have an interactive GPU/display session.
+This is a self-contained arena game rather than a content-heavy commercial release. It includes a complete playable campaign loop and can be run, won, lost, restarted and regression-tested without downloading proprietary assets.

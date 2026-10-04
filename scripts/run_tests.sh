@@ -9,6 +9,9 @@ TESTS=(
   "tests/test_cube_gravity.gd"
   "tests/test_face_transitions.gd"
   "tests/test_player_contract.gd"
+  "tests/test_weapon_system.gd"
+  "tests/test_enemy_routing.gd"
+  "tests/test_campaign.gd"
   "tests/test_project_smoke.gd"
 )
 
