@@ -224,11 +224,11 @@ func _refresh_weapon_visual() -> void:
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
 	var mesh: BoxMesh = BoxMesh.new()
 	if _weapon_index == 1:
-		mesh.size = Vector3(0.22, 0.18, 0.72)
+		mesh.size = Vector3(0.13, 0.10, 0.48)
 	elif _weapon_index == 2:
-		mesh.size = Vector3(0.12, 0.12, 1.0)
+		mesh.size = Vector3(0.08, 0.075, 0.62)
 	else:
-		mesh.size = Vector3(0.16, 0.14, 0.82)
+		mesh.size = Vector3(0.10, 0.085, 0.54)
 	mesh_instance.mesh = mesh
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	var color: Color = spec["color"] as Color
@@ -244,9 +244,9 @@ func _refresh_weapon_visual() -> void:
 func _recoil_weapon() -> void:
 	if DisplayServer.get_name() == "headless" or weapon_root == null:
 		return
-	weapon_root.position = Vector3(0.28, -0.27, -0.54)
+	weapon_root.position = Vector3(0.25, -0.23, -0.61)
 	var tween: Tween = create_tween()
-	tween.tween_property(weapon_root, "position", Vector3(0.28, -0.27, -0.58), 0.09)
+	tween.tween_property(weapon_root, "position", Vector3(0.25, -0.23, -0.65), 0.09)
 
 func _spawn_impact(position: Vector3, normal: Vector3) -> void:
 	if DisplayServer.get_name() == "headless":

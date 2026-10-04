@@ -328,7 +328,7 @@ func _create_ui() -> void:
 		hud_panel.add_child(label)
 
 	var crosshair: Label = Label.new()
-	crosshair.text = "⌖"
+	crosshair.text = "+"
 	crosshair.add_theme_font_size_override("font_size", 28)
 	crosshair.add_theme_color_override("font_color", Color(0.1, 1.0, 0.95))
 	crosshair.set_anchors_preset(Control.PRESET_CENTER)

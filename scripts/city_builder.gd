@@ -16,7 +16,7 @@ static func _build_environment(parent: Node3D) -> void:
 	env.background_color = Color(0.006, 0.004, 0.018)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.15, 0.08, 0.3)
-	env.ambient_light_energy = 0.9
+	env.ambient_light_energy = 1.35
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	world.environment = env
 	parent.add_child(world)
@@ -54,7 +54,7 @@ static func _build_face(parent: Node3D, down: Vector3, cube_size: float, half: f
 		var floor_mesh := BoxMesh.new()
 		floor_mesh.size = shape_size
 		mesh_instance.mesh = floor_mesh
-		mesh_instance.material_override = _material(Color(0.018, 0.022, 0.038), Color(0.02, 0.08, 0.12), 0.5)
+		mesh_instance.material_override = _material(Color(0.032, 0.038, 0.06), Color(0.02, 0.14, 0.2), 0.8)
 		surface.add_child(mesh_instance)
 
 	_build_city_blocks(parent, down, half)
@@ -101,7 +101,7 @@ static func _add_building(parent: Node3D, position: Vector3, basis: Basis, size:
 	var mesh := BoxMesh.new()
 	mesh.size = size
 	visual.mesh = mesh
-	var base := Color(0.025, 0.03, 0.05)
+	var base := Color(0.04, 0.045, 0.07)
 	var neon := Color(0.02, 0.85, 1.0) if seed % 2 == 0 else Color(1.0, 0.04, 0.55)
 	visual.material_override = _material(base, neon * 0.08, 0.28)
 	body.add_child(visual)

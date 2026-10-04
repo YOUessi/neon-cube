@@ -32,4 +32,4 @@ near = 0.05
 far = 220.0
 
 [node name="WeaponRoot" type="Node3D" parent="CameraPivot/Camera3D"]
-position = Vector3(0.28, -0.27, -0.58)
+position = Vector3(0.25, -0.23, -0.65)
