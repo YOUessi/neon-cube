@@ -45,6 +45,7 @@ var _last_face := ""
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 func _ready() -> void:
+	_ensure_local_input_actions()
 	_health = max_health
 	_shield = max_shield
 	_weapon_ammo = [30, 8, 12]
@@ -55,6 +56,34 @@ func _ready() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_refresh_weapon_visual()
 	_emit_status()
+
+func _ensure_local_input_actions() -> void:
+	var key_actions := {
+		"move_forward": KEY_W,
+		"move_back": KEY_S,
+		"move_left": KEY_A,
+		"move_right": KEY_D,
+		"jump": KEY_SPACE,
+		"reload": KEY_R,
+		"weapon_1": KEY_1,
+		"weapon_2": KEY_2,
+		"weapon_3": KEY_3,
+		"dash": KEY_SHIFT,
+	}
+	for action in key_actions:
+		var action_name: StringName = StringName(action)
+		if not InputMap.has_action(action_name):
+			InputMap.add_action(action_name)
+		if InputMap.action_get_events(action_name).is_empty():
+			var event := InputEventKey.new()
+			event.physical_keycode = int(key_actions[action])
+			InputMap.action_add_event(action_name, event)
+	if not InputMap.has_action("fire"):
+		InputMap.add_action("fire")
+	if InputMap.action_get_events("fire").is_empty():
+		var mouse := InputEventMouseButton.new()
+		mouse.button_index = MOUSE_BUTTON_LEFT
+		InputMap.action_add_event("fire", mouse)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
