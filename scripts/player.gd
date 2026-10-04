@@ -2,9 +2,11 @@ class_name NeonPlayer
 extends CharacterBody3D
 
 signal health_changed(current: float, maximum: float)
+signal shield_changed(current: float, maximum: float)
 signal ammo_changed(current: int, reserve: int)
 signal weapon_changed(weapon_name: String, slot: int)
 signal face_changed(face_name: String)
+signal damaged(amount: float)
 signal died
 
 @export var cube_half_extent := 30.0
@@ -16,15 +18,24 @@ signal died
 @export var mouse_sensitivity := 0.0022
 @export var gravity_align_speed := 12.0
 @export var max_health := 100.0
+@export var max_shield := 50.0
+@export var shield_regen_delay := 3.0
+@export var shield_regen_rate := 8.0
+@export var dash_speed := 18.0
+@export var dash_cooldown := 1.25
 @export var magazine_size := 30
 @export var reserve_ammo := 150
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var camera: Camera3D = $CameraPivot/Camera3D
+@onready var weapon_root: Node3D = $CameraPivot/Camera3D/WeaponRoot
 
 var gravity_down := Vector3.DOWN
 var _pitch := 0.0
 var _health := 100.0
+var _shield := 50.0
+var _shield_delay_remaining := 0.0
+var _dash_remaining := 0.0
 var _weapon_index := 0
 var _weapon_ammo: Array[int] = [30, 8, 12]
 var _weapon_reserve: Array[int] = [150, 40, 72]
@@ -35,12 +46,14 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 func _ready() -> void:
 	_health = max_health
+	_shield = max_shield
 	_weapon_ammo = [30, 8, 12]
 	_weapon_reserve = [reserve_ammo, 40, 72]
 	up_direction = -gravity_down
 	_rng.seed = 2049
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_refresh_weapon_visual()
 	_emit_status()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -55,6 +68,13 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	_fire_cooldown = maxf(0.0, _fire_cooldown - delta)
 	_reload_cooldown = maxf(0.0, _reload_cooldown - delta)
+	_dash_remaining = maxf(0.0, _dash_remaining - delta)
+	_shield_delay_remaining = maxf(0.0, _shield_delay_remaining - delta)
+	if _shield_delay_remaining <= 0.0 and _shield < max_shield:
+		var before: float = _shield
+		_shield = minf(max_shield, _shield + shield_regen_rate * delta)
+		if not is_equal_approx(before, _shield):
+			shield_changed.emit(_shield, max_shield)
 
 	var next_down: Vector3 = CubeGravity.nearest_down(global_position, cube_half_extent, gravity_down)
 	if not next_down.is_equal_approx(gravity_down):
@@ -77,6 +97,14 @@ func _physics_process(delta: float) -> void:
 	var horizontal: Vector3 = velocity - gravity_down * fall_speed
 	var accel: float = ground_accel if is_on_floor() else air_accel
 	horizontal = horizontal.move_toward(wish * move_speed, accel * delta)
+	if Input.is_action_just_pressed("dash") and _dash_remaining <= 0.0:
+		var dash_direction: Vector3 = wish
+		if dash_direction.length_squared() < 0.01:
+			dash_direction = -global_transform.basis.z
+			dash_direction = dash_direction - gravity_down * dash_direction.dot(gravity_down)
+		dash_direction = dash_direction.normalized()
+		horizontal = dash_direction * dash_speed
+		_dash_remaining = dash_cooldown
 	fall_speed += gravity_strength * delta
 	if is_on_floor() and fall_speed > 1.0:
 		fall_speed = 1.0
@@ -104,47 +132,18 @@ func _physics_process(delta: float) -> void:
 func _weapon_spec(index: int) -> Dictionary:
 	match index:
 		1:
-			return {
-				"name": "ARC SCATTERGUN",
-				"damage": 16.0,
-				"fire_rate": 1.25,
-				"magazine": 8,
-				"reserve_cap": 48,
-				"reload": 1.05,
-				"pellets": 8,
-				"spread": 0.055,
-				"range": 42.0,
-			}
+			return {"name":"ARC SCATTERGUN","damage":16.0,"fire_rate":1.25,"magazine":8,"reserve_cap":48,"reload":1.05,"pellets":8,"spread":0.055,"range":42.0,"color":Color(1.0,0.12,0.65)}
 		2:
-			return {
-				"name": "ION MARKSMAN",
-				"damage": 72.0,
-				"fire_rate": 2.0,
-				"magazine": 12,
-				"reserve_cap": 84,
-				"reload": 0.9,
-				"pellets": 1,
-				"spread": 0.002,
-				"range": 150.0,
-			}
+			return {"name":"ION MARKSMAN","damage":72.0,"fire_rate":2.0,"magazine":12,"reserve_cap":84,"reload":0.9,"pellets":1,"spread":0.002,"range":150.0,"color":Color(0.35,0.55,1.0)}
 		_:
-			return {
-				"name": "PULSE RIFLE",
-				"damage": 26.0,
-				"fire_rate": 9.5,
-				"magazine": 30,
-				"reserve_cap": 180,
-				"reload": 0.72,
-				"pellets": 1,
-				"spread": 0.008,
-				"range": 115.0,
-			}
+			return {"name":"PULSE RIFLE","damage":26.0,"fire_rate":9.5,"magazine":30,"reserve_cap":180,"reload":0.72,"pellets":1,"spread":0.008,"range":115.0,"color":Color(0.0,0.95,1.0)}
 
 func switch_weapon(index: int) -> void:
 	if index < 0 or index >= _weapon_ammo.size() or index == _weapon_index:
 		return
 	_weapon_index = index
 	_reload_cooldown = 0.0
+	_refresh_weapon_visual()
 	var spec: Dictionary = _weapon_spec(_weapon_index)
 	weapon_changed.emit(String(spec["name"]), _weapon_index + 1)
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
@@ -155,12 +154,12 @@ func _try_fire() -> void:
 	if _weapon_ammo[_weapon_index] <= 0:
 		_reload()
 		return
-
 	var spec: Dictionary = _weapon_spec(_weapon_index)
 	_fire_cooldown = 1.0 / float(spec["fire_rate"])
 	_weapon_ammo[_weapon_index] -= 1
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
 	_audio_call("play_shot", [_weapon_index])
+	_recoil_weapon()
 
 	var from: Vector3 = camera.global_position
 	var base_direction: Vector3 = -camera.global_transform.basis.z.normalized()
@@ -186,6 +185,39 @@ func _try_fire() -> void:
 			collider.call("take_damage", damage, hit.get("position", Vector3.ZERO), direction)
 		if pellet == 0:
 			_spawn_impact(hit.get("position", Vector3.ZERO), hit.get("normal", Vector3.UP))
+
+func _refresh_weapon_visual() -> void:
+	if DisplayServer.get_name() == "headless" or weapon_root == null:
+		return
+	for child in weapon_root.get_children():
+		child.queue_free()
+	var spec: Dictionary = _weapon_spec(_weapon_index)
+	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
+	var mesh: BoxMesh = BoxMesh.new()
+	if _weapon_index == 1:
+		mesh.size = Vector3(0.22, 0.18, 0.72)
+	elif _weapon_index == 2:
+		mesh.size = Vector3(0.12, 0.12, 1.0)
+	else:
+		mesh.size = Vector3(0.16, 0.14, 0.82)
+	mesh_instance.mesh = mesh
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	var color: Color = spec["color"] as Color
+	mat.albedo_color = Color(0.035,0.045,0.07)
+	mat.metallic = 0.75
+	mat.roughness = 0.24
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 1.8
+	mesh_instance.material_override = mat
+	weapon_root.add_child(mesh_instance)
+
+func _recoil_weapon() -> void:
+	if DisplayServer.get_name() == "headless" or weapon_root == null:
+		return
+	weapon_root.position = Vector3(0.28, -0.27, -0.54)
+	var tween: Tween = create_tween()
+	tween.tween_property(weapon_root, "position", Vector3(0.28, -0.27, -0.58), 0.09)
 
 func _spawn_impact(position: Vector3, normal: Vector3) -> void:
 	if DisplayServer.get_name() == "headless":
@@ -227,14 +259,27 @@ func grant_ammo(amount: int) -> void:
 func take_damage(amount: float) -> void:
 	if _health <= 0.0:
 		return
-	_health = maxf(0.0, _health - amount)
-	health_changed.emit(_health, max_health)
+	var incoming: float = maxf(0.0, amount)
+	if _shield > 0.0:
+		var absorbed: float = minf(_shield, incoming)
+		_shield -= absorbed
+		incoming -= absorbed
+		shield_changed.emit(_shield, max_shield)
+	if incoming > 0.0:
+		_health = maxf(0.0, _health - incoming)
+		health_changed.emit(_health, max_health)
+	_shield_delay_remaining = shield_regen_delay
+	damaged.emit(amount)
 	if _health <= 0.0:
 		died.emit()
 
 func heal(amount: float) -> void:
 	_health = minf(max_health, _health + maxf(0.0, amount))
 	health_changed.emit(_health, max_health)
+
+func grant_shield(amount: float) -> void:
+	_shield = minf(max_shield, _shield + maxf(0.0, amount))
+	shield_changed.emit(_shield, max_shield)
 
 func _audio_call(method: StringName, args: Array = []) -> void:
 	var audio: Node = get_tree().get_first_node_in_group("neon_audio")
@@ -244,12 +289,19 @@ func _audio_call(method: StringName, args: Array = []) -> void:
 func _emit_status() -> void:
 	var spec: Dictionary = _weapon_spec(_weapon_index)
 	health_changed.emit(_health, max_health)
+	shield_changed.emit(_shield, max_shield)
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
 	weapon_changed.emit(String(spec["name"]), _weapon_index + 1)
 	face_changed.emit(CubeGravity.face_name(gravity_down))
 
 func get_health() -> float:
 	return _health
+
+func get_shield() -> float:
+	return _shield
+
+func get_dash_remaining() -> float:
+	return _dash_remaining
 
 func get_ammo() -> int:
 	return _weapon_ammo[_weapon_index]

@@ -20,13 +20,14 @@ func _run() -> void:
 
 	var surface_count := 0
 	for child in game.get_children():
-		if child is StaticBody3D and child.name.begins_with("Surface_"):
-			surface_count += 1
+		if child is StaticBody3D and child.name.begins_with("Surface_"): surface_count += 1
 	_check(surface_count == 6, "all six cube surfaces exist")
 	_check(game.health_label != null, "HUD health label created")
+	_check(game.shield_label != null, "HUD shield label created")
 	_check(game.ammo_label != null, "HUD ammo label created")
 	_check(game.weapon_label != null, "HUD weapon label created")
 	_check(game.face_label != null, "HUD gravity label created")
+	_check(game.dash_label != null, "HUD dash label created")
 	_check(game.score_label != null, "HUD score label created")
 	_check(game.objective_label != null, "HUD objective label created")
 	_check(game.menu_panel != null, "main menu exists")
@@ -38,8 +39,7 @@ func _run() -> void:
 	_finish()
 
 func _check(condition: bool, label: String) -> void:
-	if condition:
-		print("PASS: %s" % label)
+	if condition: print("PASS: %s" % label)
 	else:
 		failures += 1
 		push_error("FAIL: %s" % label)

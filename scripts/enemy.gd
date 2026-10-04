@@ -24,10 +24,13 @@ var _attack_cooldown := 0.0
 var _dead := false
 var _anim: AnimationPlayer
 var _wave_level := 1
+var _difficulty_scale := 1.0
+var _boss_phase := 1
 
-func configure(kind: String, wave_level: int) -> void:
+func configure(kind: String, wave_level: int, difficulty_scale: float = 1.0) -> void:
 	archetype = kind
 	_wave_level = maxi(1, wave_level)
+	_difficulty_scale = maxf(0.5, difficulty_scale)
 	_apply_archetype()
 
 func _ready() -> void:
@@ -39,7 +42,7 @@ func _ready() -> void:
 	up_direction = -gravity_down
 
 func _apply_archetype() -> void:
-	var scale_factor: float = 1.0 + float(_wave_level - 1) * 0.045
+	var scale_factor: float = (1.0 + float(_wave_level - 1) * 0.045) * _difficulty_scale
 	match archetype:
 		"runner":
 			max_health = 44.0 * scale_factor
@@ -63,10 +66,10 @@ func _apply_archetype() -> void:
 			attack_interval = 0.9
 			score_value = 240
 		"boss":
-			max_health = 850.0
+			max_health = 850.0 * _difficulty_scale
 			move_speed = 3.6
 			attack_range = 23.0
-			attack_damage = 19.0
+			attack_damage = 19.0 * _difficulty_scale
 			attack_interval = 0.5
 			score_value = 2200
 		_:
@@ -81,7 +84,6 @@ func _physics_process(delta: float) -> void:
 	if _dead or not is_instance_valid(target):
 		return
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
-
 	gravity_down = CubeGravity.nearest_down(global_position, cube_half_extent, gravity_down, 0.24)
 	up_direction = -gravity_down
 	global_transform.basis = CubeGravity.aligned_basis(global_transform.basis, gravity_down, delta, gravity_align_speed)
@@ -103,14 +105,16 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() and fall_speed > 1.0:
 		fall_speed = 1.0
 	velocity = horizontal + gravity_down * fall_speed
-
 	if wish.length_squared() > 0.05:
 		_face_tangent_direction(wish, delta)
 	move_and_slide()
 
 	if distance <= attack_range and _attack_cooldown <= 0.0 and _has_line_of_sight():
 		_attack_cooldown = attack_interval
-		target.take_damage(attack_damage)
+		var burst_multiplier: float = 1.0
+		if archetype == "boss":
+			burst_multiplier = 1.0 + float(_boss_phase - 1) * 0.22
+		target.take_damage(attack_damage * burst_multiplier)
 		_play_animation(["Attack", "attack", "Shooting", "shooting"])
 
 func _avoid_obstacles(wish: Vector3) -> Vector3:
@@ -157,8 +161,24 @@ func take_damage(amount: float, _hit_position := Vector3.ZERO, _direction := Vec
 	if _dead:
 		return
 	_health -= amount
+	if archetype == "boss":
+		_update_boss_phase()
 	if _health <= 0.0:
 		_die()
+
+func _update_boss_phase() -> void:
+	if max_health <= 0.0:
+		return
+	var ratio: float = _health / max_health
+	var next_phase := 1
+	if ratio <= 0.30:
+		next_phase = 3
+	elif ratio <= 0.60:
+		next_phase = 2
+	if next_phase > _boss_phase:
+		_boss_phase = next_phase
+		move_speed += 0.75
+		attack_interval = maxf(0.24, attack_interval - 0.08)
 
 func _die() -> void:
 	_dead = true
@@ -186,7 +206,6 @@ func _build_visual() -> void:
 			if archetype == "boss":
 				visual_root.scale = Vector3.ONE * 1.75
 			return
-
 	var body: MeshInstance3D = MeshInstance3D.new()
 	var capsule: CapsuleMesh = CapsuleMesh.new()
 	capsule.radius = 0.42
@@ -219,16 +238,11 @@ func _build_visual() -> void:
 
 func _archetype_color() -> Color:
 	match archetype:
-		"runner":
-			return Color(1.0, 0.18, 0.7)
-		"sniper":
-			return Color(0.35, 0.55, 1.0)
-		"tank":
-			return Color(1.0, 0.48, 0.08)
-		"boss":
-			return Color(0.82, 0.05, 1.0)
-		_:
-			return Color(0.0, 0.95, 1.0)
+		"runner": return Color(1.0, 0.18, 0.7)
+		"sniper": return Color(0.35, 0.55, 1.0)
+		"tank": return Color(1.0, 0.48, 0.08)
+		"boss": return Color(0.82, 0.05, 1.0)
+		_: return Color(0.0, 0.95, 1.0)
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
 	if node is AnimationPlayer:
@@ -254,3 +268,6 @@ func get_health() -> float:
 
 func get_score_value() -> int:
 	return score_value
+
+func get_boss_phase() -> int:
+	return _boss_phase

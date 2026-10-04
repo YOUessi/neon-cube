@@ -13,6 +13,8 @@ enum GameState { MENU, PLAYING, PAUSED, VICTORY, GAME_OVER }
 
 var player: NeonPlayer
 var game_state: GameState = GameState.MENU
+var difficulty_name := "OPERATIVE"
+var difficulty_scale := 1.0
 var _score := 0
 var _high_score := 0
 var _wave := 0
@@ -29,12 +31,15 @@ var end_panel: Control
 var end_title: Label
 var end_details: Label
 var health_label: Label
+var shield_label: Label
 var ammo_label: Label
 var weapon_label: Label
 var face_label: Label
+var dash_label: Label
 var score_label: Label
 var objective_label: Label
 var message_label: Label
+var damage_overlay: ColorRect
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -53,6 +58,9 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if game_state != GameState.PLAYING:
 		return
+	if is_instance_valid(player) and dash_label != null:
+		var dash_remaining: float = player.get_dash_remaining()
+		dash_label.text = "DASH READY" if dash_remaining <= 0.0 else "DASH %.1fs" % dash_remaining
 	if _alive_enemies <= 0 and not _wave_transitioning:
 		_finish_wave()
 
@@ -62,6 +70,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_pause_game()
 		elif game_state == GameState.PAUSED:
 			_resume_game()
+
+func _start_with_difficulty(name: String, scale: float) -> void:
+	difficulty_name = name
+	difficulty_scale = scale
+	start_game()
 
 func start_game() -> void:
 	get_tree().paused = false
@@ -81,7 +94,7 @@ func start_game() -> void:
 	_spawn_current_wave()
 	_update_score()
 	_update_objective()
-	_show_message("MISSION START // SURVIVE THE CUBE", 2.0)
+	_show_message("%s // MISSION START" % difficulty_name, 2.0)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -118,7 +131,7 @@ func _finish_game(victory: bool) -> void:
 		end_title.text = "SIGNAL LOST"
 	_high_score = maxi(_high_score, _score)
 	_save_high_score()
-	end_details.text = "SCORE %06d\nHIGH SCORE %06d\nWAVES CLEARED %d / %d" % [_score, _high_score, mini(_wave, total_waves), total_waves]
+	end_details.text = "%s\nSCORE %06d\nHIGH SCORE %06d\nWAVES CLEARED %d / %d" % [difficulty_name, _score, _high_score, mini(_wave, total_waves), total_waves]
 	end_panel.visible = true
 	hud_panel.visible = false
 	get_tree().paused = true
@@ -152,46 +165,29 @@ func wave_plan(wave_number: int) -> Array[String]:
 	var plan: Array[String] = []
 	match wave_number:
 		1:
-			for i in range(starting_enemies):
-				plan.append("grunt")
+			for i in range(starting_enemies): plan.append("grunt")
 		2:
-			for i in range(5):
-				plan.append("grunt")
-			for i in range(3):
-				plan.append("runner")
+			for i in range(5): plan.append("grunt")
+			for i in range(3): plan.append("runner")
 		3:
-			for i in range(4):
-				plan.append("grunt")
-			for i in range(3):
-				plan.append("runner")
-			for i in range(2):
-				plan.append("sniper")
+			for i in range(4): plan.append("grunt")
+			for i in range(3): plan.append("runner")
+			for i in range(2): plan.append("sniper")
 		4:
-			for i in range(4):
-				plan.append("grunt")
-			for i in range(3):
-				plan.append("runner")
-			for i in range(3):
-				plan.append("sniper")
-			for i in range(2):
-				plan.append("tank")
+			for i in range(4): plan.append("grunt")
+			for i in range(3): plan.append("runner")
+			for i in range(3): plan.append("sniper")
+			for i in range(2): plan.append("tank")
 		5:
-			for i in range(4):
-				plan.append("grunt")
-			for i in range(4):
-				plan.append("runner")
-			for i in range(3):
-				plan.append("sniper")
-			for i in range(3):
-				plan.append("tank")
+			for i in range(4): plan.append("grunt")
+			for i in range(4): plan.append("runner")
+			for i in range(3): plan.append("sniper")
+			for i in range(3): plan.append("tank")
 		_:
 			plan.append("boss")
-			for i in range(3):
-				plan.append("runner")
-			for i in range(3):
-				plan.append("sniper")
-			for i in range(2):
-				plan.append("tank")
+			for i in range(3): plan.append("runner")
+			for i in range(3): plan.append("sniper")
+			for i in range(2): plan.append("tank")
 	return plan
 
 func _spawn_current_wave() -> void:
@@ -206,7 +202,7 @@ func _spawn_enemy(kind: String, index: int) -> void:
 	var enemy: NeonEnemy = ENEMY_SCENE.instantiate() as NeonEnemy
 	enemy.cube_half_extent = cube_size * 0.5
 	enemy.target = player
-	enemy.configure(kind, _wave)
+	enemy.configure(kind, _wave, difficulty_scale)
 	enemy.position = _spawn_position(index + _spawn_cursor)
 	enemy.killed.connect(_on_enemy_killed)
 	add_child(enemy)
@@ -223,10 +219,8 @@ func _spawn_position(index: int) -> Vector3:
 	var forward: Vector3 = -basis.z
 	var u: float = -20.0 + float((index * 11) % 40)
 	var v: float = -20.0 + float((index * 17 + 9) % 40)
-	if absf(u) < 5.0:
-		u += 7.0
-	if absf(v) < 5.0:
-		v -= 7.0
+	if absf(u) < 5.0: u += 7.0
+	if absf(v) < 5.0: v -= 7.0
 	return down * (half - 1.35) + right * u + forward * v + inward * 0.15
 
 func _spawn_reward_pickups(completed_wave: int) -> void:
@@ -236,6 +230,8 @@ func _spawn_reward_pickups(completed_wave: int) -> void:
 	var position_b: Vector3 = player.global_position - player.gravity_down * 0.45 - player.global_transform.basis.x * 2.0
 	_spawn_pickup(position_a, "health", 20.0 + float(completed_wave * 2))
 	_spawn_pickup(position_b, "ammo", 30.0 + float(completed_wave * 4))
+	if completed_wave >= 3:
+		_spawn_pickup(player.global_position - player.gravity_down * 0.45 + player.global_transform.basis.z * 2.2, "shield", 18.0)
 
 func _spawn_pickup(world_position: Vector3, kind: String, amount: float) -> void:
 	var pickup: NeonPickup = PICKUP_SCENE.instantiate() as NeonPickup
@@ -260,27 +256,26 @@ func _create_player() -> void:
 	add_child(player)
 	player.global_position = Vector3(0, -cube_size * 0.5 + 1.5, 0)
 	player.health_changed.connect(_on_health_changed)
+	player.shield_changed.connect(_on_shield_changed)
 	player.ammo_changed.connect(_on_ammo_changed)
 	player.weapon_changed.connect(_on_weapon_changed)
 	player.face_changed.connect(_on_face_changed)
+	player.damaged.connect(_on_player_damaged)
 	player.died.connect(_on_player_died)
 	_on_health_changed(player.get_health(), player.max_health)
+	_on_shield_changed(player.get_shield(), player.max_shield)
 	_on_ammo_changed(player.get_ammo(), player.get_reserve_ammo())
 	_on_weapon_changed(player.get_weapon_name(), player.get_weapon_index() + 1)
 	_on_face_changed(CubeGravity.face_name(Vector3.DOWN))
 
 func _clear_runtime_entities() -> void:
-	for node in get_tree().get_nodes_in_group("enemies"):
-		node.queue_free()
-	for node in get_tree().get_nodes_in_group("pickups"):
-		node.queue_free()
-	if is_instance_valid(player):
-		player.queue_free()
+	for node in get_tree().get_nodes_in_group("enemies"): node.queue_free()
+	for node in get_tree().get_nodes_in_group("pickups"): node.queue_free()
+	if is_instance_valid(player): player.queue_free()
 	player = null
 
 func _on_player_died() -> void:
-	if game_state == GameState.PLAYING:
-		_finish_game(false)
+	if game_state == GameState.PLAYING: _finish_game(false)
 
 func _ensure_input_actions() -> void:
 	_bind_key("move_forward", KEY_W)
@@ -292,17 +287,16 @@ func _ensure_input_actions() -> void:
 	_bind_key("weapon_1", KEY_1)
 	_bind_key("weapon_2", KEY_2)
 	_bind_key("weapon_3", KEY_3)
+	_bind_key("dash", KEY_SHIFT)
 	_bind_key("pause_game", KEY_ESCAPE)
-	if not InputMap.has_action("fire"):
-		InputMap.add_action("fire")
+	if not InputMap.has_action("fire"): InputMap.add_action("fire")
 	if InputMap.action_get_events("fire").is_empty():
 		var mouse: InputEventMouseButton = InputEventMouseButton.new()
 		mouse.button_index = MOUSE_BUTTON_LEFT
 		InputMap.action_add_event("fire", mouse)
 
 func _bind_key(action: StringName, key: int) -> void:
-	if not InputMap.has_action(action):
-		InputMap.add_action(action)
+	if not InputMap.has_action(action): InputMap.add_action(action)
 	if InputMap.action_get_events(action).is_empty():
 		var event: InputEventKey = InputEventKey.new()
 		event.physical_keycode = key
@@ -312,7 +306,6 @@ func _create_ui() -> void:
 	hud_layer = CanvasLayer.new()
 	hud_layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(hud_layer)
-
 	hud_panel = Control.new()
 	hud_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud_layer.add_child(hud_panel)
@@ -320,25 +313,33 @@ func _create_ui() -> void:
 	var panel: ColorRect = ColorRect.new()
 	panel.color = Color(0.005, 0.008, 0.02, 0.78)
 	panel.position = Vector2(20, 20)
-	panel.size = Vector2(410, 150)
+	panel.size = Vector2(430, 196)
 	hud_panel.add_child(panel)
 
 	health_label = _make_label(Vector2(36, 30), 20, Color(0.1, 1.0, 0.85))
-	ammo_label = _make_label(Vector2(36, 58), 20, Color(1.0, 0.12, 0.7))
-	weapon_label = _make_label(Vector2(36, 86), 17, Color(1.0, 0.75, 0.2))
-	face_label = _make_label(Vector2(36, 112), 15, Color(0.45, 0.72, 1.0))
-	score_label = _make_label(Vector2(1000, 28), 20, Color(1.0, 0.85, 0.2))
-	objective_label = _make_label(Vector2(940, 60), 16, Color(0.25, 1.0, 0.95))
-	for label in [health_label, ammo_label, weapon_label, face_label, score_label, objective_label]:
+	shield_label = _make_label(Vector2(36, 58), 18, Color(0.2, 0.65, 1.0))
+	ammo_label = _make_label(Vector2(36, 84), 20, Color(1.0, 0.12, 0.7))
+	weapon_label = _make_label(Vector2(36, 112), 17, Color(1.0, 0.75, 0.2))
+	face_label = _make_label(Vector2(36, 138), 15, Color(0.45, 0.72, 1.0))
+	dash_label = _make_label(Vector2(36, 162), 15, Color(0.7, 1.0, 0.5))
+	score_label = _make_label(Vector2(990, 28), 20, Color(1.0, 0.85, 0.2))
+	objective_label = _make_label(Vector2(980, 60), 16, Color(0.25, 1.0, 0.95))
+	for label in [health_label, shield_label, ammo_label, weapon_label, face_label, dash_label, score_label, objective_label]:
 		hud_panel.add_child(label)
 
 	var crosshair: Label = Label.new()
-	crosshair.text = "+"
+	crosshair.text = "⌖"
 	crosshair.add_theme_font_size_override("font_size", 28)
 	crosshair.add_theme_color_override("font_color", Color(0.1, 1.0, 0.95))
 	crosshair.set_anchors_preset(Control.PRESET_CENTER)
-	crosshair.position = Vector2(-8, -18)
+	crosshair.position = Vector2(-9, -18)
 	hud_panel.add_child(crosshair)
+
+	damage_overlay = ColorRect.new()
+	damage_overlay.color = Color(1.0, 0.02, 0.15, 0.0)
+	damage_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	damage_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hud_panel.add_child(damage_overlay)
 
 	message_label = Label.new()
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -350,16 +351,20 @@ func _create_ui() -> void:
 	hud_panel.add_child(message_label)
 
 	menu_panel = _create_full_overlay(Color(0.006, 0.005, 0.025, 0.94))
-	_add_center_label(menu_panel, "NEON CUBE", Vector2(0, -150), 54, Color(0.1, 0.95, 1.0))
-	_add_center_label(menu_panel, "Six faces. One gravity core. Survive the city.", Vector2(0, -82), 18, Color(1.0, 0.25, 0.75))
-	_add_center_button(menu_panel, "START MISSION", Vector2(0, 10), start_game)
-	_add_center_label(menu_panel, "WASD move  •  Mouse aim  •  Space jump  •  1/2/3 weapons\nR reload  •  Esc pause", Vector2(0, 92), 16, Color(0.7, 0.78, 0.95))
-	_add_center_label(menu_panel, "HIGH SCORE %06d" % _high_score, Vector2(0, 165), 16, Color(1.0, 0.8, 0.2))
+	_add_center_label(menu_panel, "NEON CUBE", Vector2(0, -190), 54, Color(0.1, 0.95, 1.0))
+	_add_center_label(menu_panel, "Six faces. One gravity core. Survive the city.", Vector2(0, -128), 18, Color(1.0, 0.25, 0.75))
+	_add_center_button(menu_panel, "ROOKIE", Vector2(-260, -24), _start_with_difficulty.bind("ROOKIE", 0.78))
+	_add_center_button(menu_panel, "OPERATIVE", Vector2(0, -24), _start_with_difficulty.bind("OPERATIVE", 1.0))
+	_add_center_button(menu_panel, "NIGHTMARE", Vector2(260, -24), _start_with_difficulty.bind("NIGHTMARE", 1.28))
+	_add_center_label(menu_panel, "Choose difficulty", Vector2(0, -72), 15, Color(0.7, 0.78, 0.95))
+	_add_center_label(menu_panel, "WASD move  •  Mouse aim  •  Space jump  •  Shift dash\n1/2/3 weapons  •  R reload  •  Esc pause", Vector2(0, 92), 16, Color(0.7, 0.78, 0.95))
+	_add_center_label(menu_panel, "HIGH SCORE %06d" % _high_score, Vector2(0, 170), 16, Color(1.0, 0.8, 0.2))
 
 	pause_panel = _create_full_overlay(Color(0.003, 0.004, 0.015, 0.86))
 	_add_center_label(pause_panel, "PAUSED", Vector2(0, -80), 44, Color(0.1, 0.95, 1.0))
 	_add_center_button(pause_panel, "RESUME", Vector2(0, 5), _resume_game)
 	_add_center_button(pause_panel, "RESTART RUN", Vector2(0, 65), start_game)
+	_add_center_button(pause_panel, "MAIN MENU", Vector2(0, 125), _show_menu)
 
 	end_panel = _create_full_overlay(Color(0.004, 0.003, 0.018, 0.92))
 	end_title = _add_center_label(end_panel, "", Vector2(0, -130), 48, Color(1.0, 0.18, 0.72))
@@ -395,9 +400,9 @@ func _add_center_label(parent: Control, text: String, offset: Vector2, font_size
 func _add_center_button(parent: Control, text: String, offset: Vector2, callback: Callable) -> Button:
 	var button: Button = Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(240, 48)
+	button.custom_minimum_size = Vector2(220, 48)
 	button.set_anchors_preset(Control.PRESET_CENTER)
-	button.position = Vector2(-120, -24) + offset
+	button.position = Vector2(-110, -24) + offset
 	button.process_mode = Node.PROCESS_MODE_ALWAYS
 	button.pressed.connect(callback)
 	parent.add_child(button)
@@ -411,32 +416,34 @@ func _make_label(pos: Vector2, font_size: int, color: Color) -> Label:
 	return label
 
 func _on_health_changed(current: float, maximum: float) -> void:
-	if health_label != null:
-		health_label.text = "HP  %03d / %03d" % [int(current), int(maximum)]
+	if health_label != null: health_label.text = "HP  %03d / %03d" % [int(current), int(maximum)]
+
+func _on_shield_changed(current: float, maximum: float) -> void:
+	if shield_label != null: shield_label.text = "SHIELD  %03d / %03d" % [int(current), int(maximum)]
 
 func _on_ammo_changed(current: int, reserve: int) -> void:
-	if ammo_label != null:
-		ammo_label.text = "AMMO  %02d / %03d" % [current, reserve]
+	if ammo_label != null: ammo_label.text = "AMMO  %02d / %03d" % [current, reserve]
 
 func _on_weapon_changed(weapon_name: String, slot: int) -> void:
-	if weapon_label != null:
-		weapon_label.text = "WEAPON %d  //  %s" % [slot, weapon_name]
+	if weapon_label != null: weapon_label.text = "WEAPON %d  //  %s" % [slot, weapon_name]
 
 func _on_face_changed(face_name: String) -> void:
-	if face_label != null:
-		face_label.text = "GRAVITY  %s" % face_name
+	if face_label != null: face_label.text = "GRAVITY  %s" % face_name
+
+func _on_player_damaged(_amount: float) -> void:
+	if damage_overlay == null: return
+	damage_overlay.color.a = 0.22
+	var tween: Tween = create_tween()
+	tween.tween_property(damage_overlay, "color:a", 0.0, 0.24)
 
 func _update_score() -> void:
-	if score_label != null:
-		score_label.text = "SCORE %06d   WAVE %02d/%02d" % [_score, _wave, total_waves]
+	if score_label != null: score_label.text = "SCORE %06d   WAVE %02d/%02d" % [_score, _wave, total_waves]
 
 func _update_objective() -> void:
-	if objective_label != null:
-		objective_label.text = "HOSTILES %02d" % _alive_enemies
+	if objective_label != null: objective_label.text = "HOSTILES %02d" % _alive_enemies
 
 func _show_message(text: String, duration: float) -> void:
-	if message_label == null:
-		return
+	if message_label == null: return
 	message_label.text = text
 	var visible_color: Color = message_label.modulate
 	visible_color.a = 1.0
@@ -448,15 +455,12 @@ func _show_message(text: String, duration: float) -> void:
 
 func _audio_call(method: StringName) -> void:
 	var audio: Node = get_tree().get_first_node_in_group("neon_audio")
-	if audio != null and audio.has_method(method):
-		audio.call(method)
+	if audio != null and audio.has_method(method): audio.call(method)
 
 func _load_high_score() -> void:
-	if not FileAccess.file_exists("user://neon_cube_save.json"):
-		return
+	if not FileAccess.file_exists("user://neon_cube_save.json"): return
 	var file: FileAccess = FileAccess.open("user://neon_cube_save.json", FileAccess.READ)
-	if file == null:
-		return
+	if file == null: return
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if parsed is Dictionary:
 		var data: Dictionary = parsed as Dictionary
@@ -464,5 +468,4 @@ func _load_high_score() -> void:
 
 func _save_high_score() -> void:
 	var file: FileAccess = FileAccess.open("user://neon_cube_save.json", FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify({"high_score": _high_score}))
+	if file != null: file.store_string(JSON.stringify({"high_score": _high_score}))

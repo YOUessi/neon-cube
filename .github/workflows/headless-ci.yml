@@ -1,4 +1,4 @@
-name: Godot headless CI
+name: Godot CI
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-22.04
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,3 +25,20 @@ jobs:
 
       - name: Run headless tests
         run: ./scripts/run_tests.sh
+
+      - name: Install virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
+      - name: Capture rendered gameplay frame
+        run: |
+          mkdir -p artifacts
+          xvfb-run -a ./.tools/godot --path . --script tests/capture_screenshot.gd
+          test -s artifacts/neon_cube_ci.png
+
+      - name: Upload visual smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-cube-visual-smoke
+          path: artifacts/neon_cube_ci.png

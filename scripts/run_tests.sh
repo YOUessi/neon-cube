@@ -11,6 +11,7 @@ TESTS=(
   "tests/test_player_contract.gd"
   "tests/test_weapon_system.gd"
   "tests/test_enemy_routing.gd"
+  "tests/test_boss_phases.gd"
   "tests/test_campaign.gd"
   "tests/test_project_smoke.gd"
 )
