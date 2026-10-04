@@ -64,7 +64,7 @@ static func _build_city_blocks(parent: Node3D, down: Vector3, half: float) -> vo
 	var back := basis.z
 	var forward := -back
 	var face_center := down * (half - 0.45)
-	var coords := [-21.0, -14.0, -7.0, 7.0, 14.0, 21.0]
+	var coords := PackedFloat32Array([-21.0, -14.0, -7.0, 7.0, 14.0, 21.0])
 	var idx := 0
 	for u in coords:
 		for v in coords:
@@ -75,7 +75,7 @@ static func _build_city_blocks(parent: Node3D, down: Vector3, half: float) -> vo
 			var height := 2.8 + float((idx * 37) % 8) * 0.65
 			var width := 3.2 + float((idx * 13) % 3) * 0.45
 			var depth := 3.2 + float((idx * 19) % 3) * 0.45
-			var center := face_center + right * u + forward * v + inward_up * (height * 0.5)
+			var center: Vector3 = face_center + right * u + forward * v + inward_up * (height * 0.5)
 			_add_building(parent, center, basis, Vector3(width, height, depth), idx)
 			idx += 1
 

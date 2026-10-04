@@ -113,7 +113,7 @@ func _try_fire() -> void:
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return
-	var collider := hit.get("collider")
+	var collider := hit.get("collider") as Object
 	if collider != null and collider.has_method("take_damage"):
 		collider.take_damage(weapon_damage, hit.get("position", Vector3.ZERO), direction)
 	_spawn_impact(hit.get("position", Vector3.ZERO), hit.get("normal", Vector3.UP))
