@@ -1,0 +1,27 @@
+name: Godot headless CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap pinned Godot
+        run: ./scripts/bootstrap_godot.sh
+
+      - name: Validate project
+        run: ./scripts/validate_project.sh
+
+      - name: Run headless tests
+        run: ./scripts/run_tests.sh
