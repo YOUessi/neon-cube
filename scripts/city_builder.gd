@@ -8,6 +8,8 @@ static func build(parent: Node3D, cube_size: float) -> void:
 		_build_face(parent, down, cube_size, half)
 
 static func _build_environment(parent: Node3D) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
 	var world := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
@@ -47,12 +49,13 @@ static func _build_face(parent: Node3D, down: Vector3, cube_size: float, half: f
 	collider.shape = box_shape
 	surface.add_child(collider)
 
-	var mesh_instance := MeshInstance3D.new()
-	var floor_mesh := BoxMesh.new()
-	floor_mesh.size = shape_size
-	mesh_instance.mesh = floor_mesh
-	mesh_instance.material_override = _material(Color(0.018, 0.022, 0.038), Color(0.02, 0.08, 0.12), 0.5)
-	surface.add_child(mesh_instance)
+	if DisplayServer.get_name() != "headless":
+		var mesh_instance := MeshInstance3D.new()
+		var floor_mesh := BoxMesh.new()
+		floor_mesh.size = shape_size
+		mesh_instance.mesh = floor_mesh
+		mesh_instance.material_override = _material(Color(0.018, 0.022, 0.038), Color(0.02, 0.08, 0.12), 0.5)
+		surface.add_child(mesh_instance)
 
 	_build_city_blocks(parent, down, half)
 	_build_neon_grid(parent, down, half)
@@ -91,6 +94,9 @@ static func _add_building(parent: Node3D, position: Vector3, basis: Basis, size:
 	shape.shape = box
 	body.add_child(shape)
 
+	if DisplayServer.get_name() == "headless":
+		return
+
 	var visual := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -120,6 +126,8 @@ static func _build_neon_grid(parent: Node3D, down: Vector3, half: float) -> void
 		_add_strip(parent, face_center + forward * offset + inward_up * 0.04, basis, Vector3(52.0, 0.05, 0.08), Color(1.0, 0.03, 0.48))
 
 static func _add_strip(parent: Node3D, position: Vector3, basis: Basis, size: Vector3, color: Color) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
 	var strip := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size

@@ -104,6 +104,9 @@ func _die() -> void:
 	tween.tween_callback(queue_free)
 
 func _build_visual() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+
 	var model_path := "res://assets/models/enemy.glb"
 	if ResourceLoader.exists(model_path):
 		var packed := load(model_path) as PackedScene
