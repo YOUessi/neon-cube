@@ -72,3 +72,23 @@ See `assets/external/README.md`. Dropping a compatible Tripo export at `assets/m
 ## What is intentionally left as follow-on work
 
 The repository already contains a working game loop and the core six-face mechanic. Useful next milestones include animation retargeting polish, navigation around building blocks across face transitions, weapon variety, boss encounters, save/settings menus, audio, VFX optimization and a second authored arena layout.
+
+
+## Cloud / headless validation
+
+The repository is designed to be testable without a desktop session.
+
+```bash
+make bootstrap
+make validate
+make test
+# or: make ci
+```
+
+- `scripts/bootstrap_godot.sh` uses an existing Godot binary when available and otherwise downloads the pinned Godot 4.3 stable Linux x86_64 editor into `.tools/`.
+- `scripts/validate_project.sh` imports resources, parses every GDScript with `--check-only`, and performs a headless main-scene startup smoke test.
+- `scripts/run_tests.sh` runs gravity, face-transition, player-contract and whole-project smoke tests.
+- Validation treats emitted Godot `ERROR:` / `SCRIPT ERROR:` lines as failures instead of relying only on process exit codes.
+- Rendering-only procedural visuals are skipped under Godot's headless display driver while gameplay collision, gravity, spawning and HUD logic remain testable.
+
+GitHub Actions runs the same pipeline on every push and pull request. This makes the baseline suitable for cloud coding agents that do not have an interactive GPU/display session.
