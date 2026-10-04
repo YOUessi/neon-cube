@@ -42,3 +42,18 @@ jobs:
         with:
           name: neon-cube-visual-smoke
           path: artifacts/neon_cube_ci.png
+
+      - name: Bootstrap export templates
+        run: ./scripts/bootstrap_export_templates.sh
+
+      - name: Build Linux release
+        run: ./scripts/build_release.sh
+
+      - name: Smoke-test exported game
+        run: ./dist/neon-cube.x86_64 --headless --quit-after 5
+
+      - name: Upload Linux release
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-cube-linux-x86_64
+          path: dist/neon-cube.x86_64

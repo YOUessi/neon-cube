@@ -4,6 +4,7 @@ config_version=5
 
 [application]
 config/name="Neon Cube"
+config/version="1.0.0"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 boot_splash/bg_color=Color(0.015, 0.01, 0.035, 1)
