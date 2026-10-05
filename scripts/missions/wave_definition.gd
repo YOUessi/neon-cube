@@ -19,6 +19,6 @@ func validation_errors() -> PackedStringArray:
 	if intermission_seconds < 0.0:
 		errors.append("intermission_seconds must be non-negative")
 	for kind in enemy_kinds:
-		if EnemyCatalog.get_definition(kind) == null:
+		if not EnemyCatalog.has_definition(kind):
 			errors.append("unknown enemy kind: %s" % kind)
 	return errors
