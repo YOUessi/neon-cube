@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: bootstrap validate test ci
+.PHONY: bootstrap validate test build ci
 
 bootstrap:
 	./scripts/bootstrap_godot.sh
@@ -11,4 +11,7 @@ validate:
 test:
 	./scripts/run_tests.sh
 
-ci: validate test
+build:
+	./scripts/build_release.sh
+
+ci: validate test build
