@@ -13,20 +13,26 @@ static func _build_environment(parent: Node3D) -> void:
 	var world := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.006, 0.004, 0.018)
+	env.background_color = Color(0.003, 0.006, 0.02)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.15, 0.08, 0.3)
-	env.ambient_light_energy = 1.35
+	env.ambient_light_color = Color(0.28, 0.16, 0.48)
+	env.ambient_light_energy = 1.7
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	world.environment = env
 	parent.add_child(world)
 
-	var light := DirectionalLight3D.new()
-	light.light_color = Color(0.48, 0.5, 1.0)
-	light.light_energy = 1.15
-	light.rotation_degrees = Vector3(-35, -25, 0)
-	light.shadow_enabled = true
-	parent.add_child(light)
+	var key := DirectionalLight3D.new()
+	key.light_color = Color(0.28, 0.46, 1.0)
+	key.light_energy = 1.25
+	key.rotation_degrees = Vector3(-42, -28, 0)
+	key.shadow_enabled = true
+	parent.add_child(key)
+
+	var fill := DirectionalLight3D.new()
+	fill.light_color = Color(1.0, 0.08, 0.42)
+	fill.light_energy = 0.65
+	fill.rotation_degrees = Vector3(30, 145, 0)
+	parent.add_child(fill)
 
 static func _build_face(parent: Node3D, down: Vector3, cube_size: float, half: float) -> void:
 	var surface := StaticBody3D.new()
@@ -54,30 +60,36 @@ static func _build_face(parent: Node3D, down: Vector3, cube_size: float, half: f
 		var floor_mesh := BoxMesh.new()
 		floor_mesh.size = shape_size
 		mesh_instance.mesh = floor_mesh
-		mesh_instance.material_override = _material(Color(0.032, 0.038, 0.06), Color(0.02, 0.14, 0.2), 0.8)
+		mesh_instance.material_override = _material(
+			Color(0.035, 0.05, 0.085),
+			Color(0.01, 0.055, 0.09),
+			0.65,
+			0.74,
+			0.31
+		)
 		surface.add_child(mesh_instance)
 
 	_build_city_blocks(parent, down, half)
 	_build_neon_grid(parent, down, half)
+	_build_plaza(parent, down, half)
 
 static func _build_city_blocks(parent: Node3D, down: Vector3, half: float) -> void:
 	var basis := CubeGravity.tangent_basis(down)
 	var right := basis.x
 	var inward_up := basis.y
-	var back := basis.z
-	var forward := -back
+	var forward := -basis.z
 	var face_center := down * (half - 0.45)
-	var coords := PackedFloat32Array([-21.0, -14.0, -7.0, 7.0, 14.0, 21.0])
+	var coords := PackedFloat32Array([-22.0, -15.0, -8.0, 8.0, 15.0, 22.0])
 	var idx := 0
 	for u in coords:
 		for v in coords:
-			if absf(u) < 4.0 or absf(v) < 4.0:
+			if absf(u) < 5.0 or absf(v) < 5.0:
 				continue
-			if int((absf(u) + absf(v)) / 7.0) % 4 == 0:
+			if int((absf(u) + absf(v)) / 7.0) % 5 == 0:
 				continue
-			var height := 2.8 + float((idx * 37) % 8) * 0.65
-			var width := 3.2 + float((idx * 13) % 3) * 0.45
-			var depth := 3.2 + float((idx * 19) % 3) * 0.45
+			var height := 3.8 + float((idx * 37) % 9) * 0.78
+			var width := 3.5 + float((idx * 13) % 3) * 0.55
+			var depth := 3.6 + float((idx * 19) % 3) * 0.52
 			var center: Vector3 = face_center + right * u + forward * v + inward_up * (height * 0.5)
 			_add_building(parent, center, basis, Vector3(width, height, depth), idx)
 			idx += 1
@@ -97,23 +109,56 @@ static func _add_building(parent: Node3D, position: Vector3, basis: Basis, size:
 	if DisplayServer.get_name() == "headless":
 		return
 
+	var neon := _neon_for(seed)
 	var visual := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size
 	visual.mesh = mesh
-	var base := Color(0.04, 0.045, 0.07)
-	var neon := Color(0.02, 0.85, 1.0) if seed % 2 == 0 else Color(1.0, 0.04, 0.55)
-	visual.material_override = _material(base, neon * 0.08, 0.28)
+	var base := Color(0.045, 0.052, 0.078)
+	visual.material_override = _material(base, neon * 0.05, 0.28, 0.82, 0.22)
 	body.add_child(visual)
 
+	var facade_z := -size.z * 0.505
+	var floors := clampi(int(size.y / 1.4), 2, 6)
+	for row in range(floors):
+		var strip := MeshInstance3D.new()
+		var strip_mesh := BoxMesh.new()
+		strip_mesh.size = Vector3(size.x * 0.68, 0.09, 0.035)
+		strip.mesh = strip_mesh
+		strip.position = Vector3(0, -size.y * 0.34 + float(row) * size.y * 0.68 / float(maxi(1, floors - 1)), facade_z)
+		strip.material_override = _material(neon * 0.12, neon, 5.2, 0.1, 0.65)
+		body.add_child(strip)
+
+	var edge := MeshInstance3D.new()
+	var edge_mesh := BoxMesh.new()
+	edge_mesh.size = Vector3(0.07, size.y * 0.88, 0.055)
+	edge.mesh = edge_mesh
+	edge.position = Vector3(size.x * 0.39, 0, facade_z - 0.02)
+	edge.material_override = _material(neon * 0.1, neon, 7.5, 0.05, 0.65)
+	body.add_child(edge)
+
 	if seed % 3 == 0:
-		var sign := MeshInstance3D.new()
-		var sign_mesh := BoxMesh.new()
-		sign_mesh.size = Vector3(size.x * 0.7, 0.12, 0.08)
-		sign.mesh = sign_mesh
-		sign.position = Vector3(0, size.y * 0.22, -size.z * 0.505)
-		sign.material_override = _material(neon * 0.15, neon, 7.0)
+		var sign := Label3D.new()
+		var words := ["NEX", "KAI", "VOID", "ARC", "SYN", "BYTE", "ZEN"]
+		sign.text = "%s // %02d" % [words[seed % words.size()], seed % 97]
+		sign.font_size = 26
+		sign.modulate = neon
+		sign.outline_size = 5
+		sign.outline_modulate = Color(0.01, 0.01, 0.03, 0.85)
+		sign.position = Vector3(0, size.y * 0.22, facade_z - 0.08)
+		sign.rotation_degrees = Vector3(0, 180, 0)
 		body.add_child(sign)
+
+	if size.y > 7.5 and seed % 2 == 0:
+		var antenna := MeshInstance3D.new()
+		var antenna_mesh := CylinderMesh.new()
+		antenna_mesh.top_radius = 0.025
+		antenna_mesh.bottom_radius = 0.045
+		antenna_mesh.height = 1.4
+		antenna.mesh = antenna_mesh
+		antenna.position = Vector3(0, size.y * 0.5 + 0.7, 0)
+		antenna.material_override = _material(neon * 0.1, neon, 8.5, 0.05, 0.7)
+		body.add_child(antenna)
 
 static func _build_neon_grid(parent: Node3D, down: Vector3, half: float) -> void:
 	var basis := CubeGravity.tangent_basis(down)
@@ -122,8 +167,28 @@ static func _build_neon_grid(parent: Node3D, down: Vector3, half: float) -> void
 	var forward := -basis.z
 	var face_center := down * (half - 0.46)
 	for offset in [-24.0, -12.0, 0.0, 12.0, 24.0]:
-		_add_strip(parent, face_center + right * offset + inward_up * 0.04, basis, Vector3(0.08, 0.05, 52.0), Color(0.0, 0.7, 1.0))
-		_add_strip(parent, face_center + forward * offset + inward_up * 0.04, basis, Vector3(52.0, 0.05, 0.08), Color(1.0, 0.03, 0.48))
+		_add_strip(parent, face_center + right * offset + inward_up * 0.05, basis, Vector3(0.09, 0.045, 53.0), Color(0.0, 0.9, 1.0))
+		_add_strip(parent, face_center + forward * offset + inward_up * 0.05, basis, Vector3(53.0, 0.045, 0.09), Color(1.0, 0.02, 0.62))
+	for offset in [-4.0, 4.0]:
+		_add_strip(parent, face_center + right * offset + inward_up * 0.055, basis, Vector3(0.045, 0.04, 54.0), Color(1.0, 0.72, 0.08))
+
+static func _build_plaza(parent: Node3D, down: Vector3, half: float) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var basis := CubeGravity.tangent_basis(down)
+	var inward := basis.y
+	var face_center := down * (half - 0.42)
+	var ring := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 3.2
+	mesh.bottom_radius = 3.2
+	mesh.height = 0.08
+	mesh.radial_segments = 48
+	ring.mesh = mesh
+	ring.position = face_center + inward * 0.06
+	ring.basis = basis
+	ring.material_override = _material(Color(0.02,0.025,0.05), Color(0.25,0.0,0.7), 1.6, 0.75, 0.18)
+	parent.add_child(ring)
 
 static func _add_strip(parent: Node3D, position: Vector3, basis: Basis, size: Vector3, color: Color) -> void:
 	if DisplayServer.get_name() == "headless":
@@ -134,14 +199,30 @@ static func _add_strip(parent: Node3D, position: Vector3, basis: Basis, size: Ve
 	strip.mesh = mesh
 	strip.position = position
 	strip.basis = basis
-	strip.material_override = _material(color * 0.2, color, 4.5)
+	strip.material_override = _material(color * 0.12, color, 6.4, 0.02, 0.72)
 	parent.add_child(strip)
 
-static func _material(base: Color, emission: Color, energy: float) -> StandardMaterial3D:
+static func _neon_for(seed: int) -> Color:
+	var palette := [
+		Color(0.0, 0.95, 1.0),
+		Color(1.0, 0.04, 0.62),
+		Color(0.58, 0.18, 1.0),
+		Color(1.0, 0.62, 0.04),
+		Color(0.18, 1.0, 0.52),
+	]
+	return palette[seed % palette.size()]
+
+static func _material(
+	base: Color,
+	emission: Color,
+	energy: float,
+	metallic: float = 0.55,
+	roughness: float = 0.36
+) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = base
-	mat.metallic = 0.55
-	mat.roughness = 0.36
+	mat.metallic = metallic
+	mat.roughness = roughness
 	if energy > 0.0:
 		mat.emission_enabled = true
 		mat.emission = emission
