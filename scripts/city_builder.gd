@@ -119,24 +119,22 @@ static func _add_building(parent: Node3D, position: Vector3, basis: Basis, size:
 	visual.material_override = _material(base, neon * 0.05, 0.28, 0.82, 0.22)
 	body.add_child(visual)
 
-	var facade_z := -size.z * 0.505
 	var floors := clampi(int(size.y / 1.4), 2, 6)
 	for row in range(floors):
-		var strip := MeshInstance3D.new()
-		var strip_mesh := BoxMesh.new()
-		strip_mesh.size = Vector3(size.x * 0.68, 0.09, 0.035)
-		strip.mesh = strip_mesh
-		strip.position = Vector3(0, -size.y * 0.34 + float(row) * size.y * 0.68 / float(maxi(1, floors - 1)), facade_z)
-		strip.material_override = _material(neon * 0.12, neon, 5.2, 0.1, 0.65)
-		body.add_child(strip)
+		var y: float = -size.y * 0.34 + float(row) * size.y * 0.68 / float(maxi(1, floors - 1))
+		_add_window_strip(body, Vector3(0, y, -size.z * 0.505), Vector3(size.x * 0.68, 0.10, 0.04), neon)
+		_add_window_strip(body, Vector3(0, y, size.z * 0.505), Vector3(size.x * 0.68, 0.10, 0.04), neon)
+		_add_window_strip(body, Vector3(size.x * 0.505, y, 0), Vector3(0.04, 0.10, size.z * 0.68), neon)
+		_add_window_strip(body, Vector3(-size.x * 0.505, y, 0), Vector3(0.04, 0.10, size.z * 0.68), neon)
 
-	var edge := MeshInstance3D.new()
-	var edge_mesh := BoxMesh.new()
-	edge_mesh.size = Vector3(0.07, size.y * 0.88, 0.055)
-	edge.mesh = edge_mesh
-	edge.position = Vector3(size.x * 0.39, 0, facade_z - 0.02)
-	edge.material_override = _material(neon * 0.1, neon, 7.5, 0.05, 0.65)
-	body.add_child(edge)
+	for side in [-1.0, 1.0]:
+		var edge := MeshInstance3D.new()
+		var edge_mesh := BoxMesh.new()
+		edge_mesh.size = Vector3(0.06, size.y * 0.9, 0.06)
+		edge.mesh = edge_mesh
+		edge.position = Vector3(size.x * 0.43 * side, 0, -size.z * 0.51)
+		edge.material_override = _material(neon * 0.1, neon, 8.0, 0.05, 0.65)
+		body.add_child(edge)
 
 	if seed % 3 == 0:
 		var sign := Label3D.new()
@@ -160,6 +158,15 @@ static func _add_building(parent: Node3D, position: Vector3, basis: Basis, size:
 		antenna.position = Vector3(0, size.y * 0.5 + 0.7, 0)
 		antenna.material_override = _material(neon * 0.1, neon, 8.5, 0.05, 0.7)
 		body.add_child(antenna)
+
+static func _add_window_strip(parent: Node3D, position: Vector3, size: Vector3, neon: Color) -> void:
+	var strip := MeshInstance3D.new()
+	var strip_mesh := BoxMesh.new()
+	strip_mesh.size = size
+	strip.mesh = strip_mesh
+	strip.position = position
+	strip.material_override = _material(neon * 0.18, neon, 6.2, 0.08, 0.55)
+	parent.add_child(strip)
 
 static func _build_neon_grid(parent: Node3D, down: Vector3, half: float) -> void:
 	var basis := CubeGravity.tangent_basis(down)
@@ -206,6 +213,14 @@ static func _build_authored_props(parent: Node3D, down: Vector3, half: float) ->
 		prop.basis = basis
 		prop.scale = Vector3.ONE * float(placement[2])
 		parent.add_child(prop)
+
+	for light_offset in [-8.0, 8.0]:
+		var glow_light := OmniLight3D.new()
+		glow_light.light_color = Color(0.08, 0.75, 1.0) if light_offset < 0.0 else Color(1.0, 0.05, 0.45)
+		glow_light.light_energy = 2.2
+		glow_light.omni_range = 9.0
+		glow_light.position = center + right * light_offset + inward * 2.2
+		parent.add_child(glow_light)
 
 static func _build_plaza(parent: Node3D, down: Vector3, half: float) -> void:
 	if DisplayServer.get_name() == "headless":

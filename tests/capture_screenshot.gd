@@ -10,8 +10,22 @@ func _run() -> void:
 	root.add_child(game)
 	await process_frame
 	game._start_with_difficulty("OPERATIVE", 1.0)
-	for i in range(12):
+	await process_frame
+	await physics_frame
+
+	var enemies := get_nodes_in_group("enemies")
+	if not enemies.is_empty() and is_instance_valid(game.player):
+		var enemy: NeonEnemy = enemies[0] as NeonEnemy
+		enemy.set_physics_process(false)
+		var player: NeonPlayer = game.player
+		var forward: Vector3 = -player.global_transform.basis.z.normalized()
+		enemy.global_position = player.global_position + forward * 8.0 - player.gravity_down * 0.05
+		enemy.global_transform.basis = player.global_transform.basis.rotated(-player.gravity_down, PI)
+		player.camera.look_at(enemy.global_position - enemy.gravity_down * 0.4, -player.gravity_down)
+
+	for i in range(6):
 		await process_frame
+
 	var output_dir := ProjectSettings.globalize_path("res://artifacts")
 	DirAccess.make_dir_recursive_absolute(output_dir)
 	var image: Image = root.get_texture().get_image()

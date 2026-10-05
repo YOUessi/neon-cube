@@ -235,8 +235,8 @@ func _refresh_weapon_visual() -> void:
 		if packed != null:
 			var model: Node3D = packed.instantiate() as Node3D
 			if model != null:
-				model.scale = Vector3.ONE * 0.18
-				model.rotation_degrees = Vector3(0, 180, 0)
+				model.scale = Vector3.ONE * 0.38
+				model.rotation_degrees = Vector3(-8, 180, 0)
 				weapon_root.add_child(model)
 				return
 
