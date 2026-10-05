@@ -20,3 +20,7 @@ accent_color = Color(0.35, 0.55, 1, 1)
 view_model_scene = ExtResource("2")
 view_model_scale = 0.38
 view_model_rotation_degrees = Vector3(-8, 180, 0)
+recoil_pitch_degrees = 2.4
+recoil_yaw_degrees = 0.22
+view_kick_distance = 0.052
+view_kick_recovery_speed = 0.48
