@@ -17,6 +17,10 @@ func _run() -> void:
 	_check(player.get_reserve_ammo() == player.reserve_ammo, "reserve ammo initialized")
 	_check(player.gravity_down == Vector3.DOWN, "player starts with floor gravity")
 	_check(player.up_direction == Vector3.UP, "up direction opposes initial gravity")
+	_check(
+		player.weapon_root.position.is_equal_approx(Vector3(0.31, -0.28, -0.58)),
+		"weapon view-model keeps authored rest position after loadout initialization"
+	)
 
 	var health_before: float = player.get_health()
 	player.take_damage(25.0)
