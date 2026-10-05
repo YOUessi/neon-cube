@@ -38,6 +38,8 @@ var face_label: Label
 var dash_label: Label
 var score_label: Label
 var objective_label: Label
+var boss_label: Label
+var boss_bar: ProgressBar
 var message_label: Label
 var damage_overlay: ColorRect
 
@@ -205,6 +207,8 @@ func _spawn_enemy(kind: String, index: int) -> void:
 	enemy.configure(kind, _wave, difficulty_scale)
 	enemy.position = _spawn_position(index + _spawn_cursor)
 	enemy.killed.connect(_on_enemy_killed)
+	if kind == "boss":
+		enemy.health_changed.connect(_on_boss_health_changed)
 	add_child(enemy)
 	_alive_enemies += 1
 	_spawn_cursor += 1
@@ -243,6 +247,9 @@ func _on_enemy_killed(enemy: NeonEnemy) -> void:
 	_alive_enemies = maxi(0, _alive_enemies - 1)
 	_kills += 1
 	_score += enemy.get_score_value()
+	if enemy.archetype == "boss" and boss_bar != null:
+		boss_bar.visible = false
+		boss_label.visible = false
 	if _kills % 4 == 0:
 		var drop_kind := "health" if (_kills / 4) % 2 == 0 else "ammo"
 		_spawn_pickup(enemy.global_position, drop_kind, 24.0)
@@ -327,6 +334,18 @@ func _create_ui() -> void:
 	for label in [health_label, shield_label, ammo_label, weapon_label, face_label, dash_label, score_label, objective_label]:
 		hud_panel.add_child(label)
 
+	boss_label = _make_label(Vector2(440, 92), 16, Color(1.0, 0.18, 0.72))
+	boss_label.size = Vector2(400, 24)
+	boss_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hud_panel.add_child(boss_label)
+	boss_bar = ProgressBar.new()
+	boss_bar.position = Vector2(440, 118)
+	boss_bar.size = Vector2(400, 14)
+	boss_bar.show_percentage = false
+	hud_panel.add_child(boss_bar)
+	boss_label.visible = false
+	boss_bar.visible = false
+
 	var crosshair: Label = Label.new()
 	crosshair.text = "⌖"
 	crosshair.add_theme_font_size_override("font_size", 28)
@@ -404,6 +423,22 @@ func _add_center_button(parent: Control, text: String, offset: Vector2, callback
 	button.set_anchors_preset(Control.PRESET_CENTER)
 	button.position = Vector2(-110, -24) + offset
 	button.process_mode = Node.PROCESS_MODE_ALWAYS
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.025, 0.035, 0.075, 0.94)
+	normal.border_color = Color(0.0, 0.88, 1.0, 0.75)
+	normal.set_border_width_all(2)
+	normal.corner_radius_top_left = 6
+	normal.corner_radius_top_right = 6
+	normal.corner_radius_bottom_left = 6
+	normal.corner_radius_bottom_right = 6
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = Color(0.09, 0.03, 0.13, 0.98)
+	hover.border_color = Color(1.0, 0.08, 0.58, 0.95)
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", hover)
+	button.add_theme_color_override("font_color", Color(0.78, 0.95, 1.0))
+	button.add_theme_color_override("font_hover_color", Color(1.0, 0.82, 0.96))
 	button.pressed.connect(callback)
 	parent.add_child(button)
 	return button
@@ -441,6 +476,15 @@ func _update_score() -> void:
 
 func _update_objective() -> void:
 	if objective_label != null: objective_label.text = "HOSTILES %02d" % _alive_enemies
+
+func _on_boss_health_changed(current: float, maximum: float, phase: int) -> void:
+	if boss_bar == null or boss_label == null:
+		return
+	boss_bar.visible = true
+	boss_label.visible = true
+	boss_bar.max_value = maximum
+	boss_bar.value = current
+	boss_label.text = "NULL WARDEN  //  PHASE %d  //  %03d / %03d" % [phase, int(current), int(maximum)]
 
 func _show_message(text: String, duration: float) -> void:
 	if message_label == null: return
