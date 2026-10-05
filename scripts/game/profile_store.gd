@@ -2,7 +2,7 @@ class_name ProfileStore
 extends RefCounted
 
 const SAVE_PATH := "user://neon_cube_save.json"
-const CURRENT_VERSION := 1
+const CURRENT_VERSION := 2
 
 static func defaults() -> Dictionary:
 	return {
@@ -10,6 +10,7 @@ static func defaults() -> Dictionary:
 		"high_score": 0,
 		"mouse_sensitivity": 0.0022,
 		"master_volume_db": -6.0,
+		"mission_progress": {},
 	}
 
 static func normalize(raw: Variant) -> Dictionary:
@@ -29,6 +30,8 @@ static func normalize(raw: Variant) -> Dictionary:
 		-30.0,
 		0.0
 	)
+	var progress: Variant = data.get("mission_progress", {})
+	result["mission_progress"] = progress.duplicate(true) if progress is Dictionary else {}
 	return result
 
 static func load_profile() -> Dictionary:
