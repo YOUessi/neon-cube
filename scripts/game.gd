@@ -52,6 +52,7 @@ var boss_label: Label
 var boss_bar: ProgressBar
 var message_label: Label
 var damage_overlay: ColorRect
+var continue_button: Button
 
 var _mouse_sensitivity_setting := 0.0022
 var _master_volume_db := -6.0
@@ -130,6 +131,8 @@ func _show_menu() -> void:
 	menu_panel.visible = true
 	pause_panel.visible = false
 	end_panel.visible = false
+	if continue_button != null:
+		continue_button.visible = story_mode and MissionProgressStore.has_progress(mission_definition)
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -374,16 +377,24 @@ func _on_player_died() -> void:
 		mission_runtime.fail()
 	_finish_game(false)
 
+func _continue_story() -> void:
+	_resume_story_from_save()
+
 func _restart_story_checkpoint() -> void:
+	_resume_story_from_save()
+
+func _resume_story_from_save() -> void:
 	get_tree().paused = false
 	_clear_runtime_entities()
 	var restored := MissionProgressStore.load_into(mission_runtime, mission_definition, session)
 	if not restored:
-		mission_runtime.start(mission_definition)
-		session.reset_run(difficulty_name, difficulty_scale)
-	else:
-		mission_runtime.restart_from_checkpoint()
-		session.set_state(GameSession.State.PLAYING)
+		start_game()
+		return
+	if mission_runtime.state == MissionRuntime.State.COMPLETED:
+		start_game()
+		return
+	mission_runtime.restart_from_checkpoint()
+	session.set_state(GameSession.State.PLAYING)
 	session.wave_index = mission_runtime.encounter_index
 	session.alive_enemies = 0
 	_sync_session_fields()
@@ -500,10 +511,12 @@ func _create_ui() -> void:
 	_add_center_button(menu_panel, "NIGHTMARE", Vector2(260, -24), _start_with_difficulty.bind("NIGHTMARE", 1.28))
 	_add_center_label(menu_panel, "Choose difficulty", Vector2(0, -72), 15, Color(0.7, 0.78, 0.95))
 	_add_center_label(menu_panel, "WASD move  •  Mouse aim  •  Space jump  •  Shift dash\n1/2/3 weapons  •  R reload  •  Esc pause", Vector2(0, 92), 16, Color(0.7, 0.78, 0.95))
-	_add_center_label(menu_panel, "HIGH SCORE %06d" % _high_score, Vector2(0, 162), 16, Color(1.0, 0.8, 0.2))
-	_add_center_button(menu_panel, "SETTINGS", Vector2(-240, 220), _show_settings)
-	_add_center_button(menu_panel, "CREDITS", Vector2(0, 220), _show_credits)
-	_add_center_button(menu_panel, "QUIT", Vector2(240, 220), _quit_game)
+	continue_button = _add_center_button(menu_panel, "CONTINUE STORY", Vector2(0, 154), _continue_story)
+	continue_button.visible = false
+	_add_center_label(menu_panel, "HIGH SCORE %06d" % _high_score, Vector2(0, 202), 16, Color(1.0, 0.8, 0.2))
+	_add_center_button(menu_panel, "SETTINGS", Vector2(-240, 248), _show_settings)
+	_add_center_button(menu_panel, "CREDITS", Vector2(0, 248), _show_credits)
+	_add_center_button(menu_panel, "QUIT", Vector2(240, 248), _quit_game)
 
 	pause_panel = _create_full_overlay(Color(0.003, 0.004, 0.015, 0.86))
 	_add_center_label(pause_panel, "PAUSED", Vector2(0, -80), 44, Color(0.1, 0.95, 1.0))
