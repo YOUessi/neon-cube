@@ -189,12 +189,43 @@ func _die() -> void:
 	$CollisionShape3D.set_deferred("disabled", true)
 	_play_animation(["Death", "death", "Dying", "dying"])
 	killed.emit(self)
+	_spawn_death_flash()
 	if DisplayServer.get_name() == "headless":
 		queue_free()
 		return
 	var tween: Tween = create_tween()
 	tween.tween_property(visual_root, "scale", Vector3(0.01, 0.01, 0.01), 0.28)
 	tween.tween_callback(queue_free)
+
+func _spawn_death_flash() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var color := _archetype_color()
+	var flash := OmniLight3D.new()
+	flash.light_color = color
+	flash.light_energy = 6.0 if archetype != "boss" else 12.0
+	flash.omni_range = 4.5 if archetype != "boss" else 8.0
+	get_tree().current_scene.add_child(flash)
+	flash.global_position = global_position - gravity_down * 0.7
+	var sphere := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.24 if archetype != "boss" else 0.55
+	mesh.height = mesh.radius * 2.0
+	sphere.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 10.0
+	sphere.material_override = mat
+	get_tree().current_scene.add_child(sphere)
+	sphere.global_position = flash.global_position
+	var tween := create_tween()
+	tween.parallel().tween_property(flash, "light_energy", 0.0, 0.22)
+	tween.parallel().tween_property(sphere, "scale", Vector3.ONE * 3.0, 0.22)
+	tween.parallel().tween_property(sphere, "transparency", 1.0, 0.22)
+	tween.tween_callback(flash.queue_free)
+	tween.tween_callback(sphere.queue_free)
 
 func _build_visual() -> void:
 	if DisplayServer.get_name() == "headless":
