@@ -76,8 +76,24 @@ func _physics_process(delta: float) -> void:
 	global_transform.basis = CubeGravity.aligned_basis(global_transform.basis, gravity_down, delta, gravity_align_speed)
 
 	var distance: float = (target.global_position - global_position).length()
-	var wish: Vector3 = CubeSurfaceNavigator.route_direction(global_position, gravity_down, target.global_position, cube_half_extent)
-	wish = _avoid_obstacles(wish)
+	var target_down := CubeGravity.nearest_down(target.global_position, cube_half_extent)
+	var same_face := target_down.is_equal_approx(gravity_down)
+	var route_direction := CubeSurfaceNavigator.route_direction(
+		global_position,
+		gravity_down,
+		target.global_position,
+		cube_half_extent
+	)
+	var wish := EnemyBrain.desired_direction(
+		_definition,
+		same_face,
+		distance,
+		route_direction,
+		gravity_down,
+		_boss_phase
+	)
+	if wish.length_squared() > 0.01:
+		wish = _avoid_obstacles(wish)
 
 	var fall_speed: float = velocity.dot(gravity_down)
 	var horizontal: Vector3 = velocity - gravity_down * fall_speed
