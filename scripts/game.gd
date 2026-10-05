@@ -342,6 +342,18 @@ func _create_ui() -> void:
 	boss_bar.position = Vector2(440, 118)
 	boss_bar.size = Vector2(400, 14)
 	boss_bar.show_percentage = false
+	var boss_bg := StyleBoxFlat.new()
+	boss_bg.bg_color = Color(0.035, 0.02, 0.055, 0.92)
+	boss_bg.border_color = Color(0.42, 0.12, 0.62, 0.85)
+	boss_bg.set_border_width_all(1)
+	var boss_fill := StyleBoxFlat.new()
+	boss_fill.bg_color = Color(1.0, 0.08, 0.58, 0.95)
+	boss_fill.corner_radius_top_left = 4
+	boss_fill.corner_radius_top_right = 4
+	boss_fill.corner_radius_bottom_left = 4
+	boss_fill.corner_radius_bottom_right = 4
+	boss_bar.add_theme_stylebox_override("background", boss_bg)
+	boss_bar.add_theme_stylebox_override("fill", boss_fill)
 	hud_panel.add_child(boss_bar)
 	boss_label.visible = false
 	boss_bar.visible = false
