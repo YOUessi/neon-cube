@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GODOT="$("$ROOT/scripts/godot_bin.sh")"
 
 TESTS=(
+  "tests/test_definition_catalogs.gd"
   "tests/test_cube_gravity.gd"
   "tests/test_face_transitions.gd"
   "tests/test_player_contract.gd"
