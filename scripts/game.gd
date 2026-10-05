@@ -392,6 +392,11 @@ func _restart_story_checkpoint() -> void:
 	end_panel.visible = false
 	hud_panel.visible = true
 	_create_player()
+	if mission_runtime.checkpoint_id != &"":
+		var checkpoint_key := String(mission_runtime.checkpoint_id)
+		if mission_anchors.has(checkpoint_key):
+			var checkpoint_anchor: MissionAnchor = mission_anchors[checkpoint_key]
+			player.global_position = checkpoint_anchor.global_position
 	_spawn_current_wave()
 	_update_score()
 	_update_objective()
