@@ -26,6 +26,7 @@ var _dead := false
 var _anim: AnimationPlayer
 var _wave_level := 1
 var _difficulty_scale := 1.0
+var _definition: EnemyDefinition
 var _boss_phase := 1
 var _visual_time := 0.0
 
@@ -33,10 +34,13 @@ func configure(kind: String, wave_level: int, difficulty_scale: float = 1.0) -> 
 	archetype = kind
 	_wave_level = maxi(1, wave_level)
 	_difficulty_scale = maxf(0.5, difficulty_scale)
+	_definition = EnemyCatalog.get_definition(StringName(kind))
 	_apply_archetype()
 
 func _ready() -> void:
 	add_to_group("enemies")
+	if _definition == null:
+		_definition = EnemyCatalog.get_definition(StringName(archetype))
 	_apply_archetype()
 	_health = max_health
 	health_changed.emit(_health, max_health, _boss_phase)
@@ -51,43 +55,17 @@ func _process(delta: float) -> void:
 	visual_root.position.y = sin(_visual_time * (4.5 if archetype == "runner" else 2.4)) * 0.035
 
 func _apply_archetype() -> void:
-	var scale_factor: float = (1.0 + float(_wave_level - 1) * 0.045) * _difficulty_scale
-	match archetype:
-		"runner":
-			max_health = 44.0 * scale_factor
-			move_speed = 7.2
-			attack_range = 9.0
-			attack_damage = 6.0 * scale_factor
-			attack_interval = 0.48
-			score_value = 130
-		"sniper":
-			max_health = 58.0 * scale_factor
-			move_speed = 3.4
-			attack_range = 27.0
-			attack_damage = 17.0 * scale_factor
-			attack_interval = 1.55
-			score_value = 180
-		"tank":
-			max_health = 185.0 * scale_factor
-			move_speed = 2.7
-			attack_range = 12.0
-			attack_damage = 13.0 * scale_factor
-			attack_interval = 0.9
-			score_value = 240
-		"boss":
-			max_health = 850.0 * _difficulty_scale
-			move_speed = 3.6
-			attack_range = 23.0
-			attack_damage = 19.0 * _difficulty_scale
-			attack_interval = 0.5
-			score_value = 2200
-		_:
-			max_health = 72.0 * scale_factor
-			move_speed = 4.8
-			attack_range = 15.0
-			attack_damage = 8.0 * scale_factor
-			attack_interval = 0.82
-			score_value = 100
+	if _definition == null:
+		_definition = EnemyCatalog.get_definition(StringName(archetype))
+	var wave_scale: float = 1.0 + float(_wave_level - 1) * 0.045
+	var health_scale: float = _difficulty_scale if archetype == "boss" else wave_scale * _difficulty_scale
+	var damage_scale: float = _difficulty_scale if archetype == "boss" else wave_scale * _difficulty_scale
+	max_health = _definition.base_health * health_scale
+	move_speed = _definition.move_speed
+	attack_range = _definition.attack_range
+	attack_damage = _definition.attack_damage * damage_scale
+	attack_interval = _definition.attack_interval
+	score_value = _definition.score_value
 
 func _physics_process(delta: float) -> void:
 	if _dead or not is_instance_valid(target):
@@ -215,23 +193,15 @@ func _build_visual() -> void:
 			_anim = _find_animation_player(override_model)
 			return
 
-	var archetype_paths := {
-		"grunt": "res://assets/third_party/quaternius_cyberpunk/enemy_grunt.gltf",
-		"runner": "res://assets/third_party/quaternius_cyberpunk/enemy_runner.gltf",
-		"sniper": "res://assets/third_party/quaternius_cyberpunk/enemy_sniper.gltf",
-		"tank": "res://assets/third_party/quaternius_cyberpunk/enemy_tank.gltf",
-		"boss": "res://assets/third_party/quaternius_cyberpunk/enemy_boss.gltf",
-	}
-	var model_path: String = String(archetype_paths.get(archetype, archetype_paths["grunt"]))
-	if ResourceLoader.exists(model_path):
-		var packed: PackedScene = load(model_path) as PackedScene
-		if packed != null:
-			var model: Node3D = packed.instantiate() as Node3D
-			if model != null:
-				model.scale = Vector3.ONE * (0.72 if archetype != "boss" else 1.32)
-				visual_root.add_child(model)
-				_anim = _find_animation_player(model)
-				return
+	if _definition == null:
+		_definition = EnemyCatalog.get_definition(StringName(archetype))
+	if _definition.model_scene != null:
+		var model: Node3D = _definition.model_scene.instantiate() as Node3D
+		if model != null:
+			model.scale = Vector3.ONE * _definition.model_scale
+			visual_root.add_child(model)
+			_anim = _find_animation_player(model)
+			return
 
 	_build_procedural_humanoid()
 
