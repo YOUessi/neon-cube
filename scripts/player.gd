@@ -206,47 +206,94 @@ func _try_fire() -> void:
 		var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(from, from + direction * weapon_range)
 		query.exclude = [get_rid()]
 		query.collide_with_areas = true
-		var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
-		if hit.is_empty():
-			continue
-		var collider: Object = hit.get("collider") as Object
-		if collider != null and collider.has_method("take_damage"):
-			collider.call("take_damage", damage, hit.get("position", Vector3.ZERO), direction)
+			var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+		var end_point: Vector3 = from + direction * weapon_range
+		if not hit.is_empty():
+			end_point = hit.get("position", end_point)
+			var collider: Object = hit.get("collider") as Object
+			if collider != null and collider.has_method("take_damage"):
+				collider.call("take_damage", damage, end_point, direction)
+			if pellet == 0:
+				_spawn_impact(end_point, hit.get("normal", Vector3.UP))
 		if pellet == 0:
-			_spawn_impact(hit.get("position", Vector3.ZERO), hit.get("normal", Vector3.UP))
+			_spawn_tracer(from, end_point, spec["color"] as Color)
 
 func _refresh_weapon_visual() -> void:
 	if DisplayServer.get_name() == "headless" or weapon_root == null:
 		return
 	for child in weapon_root.get_children():
 		child.queue_free()
+
+	var model_paths := [
+		"res://assets/third_party/kenney_blaster/blaster-e.glb",
+		"res://assets/third_party/kenney_blaster/blaster-p.glb",
+		"res://assets/third_party/kenney_blaster/blaster-r.glb",
+	]
+	var path: String = model_paths[_weapon_index]
+	if ResourceLoader.exists(path):
+		var packed: PackedScene = load(path) as PackedScene
+		if packed != null:
+			var model: Node3D = packed.instantiate() as Node3D
+			if model != null:
+				model.scale = Vector3.ONE * 0.34
+				model.rotation_degrees = Vector3(-7.0, 180.0, 0.0)
+				weapon_root.add_child(model)
+				return
+
+	# Fallback is deliberately a multi-part silhouette, not a single placeholder cube.
 	var spec: Dictionary = _weapon_spec(_weapon_index)
-	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
-	var mesh: BoxMesh = BoxMesh.new()
-	if _weapon_index == 1:
-		mesh.size = Vector3(0.22, 0.18, 0.72)
-	elif _weapon_index == 2:
-		mesh.size = Vector3(0.12, 0.12, 1.0)
-	else:
-		mesh.size = Vector3(0.16, 0.14, 0.82)
-	mesh_instance.mesh = mesh
-	var mat: StandardMaterial3D = StandardMaterial3D.new()
-	var color: Color = spec["color"] as Color
-	mat.albedo_color = Color(0.035,0.045,0.07)
-	mat.metallic = 0.75
-	mat.roughness = 0.24
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 1.8
-	mesh_instance.material_override = mat
-	weapon_root.add_child(mesh_instance)
+	var neon: Color = spec["color"] as Color
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.03, 0.04, 0.07)
+	dark.metallic = 0.82
+	dark.roughness = 0.2
+	var glow := StandardMaterial3D.new()
+	glow.albedo_color = neon * 0.2
+	glow.emission_enabled = true
+	glow.emission = neon
+	glow.emission_energy_multiplier = 4.2
+	_weapon_box(Vector3.ZERO, Vector3(0.12, 0.09, 0.46), dark)
+	_weapon_box(Vector3(0, 0.035, -0.24), Vector3(0.07, 0.035, 0.18), glow)
+	_weapon_box(Vector3(0, -0.07, 0.11), Vector3(0.08, 0.13, 0.14), dark)
+
+func _weapon_box(pos: Vector3, size: Vector3, material: Material) -> void:
+	var part := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	part.mesh = mesh
+	part.position = pos
+	part.material_override = material
+	weapon_root.add_child(part)
 
 func _recoil_weapon() -> void:
 	if DisplayServer.get_name() == "headless" or weapon_root == null:
 		return
-	weapon_root.position = Vector3(0.28, -0.27, -0.54)
+	weapon_root.position = Vector3(0.31, -0.28, -0.53)
 	var tween: Tween = create_tween()
-	tween.tween_property(weapon_root, "position", Vector3(0.28, -0.27, -0.58), 0.09)
+	tween.tween_property(weapon_root, "position", Vector3(0.31, -0.28, -0.58), 0.09)
+
+func _spawn_tracer(from: Vector3, to: Vector3, color: Color) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var length := from.distance_to(to)
+	if length < 0.05:
+		return
+	var tracer := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.018, 0.018, length)
+	tracer.mesh = mesh
+	tracer.global_position = (from + to) * 0.5
+	tracer.look_at(to, Vector3.UP)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 8.0
+	tracer.material_override = mat
+	get_tree().current_scene.add_child(tracer)
+	var tween := create_tween()
+	tween.tween_property(tracer, "scale", Vector3(1.0, 1.0, 0.12), 0.055)
+	tween.tween_callback(tracer.queue_free)
 
 func _spawn_impact(position: Vector3, normal: Vector3) -> void:
 	if DisplayServer.get_name() == "headless":
