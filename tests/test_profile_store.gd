@@ -19,6 +19,18 @@ func _run() -> void:
 	_check(is_equal_approx(float(normalized["mouse_sensitivity"]), 0.0050), "mouse sensitivity is clamped")
 	_check(is_equal_approx(float(normalized["master_volume_db"]), -30.0), "master volume is clamped")
 	_check(normalized["version"] == ProfileStore.CURRENT_VERSION, "profile schema version is normalized")
+	_check(normalized["mission_progress"] is Dictionary, "legacy profile gains mission progress container")
+
+	var mission_snapshot := {
+		"mission_id": "neon_market_siege",
+		"checkpoint_id": "cp_market_core",
+		"encounter_index": 2,
+	}
+	var with_progress := ProfileStore.normalize({
+		"version": 1,
+		"mission_progress": mission_snapshot,
+	})
+	_check(with_progress["mission_progress"]["checkpoint_id"] == "cp_market_core", "mission checkpoint survives profile normalization")
 
 	_finish()
 
