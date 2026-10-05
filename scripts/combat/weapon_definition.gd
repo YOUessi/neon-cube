@@ -16,6 +16,10 @@ extends Resource
 @export var view_model_scene: PackedScene
 @export var view_model_scale := 0.38
 @export var view_model_rotation_degrees := Vector3(-8.0, 180.0, 0.0)
+@export var recoil_pitch_degrees := 1.0
+@export var recoil_yaw_degrees := 0.25
+@export var view_kick_distance := 0.035
+@export var view_kick_recovery_speed := 0.45
 
 func validation_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
@@ -39,4 +43,8 @@ func validation_errors() -> PackedStringArray:
 		errors.append("spread must be non-negative")
 	if max_range <= 0.0:
 		errors.append("max_range must be positive")
+	if recoil_pitch_degrees < 0.0 or recoil_yaw_degrees < 0.0:
+		errors.append("recoil angles must be non-negative")
+	if view_kick_distance < 0.0 or view_kick_recovery_speed <= 0.0:
+		errors.append("view kick values are invalid")
 	return errors
