@@ -565,27 +565,22 @@ func _audio_call(method: StringName) -> void:
 	if audio != null and audio.has_method(method): audio.call(method)
 
 func _load_high_score() -> void:
-	if not FileAccess.file_exists("user://neon_cube_save.json"): return
-	var file: FileAccess = FileAccess.open("user://neon_cube_save.json", FileAccess.READ)
-	if file == null: return
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if parsed is Dictionary:
-		var data: Dictionary = parsed as Dictionary
-		_high_score = int(data.get("high_score", 0))
-		_mouse_sensitivity_setting = float(data.get("mouse_sensitivity", _mouse_sensitivity_setting))
-		_master_volume_db = float(data.get("master_volume_db", _master_volume_db))
-		var master_index := AudioServer.get_bus_index("Master")
-		if master_index >= 0:
-			AudioServer.set_bus_volume_db(master_index, _master_volume_db)
+	var profile := ProfileStore.load_profile()
+	_high_score = int(profile["high_score"])
+	_mouse_sensitivity_setting = float(profile["mouse_sensitivity"])
+	_master_volume_db = float(profile["master_volume_db"])
+	var master_index := AudioServer.get_bus_index("Master")
+	if master_index >= 0:
+		AudioServer.set_bus_volume_db(master_index, _master_volume_db)
 
 func _save_high_score() -> void:
-	var file: FileAccess = FileAccess.open("user://neon_cube_save.json", FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify({
-			"high_score": _high_score,
-			"mouse_sensitivity": _mouse_sensitivity_setting,
-			"master_volume_db": _master_volume_db,
-		}))
+	var error := ProfileStore.save_profile({
+		"high_score": _high_score,
+		"mouse_sensitivity": _mouse_sensitivity_setting,
+		"master_volume_db": _master_volume_db,
+	})
+	if error != OK:
+		push_warning("Could not save profile: %s" % error_string(error))
 
 
 func get_mouse_sensitivity_setting() -> float:
