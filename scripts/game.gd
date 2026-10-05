@@ -579,11 +579,11 @@ func _load_high_score() -> void:
 		AudioServer.set_bus_volume_db(master_index, _master_volume_db)
 
 func _save_high_score() -> void:
-	var error := ProfileStore.save_profile({
-		"high_score": _high_score,
-		"mouse_sensitivity": _mouse_sensitivity_setting,
-		"master_volume_db": _master_volume_db,
-	})
+	var profile := ProfileStore.load_profile()
+	profile["high_score"] = _high_score
+	profile["mouse_sensitivity"] = _mouse_sensitivity_setting
+	profile["master_volume_db"] = _master_volume_db
+	var error := ProfileStore.save_profile(profile)
 	if error != OK:
 		push_warning("Could not save profile: %s" % error_string(error))
 
