@@ -3,13 +3,13 @@ extends RefCounted
 
 enum State { NOT_STARTED, ACTIVE, COMPLETED, FAILED }
 
-signal state_changed(state: State)
+signal state_changed(state: int)
 signal encounter_started(index: int, encounter: EncounterDefinition)
 signal checkpoint_changed(checkpoint_id: StringName)
 signal mission_completed
 
 var definition: MissionDefinition
-var state: State = State.NOT_STARTED
+var state := State.NOT_STARTED
 var encounter_index := 0
 var checkpoint_id: StringName = &""
 var completed_encounters: Array[StringName] = []
@@ -85,7 +85,7 @@ func restore(mission: MissionDefinition, snapshot_data: Dictionary) -> void:
 	completed_encounters.clear()
 	for item in snapshot_data.get("completed_encounters", []):
 		completed_encounters.append(StringName(item))
-	state = State(clampi(int(snapshot_data.get("state", int(State.NOT_STARTED))), int(State.NOT_STARTED), int(State.FAILED)))
+	state = clampi(int(snapshot_data.get("state", State.NOT_STARTED)), State.NOT_STARTED, State.FAILED)
 	state_changed.emit(state)
 	if state == State.ACTIVE:
 		_emit_current_encounter()
