@@ -189,6 +189,7 @@ func _try_fire() -> void:
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
 	_audio_call("play_shot", [_weapon_index])
 	_recoil_weapon()
+	_spawn_muzzle_flash(spec["color"] as Color)
 
 	var from: Vector3 = camera.global_position
 	var base_direction: Vector3 = -camera.global_transform.basis.z.normalized()
@@ -271,6 +272,31 @@ func _recoil_weapon() -> void:
 	weapon_root.position = Vector3(0.31, -0.28, -0.53)
 	var tween: Tween = create_tween()
 	tween.tween_property(weapon_root, "position", Vector3(0.31, -0.28, -0.58), 0.09)
+
+func _spawn_muzzle_flash(color: Color) -> void:
+	if DisplayServer.get_name() == "headless" or weapon_root == null:
+		return
+	var flash := OmniLight3D.new()
+	flash.light_color = color
+	flash.light_energy = 4.5
+	flash.omni_range = 3.0
+	flash.position = Vector3(0.0, 0.0, -0.55)
+	weapon_root.add_child(flash)
+	var spark := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.045
+	mesh.height = 0.09
+	spark.mesh = mesh
+	spark.position = flash.position
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 10.0
+	spark.material_override = mat
+	weapon_root.add_child(spark)
+	get_tree().create_timer(0.045).timeout.connect(flash.queue_free)
+	get_tree().create_timer(0.045).timeout.connect(spark.queue_free)
 
 func _spawn_tracer(from: Vector3, to: Vector3, color: Color) -> void:
 	if DisplayServer.get_name() == "headless":
