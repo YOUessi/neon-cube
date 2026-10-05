@@ -19,6 +19,7 @@ func _run() -> void:
 
 	var save_error := MissionProgressStore.save_runtime(runtime, session)
 	_check(save_error == OK, "mission and session progress save through profile store")
+	_check(MissionProgressStore.has_progress(mission), "saved checkpoint enables Continue Story")
 
 	var restored := MissionRuntime.new()
 	var restored_session := GameSession.new()
@@ -32,6 +33,7 @@ func _run() -> void:
 
 	var clear_error := MissionProgressStore.clear()
 	_check(clear_error == OK, "mission progress can be cleared")
+	_check(not MissionProgressStore.has_progress(mission), "clearing checkpoint disables Continue Story")
 	var empty_runtime := MissionRuntime.new()
 	_check(not MissionProgressStore.load_into(empty_runtime, mission), "cleared mission progress is not restored")
 
