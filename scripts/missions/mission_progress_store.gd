@@ -42,6 +42,21 @@ static func load_into(
 		session.restore(data["session"] as Dictionary)
 	return true
 
+static func has_progress(mission: MissionDefinition) -> bool:
+	if mission == null:
+		return false
+	var profile := ProfileStore.load_profile()
+	var progress: Variant = profile.get("mission_progress", {})
+	if not progress is Dictionary:
+		return false
+	var data: Dictionary = progress as Dictionary
+	var runtime_data: Dictionary
+	if data.has("runtime") and data["runtime"] is Dictionary:
+		runtime_data = data["runtime"] as Dictionary
+	else:
+		runtime_data = data
+	return StringName(runtime_data.get("mission_id", "")) == mission.mission_id
+
 static func clear() -> Error:
 	var profile := ProfileStore.load_profile()
 	profile["mission_progress"] = {}
