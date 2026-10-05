@@ -196,45 +196,75 @@ func _die() -> void:
 func _build_visual() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	var model_path := "res://assets/models/enemy.glb"
+
+	var override_path := "res://assets/models/enemy.glb"
+	if ResourceLoader.exists(override_path):
+		var override_scene: PackedScene = load(override_path) as PackedScene
+		if override_scene != null:
+			var override_model: Node = override_scene.instantiate()
+			visual_root.add_child(override_model)
+			_anim = _find_animation_player(override_model)
+			return
+
+	var archetype_paths := {
+		"grunt": "res://assets/third_party/quaternius_cyberpunk/enemy_grunt.gltf",
+		"runner": "res://assets/third_party/quaternius_cyberpunk/enemy_runner.gltf",
+		"sniper": "res://assets/third_party/quaternius_cyberpunk/enemy_sniper.gltf",
+		"tank": "res://assets/third_party/quaternius_cyberpunk/enemy_tank.gltf",
+		"boss": "res://assets/third_party/quaternius_cyberpunk/enemy_boss.gltf",
+	}
+	var model_path: String = String(archetype_paths.get(archetype, archetype_paths["grunt"]))
 	if ResourceLoader.exists(model_path):
 		var packed: PackedScene = load(model_path) as PackedScene
 		if packed != null:
-			var model: Node = packed.instantiate()
-			visual_root.add_child(model)
-			_anim = _find_animation_player(model)
-			if archetype == "boss":
-				visual_root.scale = Vector3.ONE * 1.75
-			return
-	var body: MeshInstance3D = MeshInstance3D.new()
-	var capsule: CapsuleMesh = CapsuleMesh.new()
-	capsule.radius = 0.42
-	capsule.height = 1.7
-	body.mesh = capsule
-	var mat: StandardMaterial3D = StandardMaterial3D.new()
-	var neon: Color = _archetype_color()
-	mat.albedo_color = Color(0.04, 0.055, 0.08)
-	mat.metallic = 0.68
-	mat.roughness = 0.25
-	mat.emission_enabled = true
-	mat.emission = neon
-	mat.emission_energy_multiplier = 2.8
-	body.material_override = mat
-	visual_root.add_child(body)
-	if archetype == "boss":
-		visual_root.scale = Vector3.ONE * 1.75
+			var model: Node3D = packed.instantiate() as Node3D
+			if model != null:
+				var model_scale := 0.72
+				if archetype == "runner":
+					model_scale = 0.66
+				elif archetype == "tank":
+					model_scale = 0.96
+				elif archetype == "boss":
+					model_scale = 1.34
+				model.scale = Vector3.ONE * model_scale
+				visual_root.add_child(model)
+				_anim = _find_animation_player(model)
+				return
 
-	var eye: MeshInstance3D = MeshInstance3D.new()
-	var eye_mesh: BoxMesh = BoxMesh.new()
-	eye_mesh.size = Vector3(0.52, 0.12, 0.08)
-	eye.mesh = eye_mesh
-	eye.position = Vector3(0, 0.35, -0.42)
-	var eye_mat: StandardMaterial3D = StandardMaterial3D.new()
-	eye_mat.emission_enabled = true
-	eye_mat.emission = neon.lightened(0.25)
-	eye_mat.emission_energy_multiplier = 8.0
-	eye.material_override = eye_mat
-	visual_root.add_child(eye)
+	_build_procedural_humanoid()
+
+func _build_procedural_humanoid() -> void:
+	var neon := _archetype_color()
+	var armor := _part_material(Color(0.045, 0.055, 0.08), neon, 1.8)
+	var glow := _part_material(neon * 0.08, neon, 7.0)
+	_add_box_part(Vector3(0, 0.25, 0), Vector3(0.62, 0.82, 0.34), armor)
+	_add_box_part(Vector3(0, 0.28, -0.19), Vector3(0.28, 0.12, 0.05), glow)
+	_add_box_part(Vector3(0, 0.82, 0), Vector3(0.38, 0.32, 0.34), armor)
+	_add_box_part(Vector3(0, 0.83, -0.19), Vector3(0.28, 0.07, 0.05), glow)
+	for side in [-1.0, 1.0]:
+		_add_box_part(Vector3(0.44 * side, 0.28, 0), Vector3(0.16, 0.66, 0.18), armor)
+		_add_box_part(Vector3(0.18 * side, -0.48, 0), Vector3(0.20, 0.62, 0.22), armor)
+	if archetype == "boss":
+		visual_root.scale = Vector3.ONE * 1.7
+
+func _add_box_part(pos: Vector3, size: Vector3, material: Material) -> void:
+	var part := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	part.mesh = mesh
+	part.position = pos
+	part.material_override = material
+	visual_root.add_child(part)
+
+func _part_material(base: Color, emission: Color, energy: float) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = base
+	mat.metallic = 0.72
+	mat.roughness = 0.24
+	mat.emission_enabled = true
+	mat.emission = emission
+	mat.emission_energy_multiplier = energy
+	return mat
 
 func _archetype_color() -> Color:
 	match archetype:
