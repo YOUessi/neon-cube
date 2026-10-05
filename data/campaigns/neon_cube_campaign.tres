@@ -1,0 +1,66 @@
+[gd_resource type="Resource" script_class="CampaignDefinition" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/missions/campaign_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/missions/wave_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Wave1"]
+script = ExtResource("2")
+wave_id = &"wave_01"
+title = "FIRST CONTACT"
+enemy_kinds = Array[StringName]([&"grunt", &"grunt", &"grunt", &"grunt", &"grunt", &"grunt"])
+intermission_seconds = 1.8
+reward_health = 22.0
+reward_ammo = 34
+
+[sub_resource type="Resource" id="Wave2"]
+script = ExtResource("2")
+wave_id = &"wave_02"
+title = "FAST LANE"
+enemy_kinds = Array[StringName]([&"grunt", &"grunt", &"grunt", &"grunt", &"grunt", &"runner", &"runner", &"runner"])
+intermission_seconds = 1.8
+reward_health = 24.0
+reward_ammo = 38
+
+[sub_resource type="Resource" id="Wave3"]
+script = ExtResource("2")
+wave_id = &"wave_03"
+title = "CROSSFIRE"
+enemy_kinds = Array[StringName]([&"grunt", &"grunt", &"grunt", &"grunt", &"runner", &"runner", &"runner", &"sniper", &"sniper"])
+intermission_seconds = 1.8
+reward_health = 26.0
+reward_ammo = 42
+reward_shield = 18.0
+
+[sub_resource type="Resource" id="Wave4"]
+script = ExtResource("2")
+wave_id = &"wave_04"
+title = "HEAVY PRESSURE"
+enemy_kinds = Array[StringName]([&"grunt", &"grunt", &"grunt", &"grunt", &"runner", &"runner", &"runner", &"sniper", &"sniper", &"sniper", &"tank", &"tank"])
+intermission_seconds = 1.8
+reward_health = 28.0
+reward_ammo = 46
+reward_shield = 18.0
+
+[sub_resource type="Resource" id="Wave5"]
+script = ExtResource("2")
+wave_id = &"wave_05"
+title = "SYSTEM COLLAPSE"
+enemy_kinds = Array[StringName]([&"grunt", &"grunt", &"grunt", &"grunt", &"runner", &"runner", &"runner", &"runner", &"sniper", &"sniper", &"sniper", &"tank", &"tank", &"tank"])
+intermission_seconds = 1.8
+reward_health = 30.0
+reward_ammo = 50
+reward_shield = 22.0
+
+[sub_resource type="Resource" id="Wave6"]
+script = ExtResource("2")
+wave_id = &"wave_06"
+title = "NULL WARDEN"
+enemy_kinds = Array[StringName]([&"boss", &"runner", &"runner", &"runner", &"sniper", &"sniper", &"sniper", &"tank", &"tank"])
+intermission_seconds = 0.0
+boss_wave = true
+
+[resource]
+script = ExtResource("1")
+campaign_id = &"neon_cube_campaign"
+display_name = "NEON CUBE: BREACH"
+waves = Array[ExtResource("2")]([SubResource("Wave1"), SubResource("Wave2"), SubResource("Wave3"), SubResource("Wave4"), SubResource("Wave5"), SubResource("Wave6")])
