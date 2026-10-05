@@ -11,6 +11,18 @@ const NORTH: DistrictDefinition = preload("res://data/districts/synth_garden.tre
 static func all() -> Array[DistrictDefinition]:
 	return [FLOOR, CEILING, EAST, WEST, SOUTH, NORTH]
 
+static func has_definition(id: StringName) -> bool:
+	for district in all():
+		if district.district_id == id:
+			return true
+	return false
+
+static func get_by_id(id: StringName) -> DistrictDefinition:
+	for district in all():
+		if district.district_id == id:
+			return district
+	return null
+
 static func for_face(down: Vector3) -> DistrictDefinition:
 	var normalized := down.normalized()
 	var best: DistrictDefinition = FLOOR
