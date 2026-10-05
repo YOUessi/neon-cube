@@ -12,12 +12,19 @@ func _run() -> void:
 	await process_frame
 
 	_check(game.game_state == NeonGame.GameState.PLAYING, "headless startup enters active game")
-	_check(game.wave_plan(1).size() == game.starting_enemies, "wave one uses configured starting count")
-	_check(game.wave_plan(3).has("sniper"), "mid campaign introduces snipers")
-	_check(game.wave_plan(4).has("tank"), "later campaign introduces tanks")
-	var final_plan: Array[String] = game.wave_plan(game.total_waves)
-	_check(final_plan.count("boss") == 1, "final wave contains exactly one boss")
-	_check(final_plan.size() >= 6, "final wave includes boss support units")
+	_check(game.story_mode, "story mission is the default run mode")
+	_check(game.mission_runtime.state == MissionRuntime.State.ACTIVE, "story mission runtime starts active")
+	_check(game.mission_runtime.current_encounter().encounter_id == &"arrival_ambush", "story starts at authored arrival encounter")
+	_check(game.mission_definition.encounter_count() == 6, "story contains six authored encounters")
+	_check(game.mission_definition.get_encounter(2).enemy_kinds.has(&"sniper"), "mid-mission encounter includes sniper pressure")
+	_check(game.mission_definition.get_encounter(3).enemy_kinds.has(&"tank"), "later mission encounter includes tanks")
+	_check(game.mission_definition.get_encounter(4).enemy_kinds.count(&"boss") == 1, "story contains exactly one Null Warden boss")
+	_check(game.mission_definition.get_encounter(5).encounter_id == &"extraction", "story ends with an extraction encounter")
+
+	# The arcade campaign remains available as a separate data set during migration.
+	_check(game.wave_plan(1).size() == game.campaign.get_wave(0).enemy_kinds.size(), "legacy arcade wave data remains accessible")
+	var final_arcade_plan := game.wave_plan(game.campaign.wave_count())
+	_check(final_arcade_plan.count("boss") == 1, "arcade campaign still retains boss finale")
 
 	game.queue_free()
 	await process_frame
