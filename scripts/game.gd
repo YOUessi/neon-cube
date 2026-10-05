@@ -28,6 +28,8 @@ var hud_panel: Control
 var menu_panel: Control
 var pause_panel: Control
 var end_panel: Control
+var settings_panel: Control
+var credits_panel: Control
 var end_title: Label
 var end_details: Label
 var health_label: Label
@@ -38,8 +40,13 @@ var face_label: Label
 var dash_label: Label
 var score_label: Label
 var objective_label: Label
+var boss_label: Label
+var boss_bar: ProgressBar
 var message_label: Label
 var damage_overlay: ColorRect
+
+var _mouse_sensitivity_setting := 0.0022
+var _master_volume_db := -6.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -205,6 +212,8 @@ func _spawn_enemy(kind: String, index: int) -> void:
 	enemy.configure(kind, _wave, difficulty_scale)
 	enemy.position = _spawn_position(index + _spawn_cursor)
 	enemy.killed.connect(_on_enemy_killed)
+	if kind == "boss":
+		enemy.health_changed.connect(_on_boss_health_changed)
 	add_child(enemy)
 	_alive_enemies += 1
 	_spawn_cursor += 1
@@ -243,6 +252,9 @@ func _on_enemy_killed(enemy: NeonEnemy) -> void:
 	_alive_enemies = maxi(0, _alive_enemies - 1)
 	_kills += 1
 	_score += enemy.get_score_value()
+	if enemy.archetype == "boss" and boss_bar != null:
+		boss_bar.visible = false
+		boss_label.visible = false
 	if _kills % 4 == 0:
 		var drop_kind := "health" if (_kills / 4) % 2 == 0 else "ammo"
 		_spawn_pickup(enemy.global_position, drop_kind, 24.0)
@@ -253,6 +265,7 @@ func _on_enemy_killed(enemy: NeonEnemy) -> void:
 func _create_player() -> void:
 	player = PLAYER_SCENE.instantiate() as NeonPlayer
 	player.cube_half_extent = cube_size * 0.5
+	player.mouse_sensitivity = _mouse_sensitivity_setting
 	add_child(player)
 	player.global_position = Vector3(0, -cube_size * 0.5 + 1.5, 0)
 	player.health_changed.connect(_on_health_changed)
@@ -327,6 +340,18 @@ func _create_ui() -> void:
 	for label in [health_label, shield_label, ammo_label, weapon_label, face_label, dash_label, score_label, objective_label]:
 		hud_panel.add_child(label)
 
+	boss_label = _make_label(Vector2(440, 94), 16, Color(1.0, 0.18, 0.72))
+	boss_label.size = Vector2(400, 24)
+	boss_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hud_panel.add_child(boss_label)
+	boss_bar = ProgressBar.new()
+	boss_bar.position = Vector2(440, 120)
+	boss_bar.size = Vector2(400, 16)
+	boss_bar.show_percentage = false
+	hud_panel.add_child(boss_bar)
+	boss_label.visible = false
+	boss_bar.visible = false
+
 	var crosshair: Label = Label.new()
 	crosshair.text = "+"
 	crosshair.add_theme_font_size_override("font_size", 28)
@@ -358,13 +383,46 @@ func _create_ui() -> void:
 	_add_center_button(menu_panel, "NIGHTMARE", Vector2(260, -24), _start_with_difficulty.bind("NIGHTMARE", 1.28))
 	_add_center_label(menu_panel, "Choose difficulty", Vector2(0, -72), 15, Color(0.7, 0.78, 0.95))
 	_add_center_label(menu_panel, "WASD move  •  Mouse aim  •  Space jump  •  Shift dash\n1/2/3 weapons  •  R reload  •  Esc pause", Vector2(0, 92), 16, Color(0.7, 0.78, 0.95))
-	_add_center_label(menu_panel, "HIGH SCORE %06d" % _high_score, Vector2(0, 170), 16, Color(1.0, 0.8, 0.2))
+	_add_center_label(menu_panel, "HIGH SCORE %06d" % _high_score, Vector2(0, 162), 16, Color(1.0, 0.8, 0.2))
+	_add_center_button(menu_panel, "SETTINGS", Vector2(-240, 220), _show_settings)
+	_add_center_button(menu_panel, "CREDITS", Vector2(0, 220), _show_credits)
+	_add_center_button(menu_panel, "QUIT", Vector2(240, 220), _quit_game)
 
 	pause_panel = _create_full_overlay(Color(0.003, 0.004, 0.015, 0.86))
 	_add_center_label(pause_panel, "PAUSED", Vector2(0, -80), 44, Color(0.1, 0.95, 1.0))
 	_add_center_button(pause_panel, "RESUME", Vector2(0, 5), _resume_game)
 	_add_center_button(pause_panel, "RESTART RUN", Vector2(0, 65), start_game)
 	_add_center_button(pause_panel, "MAIN MENU", Vector2(0, 125), _show_menu)
+	_add_center_button(pause_panel, "SETTINGS", Vector2(0, 185), _show_settings)
+
+	settings_panel = _create_full_overlay(Color(0.004, 0.006, 0.022, 0.96))
+	_add_center_label(settings_panel, "SETTINGS", Vector2(0, -175), 42, Color(0.1, 0.95, 1.0))
+	_add_center_label(settings_panel, "MOUSE SENSITIVITY", Vector2(-190, -78), 16, Color(0.75, 0.82, 1.0))
+	var sensitivity_slider := HSlider.new()
+	sensitivity_slider.min_value = 0.0008
+	sensitivity_slider.max_value = 0.0050
+	sensitivity_slider.step = 0.0001
+	sensitivity_slider.value = _mouse_sensitivity_setting
+	sensitivity_slider.position = Vector2(630, 248)
+	sensitivity_slider.size = Vector2(300, 32)
+	sensitivity_slider.value_changed.connect(_on_mouse_sensitivity_changed)
+	settings_panel.add_child(sensitivity_slider)
+	_add_center_label(settings_panel, "MASTER VOLUME", Vector2(-190, -18), 16, Color(0.75, 0.82, 1.0))
+	var volume_slider := HSlider.new()
+	volume_slider.min_value = -30.0
+	volume_slider.max_value = 0.0
+	volume_slider.step = 1.0
+	volume_slider.value = _master_volume_db
+	volume_slider.position = Vector2(630, 308)
+	volume_slider.size = Vector2(300, 32)
+	volume_slider.value_changed.connect(_on_master_volume_changed)
+	settings_panel.add_child(volume_slider)
+	_add_center_button(settings_panel, "BACK", Vector2(0, 112), _close_aux_panel)
+
+	credits_panel = _create_full_overlay(Color(0.004, 0.006, 0.022, 0.97))
+	_add_center_label(credits_panel, "CREDITS", Vector2(0, -185), 42, Color(1.0, 0.18, 0.72))
+	_add_center_label(credits_panel, "DESIGN / CODE\nNeon Cube Project\n\n3D ASSETS\nKenney — Blaster Kit (CC0)\nQuaternius — Cyberpunk Game Kit (CC0)\n\nENGINE\nGodot 4.x", Vector2(0, -62), 18, Color(0.75, 0.9, 1.0))
+	_add_center_button(credits_panel, "BACK", Vector2(0, 180), _close_aux_panel)
 
 	end_panel = _create_full_overlay(Color(0.004, 0.003, 0.018, 0.92))
 	end_title = _add_center_label(end_panel, "", Vector2(0, -130), 48, Color(1.0, 0.18, 0.72))
@@ -374,8 +432,48 @@ func _create_ui() -> void:
 
 	menu_panel.visible = false
 	pause_panel.visible = false
+	settings_panel.visible = false
+	credits_panel.visible = false
 	end_panel.visible = false
 	hud_panel.visible = false
+
+func _show_settings() -> void:
+	menu_panel.visible = false
+	pause_panel.visible = false
+	settings_panel.visible = true
+	credits_panel.visible = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _show_credits() -> void:
+	menu_panel.visible = false
+	pause_panel.visible = false
+	settings_panel.visible = false
+	credits_panel.visible = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _close_aux_panel() -> void:
+	settings_panel.visible = false
+	credits_panel.visible = false
+	if game_state == GameState.PAUSED:
+		pause_panel.visible = true
+	else:
+		menu_panel.visible = true
+
+func _on_mouse_sensitivity_changed(value: float) -> void:
+	_mouse_sensitivity_setting = clampf(value, 0.0008, 0.0050)
+	if is_instance_valid(player):
+		player.mouse_sensitivity = _mouse_sensitivity_setting
+	_save_high_score()
+
+func _on_master_volume_changed(value: float) -> void:
+	_master_volume_db = clampf(value, -30.0, 0.0)
+	var master_index := AudioServer.get_bus_index("Master")
+	if master_index >= 0:
+		AudioServer.set_bus_volume_db(master_index, _master_volume_db)
+	_save_high_score()
+
+func _quit_game() -> void:
+	get_tree().quit()
 
 func _create_full_overlay(color: Color) -> Control:
 	var root: ColorRect = ColorRect.new()
@@ -442,6 +540,15 @@ func _update_score() -> void:
 func _update_objective() -> void:
 	if objective_label != null: objective_label.text = "HOSTILES %02d" % _alive_enemies
 
+func _on_boss_health_changed(current: float, maximum: float, phase: int) -> void:
+	if boss_bar == null or boss_label == null:
+		return
+	boss_bar.visible = true
+	boss_label.visible = true
+	boss_bar.max_value = maximum
+	boss_bar.value = current
+	boss_label.text = "NULL WARDEN  //  PHASE %d  //  %03d / %03d" % [phase, int(current), int(maximum)]
+
 func _show_message(text: String, duration: float) -> void:
 	if message_label == null: return
 	message_label.text = text
@@ -465,7 +572,24 @@ func _load_high_score() -> void:
 	if parsed is Dictionary:
 		var data: Dictionary = parsed as Dictionary
 		_high_score = int(data.get("high_score", 0))
+		_mouse_sensitivity_setting = float(data.get("mouse_sensitivity", _mouse_sensitivity_setting))
+		_master_volume_db = float(data.get("master_volume_db", _master_volume_db))
+		var master_index := AudioServer.get_bus_index("Master")
+		if master_index >= 0:
+			AudioServer.set_bus_volume_db(master_index, _master_volume_db)
 
 func _save_high_score() -> void:
 	var file: FileAccess = FileAccess.open("user://neon_cube_save.json", FileAccess.WRITE)
-	if file != null: file.store_string(JSON.stringify({"high_score": _high_score}))
+	if file != null:
+		file.store_string(JSON.stringify({
+			"high_score": _high_score,
+			"mouse_sensitivity": _mouse_sensitivity_setting,
+			"master_volume_db": _master_volume_db,
+		}))
+
+
+func get_mouse_sensitivity_setting() -> float:
+	return _mouse_sensitivity_setting
+
+func get_master_volume_db() -> float:
+	return _master_volume_db

@@ -2,6 +2,7 @@ class_name NeonEnemy
 extends CharacterBody3D
 
 signal killed(enemy: NeonEnemy)
+signal health_changed(current: float, maximum: float, phase: int)
 
 @export var cube_half_extent := 30.0
 @export var archetype := "grunt"
@@ -38,6 +39,7 @@ func _ready() -> void:
 	add_to_group("enemies")
 	_apply_archetype()
 	_health = max_health
+	health_changed.emit(_health, max_health, _boss_phase)
 	_build_visual()
 	gravity_down = CubeGravity.nearest_down(global_position, cube_half_extent)
 	up_direction = -gravity_down
@@ -169,6 +171,7 @@ func take_damage(amount: float, _hit_position := Vector3.ZERO, _direction := Vec
 	_health -= amount
 	if archetype == "boss":
 		_update_boss_phase()
+	health_changed.emit(maxf(_health, 0.0), max_health, _boss_phase)
 	if _health <= 0.0:
 		_die()
 
