@@ -7,6 +7,9 @@ const SNIPER: EnemyDefinition = preload("res://data/enemies/sniper.tres")
 const TANK: EnemyDefinition = preload("res://data/enemies/tank.tres")
 const BOSS: EnemyDefinition = preload("res://data/enemies/boss.tres")
 
+static func has_definition(kind: StringName) -> bool:
+	return kind in [&"grunt", &"runner", &"sniper", &"tank", &"boss"]
+
 static func get_definition(kind: StringName) -> EnemyDefinition:
 	match kind:
 		&"runner":
