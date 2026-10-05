@@ -5,7 +5,8 @@ static func build(parent: Node3D, cube_size: float) -> void:
 	var half := cube_size * 0.5
 	_build_environment(parent)
 	for down in CubeGravity.AXIS_DOWNS:
-		_build_face(parent, down, cube_size, half)
+		var district: DistrictDefinition = DistrictCatalog.for_face(down)
+		_build_face(parent, down, cube_size, half, district)
 
 static func _build_environment(parent: Node3D) -> void:
 	if DisplayServer.get_name() == "headless":
@@ -34,7 +35,13 @@ static func _build_environment(parent: Node3D) -> void:
 	fill.rotation_degrees = Vector3(30, 145, 0)
 	parent.add_child(fill)
 
-static func _build_face(parent: Node3D, down: Vector3, cube_size: float, half: float) -> void:
+static func _build_face(
+	parent: Node3D,
+	down: Vector3,
+	cube_size: float,
+	half: float,
+	district: DistrictDefinition
+) -> void:
 	var surface := StaticBody3D.new()
 	surface.name = "Surface_%s" % CubeGravity.face_name(down).replace(" / ", "_")
 	parent.add_child(surface)
@@ -69,12 +76,17 @@ static func _build_face(parent: Node3D, down: Vector3, cube_size: float, half: f
 		)
 		surface.add_child(mesh_instance)
 
-	_build_city_blocks(parent, down, half)
-	_build_neon_grid(parent, down, half)
-	_build_plaza(parent, down, half)
-	_build_authored_props(parent, down, half)
+	_build_city_blocks(parent, down, half, district)
+	_build_neon_grid(parent, down, half, district)
+	_build_plaza(parent, down, half, district)
+	_build_authored_props(parent, down, half, district)
 
-static func _build_city_blocks(parent: Node3D, down: Vector3, half: float) -> void:
+static func _build_city_blocks(
+	parent: Node3D,
+	down: Vector3,
+	half: float,
+	district: DistrictDefinition
+) -> void:
 	var basis := CubeGravity.tangent_basis(down)
 	var right := basis.x
 	var inward_up := basis.y
@@ -86,16 +98,23 @@ static func _build_city_blocks(parent: Node3D, down: Vector3, half: float) -> vo
 		for v in coords:
 			if absf(u) < 5.0 or absf(v) < 5.0:
 				continue
-			if int((absf(u) + absf(v)) / 7.0) % 5 == 0:
+			if int((absf(u) + absf(v)) / 7.0 + float(district.prop_seed)) % district.density_skip_mod == 0:
 				continue
-			var height := 3.8 + float((idx * 37) % 9) * 0.78
+			var height := (3.8 + float((idx * 37 + district.prop_seed * 11) % 9) * 0.78) * district.building_height_scale
 			var width := 3.5 + float((idx * 13) % 3) * 0.55
 			var depth := 3.6 + float((idx * 19) % 3) * 0.52
 			var center: Vector3 = face_center + right * u + forward * v + inward_up * (height * 0.5)
-			_add_building(parent, center, basis, Vector3(width, height, depth), idx)
+			_add_building(parent, center, basis, Vector3(width, height, depth), idx, district)
 			idx += 1
 
-static func _add_building(parent: Node3D, position: Vector3, basis: Basis, size: Vector3, seed: int) -> void:
+static func _add_building(
+	parent: Node3D,
+	position: Vector3,
+	basis: Basis,
+	size: Vector3,
+	seed: int,
+	district: DistrictDefinition
+) -> void:
 	var body := StaticBody3D.new()
 	body.position = position
 	body.basis = basis
@@ -110,7 +129,7 @@ static func _add_building(parent: Node3D, position: Vector3, basis: Basis, size:
 	if DisplayServer.get_name() == "headless":
 		return
 
-	var neon := _neon_for(seed)
+	var neon: Color = district.primary_neon if seed % 2 == 0 else district.secondary_neon
 	var visual := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -138,8 +157,7 @@ static func _add_building(parent: Node3D, position: Vector3, basis: Basis, size:
 
 	if seed % 3 == 0:
 		var sign := Label3D.new()
-		var words := ["NEX", "KAI", "VOID", "ARC", "SYN", "BYTE", "ZEN"]
-		sign.text = "%s // %02d" % [words[seed % words.size()], seed % 97]
+		sign.text = "%s // %02d" % [district.sign_prefix, seed % 97]
 		sign.font_size = 26
 		sign.modulate = neon
 		sign.outline_size = 5
@@ -168,19 +186,29 @@ static func _add_window_strip(parent: Node3D, position: Vector3, size: Vector3, 
 	strip.material_override = _material(neon * 0.18, neon, 6.2, 0.08, 0.55)
 	parent.add_child(strip)
 
-static func _build_neon_grid(parent: Node3D, down: Vector3, half: float) -> void:
+static func _build_neon_grid(
+	parent: Node3D,
+	down: Vector3,
+	half: float,
+	district: DistrictDefinition
+) -> void:
 	var basis := CubeGravity.tangent_basis(down)
 	var right := basis.x
 	var inward_up := basis.y
 	var forward := -basis.z
 	var face_center := down * (half - 0.46)
 	for offset in [-24.0, -12.0, 0.0, 12.0, 24.0]:
-		_add_strip(parent, face_center + right * offset + inward_up * 0.05, basis, Vector3(0.09, 0.045, 53.0), Color(0.0, 0.9, 1.0))
-		_add_strip(parent, face_center + forward * offset + inward_up * 0.05, basis, Vector3(53.0, 0.045, 0.09), Color(1.0, 0.02, 0.62))
+		_add_strip(parent, face_center + right * offset + inward_up * 0.05, basis, Vector3(0.09, 0.045, 53.0), district.primary_neon)
+		_add_strip(parent, face_center + forward * offset + inward_up * 0.05, basis, Vector3(53.0, 0.045, 0.09), district.secondary_neon)
 	for offset in [-4.0, 4.0]:
-		_add_strip(parent, face_center + right * offset + inward_up * 0.055, basis, Vector3(0.045, 0.04, 54.0), Color(1.0, 0.72, 0.08))
+		_add_strip(parent, face_center + right * offset + inward_up * 0.055, basis, Vector3(0.045, 0.04, 54.0), district.road_neon)
 
-static func _build_authored_props(parent: Node3D, down: Vector3, half: float) -> void:
+static func _build_authored_props(
+	parent: Node3D,
+	down: Vector3,
+	half: float,
+	district: DistrictDefinition
+) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	var basis: Basis = CubeGravity.tangent_basis(down)
@@ -199,7 +227,9 @@ static func _build_authored_props(parent: Node3D, down: Vector3, half: float) ->
 		["res://assets/third_party/quaternius_cyberpunk/antenna.gltf", center + right * 10.5 - forward * 9.0, 1.65],
 		["res://assets/third_party/quaternius_cyberpunk/fence.gltf", center - right * 10.0 + forward * 9.0, 1.8],
 	]
-	for placement in placements:
+	var rotation_offset := district.prop_seed % placements.size()
+	for i in range(placements.size()):
+		var placement: Array = placements[(i + rotation_offset) % placements.size()]
 		var path: String = placement[0]
 		if not ResourceLoader.exists(path):
 			continue
@@ -216,13 +246,18 @@ static func _build_authored_props(parent: Node3D, down: Vector3, half: float) ->
 
 	for light_offset in [-8.0, 8.0]:
 		var glow_light := OmniLight3D.new()
-		glow_light.light_color = Color(0.08, 0.75, 1.0) if light_offset < 0.0 else Color(1.0, 0.05, 0.45)
+		glow_light.light_color = district.primary_neon if light_offset < 0.0 else district.secondary_neon
 		glow_light.light_energy = 2.2
 		glow_light.omni_range = 9.0
 		glow_light.position = center + right * light_offset + inward * 2.2
 		parent.add_child(glow_light)
 
-static func _build_plaza(parent: Node3D, down: Vector3, half: float) -> void:
+static func _build_plaza(
+	parent: Node3D,
+	down: Vector3,
+	half: float,
+	district: DistrictDefinition
+) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	var basis := CubeGravity.tangent_basis(down)
@@ -237,8 +272,18 @@ static func _build_plaza(parent: Node3D, down: Vector3, half: float) -> void:
 	ring.mesh = mesh
 	ring.position = face_center + inward * 0.06
 	ring.basis = basis
-	ring.material_override = _material(Color(0.02,0.025,0.05), Color(0.25,0.0,0.7), 1.6, 0.75, 0.18)
+	ring.material_override = _material(Color(0.02,0.025,0.05), district.primary_neon * 0.55, 1.1, 0.75, 0.18)
 	parent.add_child(ring)
+
+	var label := Label3D.new()
+	label.text = district.display_name
+	label.font_size = 36
+	label.modulate = district.primary_neon
+	label.outline_size = 7
+	label.outline_modulate = Color(0.005, 0.008, 0.02, 0.92)
+	label.position = face_center + inward * 0.55
+	label.basis = basis
+	parent.add_child(label)
 
 static func _add_strip(parent: Node3D, position: Vector3, basis: Basis, size: Vector3, color: Color) -> void:
 	if DisplayServer.get_name() == "headless":
@@ -251,16 +296,6 @@ static func _add_strip(parent: Node3D, position: Vector3, basis: Basis, size: Ve
 	strip.basis = basis
 	strip.material_override = _material(color * 0.12, color, 6.4, 0.02, 0.72)
 	parent.add_child(strip)
-
-static func _neon_for(seed: int) -> Color:
-	var palette := [
-		Color(0.0, 0.95, 1.0),
-		Color(1.0, 0.04, 0.62),
-		Color(0.58, 0.18, 1.0),
-		Color(1.0, 0.62, 0.04),
-		Color(0.18, 1.0, 0.52),
-	]
-	return palette[seed % palette.size()]
 
 static func _material(
 	base: Color,
