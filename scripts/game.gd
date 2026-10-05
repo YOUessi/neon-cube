@@ -59,7 +59,7 @@ var _master_volume_db := -6.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_ensure_input_actions()
+	InputBootstrap.ensure_defaults()
 	_load_high_score()
 	if story_mode:
 		total_waves = mission_definition.encounter_count()
@@ -435,31 +435,6 @@ func _resume_story_from_save() -> void:
 	_show_message("CHECKPOINT // %s" % mission_runtime.current_encounter().title, 1.8)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
-func _ensure_input_actions() -> void:
-	_bind_key("move_forward", KEY_W)
-	_bind_key("move_back", KEY_S)
-	_bind_key("move_left", KEY_A)
-	_bind_key("move_right", KEY_D)
-	_bind_key("jump", KEY_SPACE)
-	_bind_key("reload", KEY_R)
-	_bind_key("weapon_1", KEY_1)
-	_bind_key("weapon_2", KEY_2)
-	_bind_key("weapon_3", KEY_3)
-	_bind_key("dash", KEY_SHIFT)
-	_bind_key("pause_game", KEY_ESCAPE)
-	if not InputMap.has_action("fire"): InputMap.add_action("fire")
-	if InputMap.action_get_events("fire").is_empty():
-		var mouse: InputEventMouseButton = InputEventMouseButton.new()
-		mouse.button_index = MOUSE_BUTTON_LEFT
-		InputMap.action_add_event("fire", mouse)
-
-func _bind_key(action: StringName, key: int) -> void:
-	if not InputMap.has_action(action): InputMap.add_action(action)
-	if InputMap.action_get_events(action).is_empty():
-		var event: InputEventKey = InputEventKey.new()
-		event.physical_keycode = key
-		InputMap.action_add_event(action, event)
 
 func _create_ui() -> void:
 	hud_layer = CanvasLayer.new()
