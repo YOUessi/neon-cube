@@ -12,6 +12,8 @@ enum GameState { MENU, PLAYING, PAUSED, VICTORY, GAME_OVER }
 @export var total_waves := 6
 
 var player: NeonPlayer
+var campaign: CampaignDefinition = CampaignCatalog.primary()
+var session: GameSession = GameSession.new()
 var game_state: GameState = GameState.MENU
 var difficulty_name := "OPERATIVE"
 var difficulty_scale := 1.0
@@ -52,6 +54,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_input_actions()
 	_load_high_score()
+	total_waves = campaign.wave_count()
+	starting_enemies = campaign.get_wave(0).enemy_kinds.size()
 	CyberCityBuilder.build(self, cube_size)
 	var audio: NeonAudio = NeonAudio.new()
 	audio.name = "NeonAudio"
@@ -86,11 +90,9 @@ func _start_with_difficulty(name: String, scale: float) -> void:
 func start_game() -> void:
 	get_tree().paused = false
 	_clear_runtime_entities()
-	_score = 0
-	_wave = 1
-	_alive_enemies = 0
+	session.reset_run(difficulty_name, difficulty_scale)
+	_sync_session_fields()
 	_spawn_cursor = 0
-	_kills = 0
 	_wave_transitioning = false
 	game_state = GameState.PLAYING
 	menu_panel.visible = false
@@ -106,6 +108,7 @@ func start_game() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _show_menu() -> void:
+	session.set_state(GameSession.State.MENU)
 	game_state = GameState.MENU
 	hud_panel.visible = false
 	menu_panel.visible = true
@@ -115,6 +118,7 @@ func _show_menu() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _pause_game() -> void:
+	session.set_state(GameSession.State.PAUSED)
 	game_state = GameState.PAUSED
 	pause_panel.visible = true
 	get_tree().paused = true
@@ -122,6 +126,7 @@ func _pause_game() -> void:
 
 func _resume_game() -> void:
 	get_tree().paused = false
+	session.set_state(GameSession.State.PLAYING)
 	game_state = GameState.PLAYING
 	pause_panel.visible = false
 	if DisplayServer.get_name() != "headless":
@@ -129,10 +134,12 @@ func _resume_game() -> void:
 
 func _finish_game(victory: bool) -> void:
 	if victory:
+		session.set_state(GameSession.State.VICTORY)
 		game_state = GameState.VICTORY
 		_audio_call("play_victory")
 		end_title.text = "CUBE BREACHED"
 	else:
+		session.set_state(GameSession.State.GAME_OVER)
 		game_state = GameState.GAME_OVER
 		_audio_call("play_defeat")
 		end_title.text = "SIGNAL LOST"
@@ -146,60 +153,43 @@ func _finish_game(victory: bool) -> void:
 
 func _finish_wave() -> void:
 	_wave_transitioning = true
-	if _wave >= total_waves:
+	if session.is_last_wave(campaign):
 		_finish_game(true)
 		return
-	_show_message("WAVE %02d CLEARED" % _wave, 1.25)
-	var completed_wave: int = _wave
-	_spawn_reward_pickups(completed_wave)
-	var timer: SceneTreeTimer = get_tree().create_timer(1.8)
+	var current_wave: WaveDefinition = campaign.get_wave(session.wave_index)
+	_show_message("WAVE %02d CLEARED" % session.current_wave_number(), 1.25)
+	_spawn_reward_pickups(session.wave_index)
+	var timer: SceneTreeTimer = get_tree().create_timer(current_wave.intermission_seconds)
 	timer.timeout.connect(_advance_wave)
 
 func _advance_wave() -> void:
 	if game_state != GameState.PLAYING:
 		return
-	_wave += 1
+	session.advance_wave()
+	_sync_session_fields()
 	_wave_transitioning = false
 	_spawn_current_wave()
 	_update_score()
 	_update_objective()
-	if _wave == total_waves:
-		_show_message("FINAL WAVE // NULL WARDEN ONLINE", 2.0)
+	var wave: WaveDefinition = campaign.get_wave(session.wave_index)
+	if wave.boss_wave:
+		_show_message("FINAL WAVE // %s ONLINE" % wave.title, 2.0)
 	else:
-		_show_message("WAVE %02d // INCOMING" % _wave, 1.5)
+		_show_message("WAVE %02d // %s" % [session.current_wave_number(), wave.title], 1.5)
 
 func wave_plan(wave_number: int) -> Array[String]:
-	var plan: Array[String] = []
-	match wave_number:
-		1:
-			for i in range(starting_enemies): plan.append("grunt")
-		2:
-			for i in range(5): plan.append("grunt")
-			for i in range(3): plan.append("runner")
-		3:
-			for i in range(4): plan.append("grunt")
-			for i in range(3): plan.append("runner")
-			for i in range(2): plan.append("sniper")
-		4:
-			for i in range(4): plan.append("grunt")
-			for i in range(3): plan.append("runner")
-			for i in range(3): plan.append("sniper")
-			for i in range(2): plan.append("tank")
-		5:
-			for i in range(4): plan.append("grunt")
-			for i in range(4): plan.append("runner")
-			for i in range(3): plan.append("sniper")
-			for i in range(3): plan.append("tank")
-		_:
-			plan.append("boss")
-			for i in range(3): plan.append("runner")
-			for i in range(3): plan.append("sniper")
-			for i in range(2): plan.append("tank")
-	return plan
+	var result: Array[String] = []
+	var wave: WaveDefinition = campaign.get_wave(wave_number - 1)
+	if wave == null:
+		return result
+	for kind in wave.enemy_kinds:
+		result.append(String(kind))
+	return result
 
 func _spawn_current_wave() -> void:
-	var plan: Array[String] = wave_plan(_wave)
-	_alive_enemies = 0
+	var plan: Array[String] = wave_plan(session.current_wave_number())
+	session.alive_enemies = 0
+	_sync_session_fields()
 	for i in range(plan.size()):
 		_spawn_enemy(plan[i], i)
 
@@ -209,13 +199,14 @@ func _spawn_enemy(kind: String, index: int) -> void:
 	var enemy: NeonEnemy = ENEMY_SCENE.instantiate() as NeonEnemy
 	enemy.cube_half_extent = cube_size * 0.5
 	enemy.target = player
-	enemy.configure(kind, _wave, difficulty_scale)
+	enemy.configure(kind, session.current_wave_number(), session.difficulty_scale)
 	enemy.position = _spawn_position(index + _spawn_cursor)
 	enemy.killed.connect(_on_enemy_killed)
 	if kind == "boss":
 		enemy.health_changed.connect(_on_boss_health_changed)
 	add_child(enemy)
-	_alive_enemies += 1
+	session.add_enemy()
+	_sync_session_fields()
 	_spawn_cursor += 1
 
 func _spawn_position(index: int) -> Vector3:
@@ -232,15 +223,20 @@ func _spawn_position(index: int) -> Vector3:
 	if absf(v) < 5.0: v -= 7.0
 	return down * (half - 1.35) + right * u + forward * v + inward * 0.15
 
-func _spawn_reward_pickups(completed_wave: int) -> void:
+func _spawn_reward_pickups(completed_wave_index: int) -> void:
 	if not is_instance_valid(player):
+		return
+	var wave: WaveDefinition = campaign.get_wave(completed_wave_index)
+	if wave == null:
 		return
 	var position_a: Vector3 = player.global_position - player.gravity_down * 0.45 + player.global_transform.basis.x * 2.0
 	var position_b: Vector3 = player.global_position - player.gravity_down * 0.45 - player.global_transform.basis.x * 2.0
-	_spawn_pickup(position_a, "health", 20.0 + float(completed_wave * 2))
-	_spawn_pickup(position_b, "ammo", 30.0 + float(completed_wave * 4))
-	if completed_wave >= 3:
-		_spawn_pickup(player.global_position - player.gravity_down * 0.45 + player.global_transform.basis.z * 2.2, "shield", 18.0)
+	if wave.reward_health > 0.0:
+		_spawn_pickup(position_a, "health", wave.reward_health)
+	if wave.reward_ammo > 0:
+		_spawn_pickup(position_b, "ammo", float(wave.reward_ammo))
+	if wave.reward_shield > 0.0:
+		_spawn_pickup(player.global_position - player.gravity_down * 0.45 + player.global_transform.basis.z * 2.2, "shield", wave.reward_shield)
 
 func _spawn_pickup(world_position: Vector3, kind: String, amount: float) -> void:
 	var pickup: NeonPickup = PICKUP_SCENE.instantiate() as NeonPickup
@@ -249,9 +245,8 @@ func _spawn_pickup(world_position: Vector3, kind: String, amount: float) -> void
 	add_child(pickup)
 
 func _on_enemy_killed(enemy: NeonEnemy) -> void:
-	_alive_enemies = maxi(0, _alive_enemies - 1)
-	_kills += 1
-	_score += enemy.get_score_value()
+	session.register_kill(enemy.get_score_value())
+	_sync_session_fields()
 	if enemy.archetype == "boss" and boss_bar != null:
 		boss_bar.visible = false
 		boss_label.visible = false
@@ -535,10 +530,20 @@ func _on_player_damaged(_amount: float) -> void:
 	tween.tween_property(damage_overlay, "color:a", 0.0, 0.24)
 
 func _update_score() -> void:
-	if score_label != null: score_label.text = "SCORE %06d   WAVE %02d/%02d" % [_score, _wave, total_waves]
+	if score_label != null:
+		score_label.text = "SCORE %06d   WAVE %02d/%02d" % [session.score, session.current_wave_number(), total_waves]
 
 func _update_objective() -> void:
-	if objective_label != null: objective_label.text = "HOSTILES %02d" % _alive_enemies
+	if objective_label != null: objective_label.text = "HOSTILES %02d" % session.alive_enemies
+
+func _sync_session_fields() -> void:
+	_score = session.score
+	_wave = session.current_wave_number()
+	_alive_enemies = session.alive_enemies
+	_kills = session.kills
+	difficulty_name = session.difficulty_name
+	difficulty_scale = session.difficulty_scale
+
 
 func _on_boss_health_changed(current: float, maximum: float, phase: int) -> void:
 	if boss_bar == null or boss_label == null:
