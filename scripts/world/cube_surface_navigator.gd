@@ -43,10 +43,9 @@ static func route_direction(
 ) -> Vector3:
 	var current := _canonical_face(current_down)
 	var target_down := CubeGravity.nearest_down(target_position, half_extent)
-	var path := shortest_face_path(current, target_down)
+	var next_down := _best_next_face(position, current, target_position, target_down, half_extent)
 
-	if path.size() > 1:
-		var next_down: Vector3 = path[1]
+	if not next_down.is_equal_approx(current):
 		var edge_direction := next_down - current * next_down.dot(current)
 		if edge_direction.length_squared() > 0.001:
 			return edge_direction.normalized()
@@ -86,3 +85,34 @@ static func _reconstruct_path(
 
 static func _face_key(face: Vector3) -> String:
 	return "%d,%d,%d" % [int(round(face.x)), int(round(face.y)), int(round(face.z))]
+
+
+static func _best_next_face(
+	position: Vector3,
+	current_down: Vector3,
+	target_position: Vector3,
+	target_down: Vector3,
+	half_extent: float
+) -> Vector3:
+	if current_down.is_equal_approx(target_down):
+		return current_down
+	if are_adjacent(current_down, target_down):
+		return target_down
+
+	# Opposite faces have four equally short topological routes. Prefer the side
+	# whose shared edges are physically closest to both actors so enemies do not
+	# run to an arbitrary cube edge.
+	var best := current_down
+	var best_score := INF
+	for candidate in CubeGravity.AXIS_DOWNS:
+		if not are_adjacent(current_down, candidate):
+			continue
+		if not are_adjacent(candidate, target_down):
+			continue
+		var from_cost := CubeGravity.face_distance(position, candidate, half_extent)
+		var target_cost := CubeGravity.face_distance(target_position, candidate, half_extent)
+		var score := from_cost + target_cost
+		if score < best_score:
+			best_score = score
+			best = candidate
+	return best
