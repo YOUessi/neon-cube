@@ -72,6 +72,7 @@ static func _build_face(parent: Node3D, down: Vector3, cube_size: float, half: f
 	_build_city_blocks(parent, down, half)
 	_build_neon_grid(parent, down, half)
 	_build_plaza(parent, down, half)
+	_build_authored_props(parent, down, half)
 
 static func _build_city_blocks(parent: Node3D, down: Vector3, half: float) -> void:
 	var basis := CubeGravity.tangent_basis(down)
@@ -171,6 +172,40 @@ static func _build_neon_grid(parent: Node3D, down: Vector3, half: float) -> void
 		_add_strip(parent, face_center + forward * offset + inward_up * 0.05, basis, Vector3(53.0, 0.045, 0.09), Color(1.0, 0.02, 0.62))
 	for offset in [-4.0, 4.0]:
 		_add_strip(parent, face_center + right * offset + inward_up * 0.055, basis, Vector3(0.045, 0.04, 54.0), Color(1.0, 0.72, 0.08))
+
+static func _build_authored_props(parent: Node3D, down: Vector3, half: float) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var basis: Basis = CubeGravity.tangent_basis(down)
+	var right: Vector3 = basis.x
+	var inward: Vector3 = basis.y
+	var forward: Vector3 = -basis.z
+	var center: Vector3 = down * (half - 0.48) + inward * 0.04
+
+	var placements := [
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 + forward * 6.0, 1.25],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 + forward * 6.0, 1.25],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 - forward * 6.0, 1.25],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 - forward * 6.0, 1.25],
+		["res://assets/third_party/quaternius_cyberpunk/computer.gltf", center + right * 7.5 + forward * 1.5, 1.4],
+		["res://assets/third_party/quaternius_cyberpunk/door.gltf", center - right * 8.0 - forward * 2.0, 1.7],
+		["res://assets/third_party/quaternius_cyberpunk/antenna.gltf", center + right * 10.5 - forward * 9.0, 1.65],
+		["res://assets/third_party/quaternius_cyberpunk/fence.gltf", center - right * 10.0 + forward * 9.0, 1.8],
+	]
+	for placement in placements:
+		var path: String = placement[0]
+		if not ResourceLoader.exists(path):
+			continue
+		var packed: PackedScene = load(path) as PackedScene
+		if packed == null:
+			continue
+		var prop: Node3D = packed.instantiate() as Node3D
+		if prop == null:
+			continue
+		prop.position = placement[1]
+		prop.basis = basis
+		prop.scale = Vector3.ONE * float(placement[2])
+		parent.add_child(prop)
 
 static func _build_plaza(parent: Node3D, down: Vector3, half: float) -> void:
 	if DisplayServer.get_name() == "headless":

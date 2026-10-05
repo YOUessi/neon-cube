@@ -202,16 +202,34 @@ func _die() -> void:
 func _build_visual() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	var model_path := "res://assets/models/enemy.glb"
+
+	var override_path := "res://assets/models/enemy.glb"
+	if ResourceLoader.exists(override_path):
+		var override_scene: PackedScene = load(override_path) as PackedScene
+		if override_scene != null:
+			var override_model: Node = override_scene.instantiate()
+			visual_root.add_child(override_model)
+			_anim = _find_animation_player(override_model)
+			return
+
+	var archetype_paths := {
+		"grunt": "res://assets/third_party/quaternius_cyberpunk/enemy_grunt.gltf",
+		"runner": "res://assets/third_party/quaternius_cyberpunk/enemy_runner.gltf",
+		"sniper": "res://assets/third_party/quaternius_cyberpunk/enemy_sniper.gltf",
+		"tank": "res://assets/third_party/quaternius_cyberpunk/enemy_tank.gltf",
+		"boss": "res://assets/third_party/quaternius_cyberpunk/enemy_boss.gltf",
+	}
+	var model_path: String = String(archetype_paths.get(archetype, archetype_paths["grunt"]))
 	if ResourceLoader.exists(model_path):
 		var packed: PackedScene = load(model_path) as PackedScene
 		if packed != null:
-			var model: Node = packed.instantiate()
-			visual_root.add_child(model)
-			_anim = _find_animation_player(model)
-			if archetype == "boss":
-				visual_root.scale = Vector3.ONE * 1.75
-			return
+			var model: Node3D = packed.instantiate() as Node3D
+			if model != null:
+				model.scale = Vector3.ONE * (0.72 if archetype != "boss" else 1.32)
+				visual_root.add_child(model)
+				_anim = _find_animation_player(model)
+				return
+
 	_build_procedural_humanoid()
 
 func _build_procedural_humanoid() -> void:

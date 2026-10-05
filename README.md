@@ -22,7 +22,7 @@
 - Damage-screen feedback, wave messaging, score, objective and gravity HUD.
 - Procedural cyberpunk city, neon road grid and fallback enemy visuals.
 - Procedurally synthesized sound cues.
-- Optional Tripo enemy model and Mixamo animation hooks; no external asset is required to play.
+- Real CC0 weapon meshes from Kenney and cyberpunk enemy/environment meshes from Quaternius are bundled and used by default. An optional Tripo enemy GLB can still override the bundled enemies, and Mixamo animation hooks remain supported.
 
 ## Controls
 
@@ -71,3 +71,8 @@ See `assets/external/README.md`.
 ## Scope
 
 This repository is a finished small arena game rather than a content-heavy commercial title. It has a complete start-to-finish campaign, multiple weapons and enemy types, a boss encounter, progression, difficulty selection, win/loss states, replayability, persistence, sound/visual feedback and automated cloud validation.
+
+
+## Bundled art sources
+
+The playable build now uses real CC0 3D assets for weapons, enemies and selected environment props instead of relying only on placeholder primitives. See `THIRD_PARTY_ASSETS.md` and the preserved license files under `assets/third_party/`.

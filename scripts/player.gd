@@ -223,6 +223,23 @@ func _refresh_weapon_visual() -> void:
 		return
 	for child in weapon_root.get_children():
 		child.queue_free()
+
+	var model_paths := [
+		"res://assets/third_party/kenney_blaster/blaster-e.glb",
+		"res://assets/third_party/kenney_blaster/blaster-p.glb",
+		"res://assets/third_party/kenney_blaster/blaster-r.glb",
+	]
+	var model_path: String = model_paths[_weapon_index]
+	if ResourceLoader.exists(model_path):
+		var packed: PackedScene = load(model_path) as PackedScene
+		if packed != null:
+			var model: Node3D = packed.instantiate() as Node3D
+			if model != null:
+				model.scale = Vector3.ONE * 0.18
+				model.rotation_degrees = Vector3(0, 180, 0)
+				weapon_root.add_child(model)
+				return
+
 	var spec: Dictionary = _weapon_spec(_weapon_index)
 	var neon: Color = spec["color"] as Color
 	var dark := StandardMaterial3D.new()
