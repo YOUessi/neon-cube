@@ -4,15 +4,21 @@ extends Node3D
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const PICKUP_SCENE := preload("res://scenes/pickup.tscn")
+const MISSION_BLOCKOUT_SCENE := preload("res://scenes/missions/neon_market_siege_blockout.tscn")
 
 enum GameState { MENU, PLAYING, PAUSED, VICTORY, GAME_OVER }
 
 @export var cube_size := 60.0
 @export var starting_enemies := 6
 @export var total_waves := 6
+@export var story_mode := true
 
 var player: NeonPlayer
 var campaign: CampaignDefinition = CampaignCatalog.primary()
+var mission_definition: MissionDefinition = MissionCatalog.primary()
+var mission_runtime: MissionRuntime = MissionRuntime.new()
+var mission_level: Node3D
+var mission_anchors: Dictionary = {}
 var session: GameSession = GameSession.new()
 var game_state: GameState = GameState.MENU
 var difficulty_name := "OPERATIVE"
@@ -54,9 +60,16 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_input_actions()
 	_load_high_score()
-	total_waves = campaign.wave_count()
-	starting_enemies = campaign.get_wave(0).enemy_kinds.size()
+	if story_mode:
+		total_waves = mission_definition.encounter_count()
+		starting_enemies = mission_definition.get_encounter(0).enemy_kinds.size()
+	else:
+		total_waves = campaign.wave_count()
+		starting_enemies = campaign.get_wave(0).enemy_kinds.size()
 	CyberCityBuilder.build(self, cube_size)
+	mission_level = MISSION_BLOCKOUT_SCENE.instantiate() as Node3D
+	add_child(mission_level)
+	mission_anchors = MissionAnchorRegistry.collect(mission_level)
 	var audio: NeonAudio = NeonAudio.new()
 	audio.name = "NeonAudio"
 	add_child(audio)
@@ -90,6 +103,9 @@ func _start_with_difficulty(name: String, scale: float) -> void:
 func start_game() -> void:
 	get_tree().paused = false
 	_clear_runtime_entities()
+	if story_mode:
+		mission_runtime.start(mission_definition)
+		MissionProgressStore.clear()
 	session.reset_run(difficulty_name, difficulty_scale)
 	_sync_session_fields()
 	_spawn_cursor = 0
@@ -153,6 +169,18 @@ func _finish_game(victory: bool) -> void:
 
 func _finish_wave() -> void:
 	_wave_transitioning = true
+	if story_mode:
+		var encounter := mission_runtime.current_encounter()
+		_spawn_encounter_rewards(encounter)
+		mission_runtime.complete_current_encounter()
+		MissionProgressStore.save_runtime(mission_runtime)
+		if mission_runtime.state == MissionRuntime.State.COMPLETED:
+			_finish_game(true)
+			return
+		var timer := get_tree().create_timer(1.8)
+		timer.timeout.connect(_advance_wave)
+		return
+
 	if session.is_last_wave(campaign):
 		_finish_game(true)
 		return
@@ -171,6 +199,10 @@ func _advance_wave() -> void:
 	_spawn_current_wave()
 	_update_score()
 	_update_objective()
+	if story_mode:
+		var encounter := mission_runtime.current_encounter()
+		_show_message("%s // %s" % [encounter.title, encounter.objective_text], 2.0)
+		return
 	var wave: WaveDefinition = campaign.get_wave(session.wave_index)
 	if wave.boss_wave:
 		_show_message("FINAL WAVE // %s ONLINE" % wave.title, 2.0)
@@ -187,20 +219,53 @@ func wave_plan(wave_number: int) -> Array[String]:
 	return result
 
 func _spawn_current_wave() -> void:
-	var plan: Array[String] = wave_plan(session.current_wave_number())
 	session.alive_enemies = 0
 	_sync_session_fields()
+
+	if story_mode:
+		var encounter := mission_runtime.current_encounter()
+		if encounter == null:
+			return
+		var center_anchor := MissionAnchorRegistry.find_for_encounter(
+			mission_anchors,
+			encounter.encounter_id,
+			MissionAnchor.Kind.ENCOUNTER_CENTER
+		)
+		var positions: Array[Vector3]
+		if center_anchor != null:
+			positions = EncounterSpawnPlanner.spawn_positions_around(
+				encounter,
+				encounter.enemy_kinds.size(),
+				cube_size,
+				center_anchor.global_position,
+				_spawn_cursor
+			)
+		else:
+			positions = EncounterSpawnPlanner.spawn_positions(
+				encounter,
+				encounter.enemy_kinds.size(),
+				cube_size,
+				_spawn_cursor
+			)
+		for i in range(encounter.enemy_kinds.size()):
+			_spawn_enemy_at(String(encounter.enemy_kinds[i]), positions[i])
+		return
+
+	var plan: Array[String] = wave_plan(session.current_wave_number())
 	for i in range(plan.size()):
 		_spawn_enemy(plan[i], i)
 
 func _spawn_enemy(kind: String, index: int) -> void:
+	_spawn_enemy_at(kind, _spawn_position(index + _spawn_cursor))
+
+func _spawn_enemy_at(kind: String, world_position: Vector3) -> void:
 	if not is_instance_valid(player):
 		return
 	var enemy: NeonEnemy = ENEMY_SCENE.instantiate() as NeonEnemy
 	enemy.cube_half_extent = cube_size * 0.5
 	enemy.target = player
 	enemy.configure(kind, session.current_wave_number(), session.difficulty_scale)
-	enemy.position = _spawn_position(index + _spawn_cursor)
+	enemy.position = world_position
 	enemy.killed.connect(_on_enemy_killed)
 	if kind == "boss":
 		enemy.health_changed.connect(_on_boss_health_changed)
@@ -238,6 +303,22 @@ func _spawn_reward_pickups(completed_wave_index: int) -> void:
 	if wave.reward_shield > 0.0:
 		_spawn_pickup(player.global_position - player.gravity_down * 0.45 + player.global_transform.basis.z * 2.2, "shield", wave.reward_shield)
 
+func _spawn_encounter_rewards(encounter: EncounterDefinition) -> void:
+	if encounter == null or not is_instance_valid(player):
+		return
+	var position_a := player.global_position - player.gravity_down * 0.45 + player.global_transform.basis.x * 2.0
+	var position_b := player.global_position - player.gravity_down * 0.45 - player.global_transform.basis.x * 2.0
+	if encounter.reward_health > 0.0:
+		_spawn_pickup(position_a, "health", encounter.reward_health)
+	if encounter.reward_ammo > 0:
+		_spawn_pickup(position_b, "ammo", float(encounter.reward_ammo))
+	if encounter.reward_shield > 0.0:
+		_spawn_pickup(
+			player.global_position - player.gravity_down * 0.45 + player.global_transform.basis.z * 2.2,
+			"shield",
+			encounter.reward_shield
+		)
+
 func _spawn_pickup(world_position: Vector3, kind: String, amount: float) -> void:
 	var pickup: NeonPickup = PICKUP_SCENE.instantiate() as NeonPickup
 	pickup.configure(kind, amount)
@@ -262,7 +343,11 @@ func _create_player() -> void:
 	player.cube_half_extent = cube_size * 0.5
 	player.mouse_sensitivity = _mouse_sensitivity_setting
 	add_child(player)
-	player.global_position = Vector3(0, -cube_size * 0.5 + 1.5, 0)
+	if story_mode and mission_anchors.has("player_start"):
+		var start_anchor: MissionAnchor = mission_anchors["player_start"]
+		player.global_position = start_anchor.global_position
+	else:
+		player.global_position = Vector3(0, -cube_size * 0.5 + 1.5, 0)
 	player.health_changed.connect(_on_health_changed)
 	player.shield_changed.connect(_on_shield_changed)
 	player.ammo_changed.connect(_on_ammo_changed)
@@ -283,7 +368,36 @@ func _clear_runtime_entities() -> void:
 	player = null
 
 func _on_player_died() -> void:
-	if game_state == GameState.PLAYING: _finish_game(false)
+	if game_state != GameState.PLAYING:
+		return
+	if story_mode:
+		mission_runtime.fail()
+	_finish_game(false)
+
+func _restart_story_checkpoint() -> void:
+	get_tree().paused = false
+	_clear_runtime_entities()
+	if not MissionProgressStore.load_into(mission_runtime, mission_definition):
+		mission_runtime.start(mission_definition)
+	else:
+		mission_runtime.restart_from_checkpoint()
+	session.reset_run(difficulty_name, difficulty_scale)
+	session.wave_index = mission_runtime.encounter_index
+	_sync_session_fields()
+	_spawn_cursor = mission_runtime.encounter_index * 8
+	_wave_transitioning = false
+	game_state = GameState.PLAYING
+	menu_panel.visible = false
+	pause_panel.visible = false
+	end_panel.visible = false
+	hud_panel.visible = true
+	_create_player()
+	_spawn_current_wave()
+	_update_score()
+	_update_objective()
+	_show_message("CHECKPOINT // %s" % mission_runtime.current_encounter().title, 1.8)
+	if DisplayServer.get_name() != "headless":
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _ensure_input_actions() -> void:
 	_bind_key("move_forward", KEY_W)
@@ -423,7 +537,8 @@ func _create_ui() -> void:
 	end_title = _add_center_label(end_panel, "", Vector2(0, -130), 48, Color(1.0, 0.18, 0.72))
 	end_details = _add_center_label(end_panel, "", Vector2(0, -42), 19, Color(0.65, 0.95, 1.0))
 	_add_center_button(end_panel, "RUN AGAIN", Vector2(0, 86), start_game)
-	_add_center_button(end_panel, "MAIN MENU", Vector2(0, 146), _show_menu)
+	_add_center_button(end_panel, "RESTART CHECKPOINT", Vector2(0, 146), _restart_story_checkpoint)
+	_add_center_button(end_panel, "MAIN MENU", Vector2(0, 206), _show_menu)
 
 	menu_panel.visible = false
 	pause_panel.visible = false
