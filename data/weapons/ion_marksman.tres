@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/weapon_definition.gd" id="1"]
+[ext_resource type="PackedScene" path="res://assets/third_party/kenney_blaster/blaster-r.glb" id="2"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"ion_marksman"
+display_name = "ION MARKSMAN"
+damage = 72.0
+fire_rate = 2.0
+magazine_size = 12
+initial_reserve = 72
+reserve_cap = 84
+reload_seconds = 0.9
+pellets = 1
+spread = 0.002
+max_range = 150.0
+accent_color = Color(0.35, 0.55, 1, 1)
+view_model_scene = ExtResource("2")
+view_model_scale = 0.38
+view_model_rotation_degrees = Vector3(-8, 180, 0)

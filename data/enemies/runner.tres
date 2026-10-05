@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ai/enemy_definition.gd" id="1"]
+[ext_resource type="PackedScene" path="res://assets/third_party/quaternius_cyberpunk/enemy_runner.gltf" id="2"]
+
+[resource]
+script = ExtResource("1")
+enemy_id = &"runner"
+display_name = "RUNNER"
+base_health = 44.0
+move_speed = 7.2
+attack_range = 9.0
+attack_damage = 6.0
+attack_interval = 0.48
+score_value = 130
+model_scene = ExtResource("2")
+model_scale = 0.66
+behavior_tags = Array[StringName]([&"rush", &"flank"])

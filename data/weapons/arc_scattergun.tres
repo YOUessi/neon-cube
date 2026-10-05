@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/weapon_definition.gd" id="1"]
+[ext_resource type="PackedScene" path="res://assets/third_party/kenney_blaster/blaster-p.glb" id="2"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"arc_scattergun"
+display_name = "ARC SCATTERGUN"
+damage = 16.0
+fire_rate = 1.25
+magazine_size = 8
+initial_reserve = 40
+reserve_cap = 48
+reload_seconds = 1.05
+pellets = 8
+spread = 0.055
+max_range = 42.0
+accent_color = Color(1, 0.12, 0.65, 1)
+view_model_scene = ExtResource("2")
+view_model_scale = 0.38
+view_model_rotation_degrees = Vector3(-8, 180, 0)

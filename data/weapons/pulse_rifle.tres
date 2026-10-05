@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/weapon_definition.gd" id="1"]
+[ext_resource type="PackedScene" path="res://assets/third_party/kenney_blaster/blaster-e.glb" id="2"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"pulse_rifle"
+display_name = "PULSE RIFLE"
+damage = 26.0
+fire_rate = 9.5
+magazine_size = 30
+initial_reserve = 150
+reserve_cap = 180
+reload_seconds = 0.72
+pellets = 1
+spread = 0.008
+max_range = 115.0
+accent_color = Color(0, 0.95, 1, 1)
+view_model_scene = ExtResource("2")
+view_model_scale = 0.38
+view_model_rotation_degrees = Vector3(-8, 180, 0)

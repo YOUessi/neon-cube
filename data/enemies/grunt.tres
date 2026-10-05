@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ai/enemy_definition.gd" id="1"]
+[ext_resource type="PackedScene" path="res://assets/third_party/quaternius_cyberpunk/enemy_grunt.gltf" id="2"]
+
+[resource]
+script = ExtResource("1")
+enemy_id = &"grunt"
+display_name = "GRUNT"
+base_health = 72.0
+move_speed = 4.8
+attack_range = 15.0
+attack_damage = 8.0
+attack_interval = 0.82
+score_value = 100
+model_scene = ExtResource("2")
+model_scale = 0.72
+behavior_tags = Array[StringName]([&"advance", &"rifle"])

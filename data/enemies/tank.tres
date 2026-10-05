@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ai/enemy_definition.gd" id="1"]
+[ext_resource type="PackedScene" path="res://assets/third_party/quaternius_cyberpunk/enemy_tank.gltf" id="2"]
+
+[resource]
+script = ExtResource("1")
+enemy_id = &"tank"
+display_name = "TANK"
+base_health = 185.0
+move_speed = 2.7
+attack_range = 12.0
+attack_damage = 13.0
+attack_interval = 0.9
+score_value = 240
+model_scene = ExtResource("2")
+model_scale = 0.96
+behavior_tags = Array[StringName]([&"advance", &"anchor", &"heavy"])
