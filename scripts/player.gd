@@ -48,8 +48,14 @@ func _ready() -> void:
 	_ensure_local_input_actions()
 	_health = max_health
 	_shield = max_shield
-	_weapon_ammo = [30, 8, 12]
-	_weapon_reserve = [reserve_ammo, 40, 72]
+	_weapon_ammo.clear()
+	_weapon_reserve.clear()
+	var definitions: Array[WeaponDefinition] = WeaponCatalog.all()
+	for definition in definitions:
+		_weapon_ammo.append(definition.magazine_size)
+		_weapon_reserve.append(definition.initial_reserve)
+	magazine_size = definitions[0].magazine_size
+	reserve_ammo = definitions[0].initial_reserve
 	up_direction = -gravity_down
 	_rng.seed = 2049
 	if DisplayServer.get_name() != "headless":
@@ -158,14 +164,8 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		gravity_down = Vector3.DOWN
 
-func _weapon_spec(index: int) -> Dictionary:
-	match index:
-		1:
-			return {"name":"ARC SCATTERGUN","damage":16.0,"fire_rate":1.25,"magazine":8,"reserve_cap":48,"reload":1.05,"pellets":8,"spread":0.055,"range":42.0,"color":Color(1.0,0.12,0.65)}
-		2:
-			return {"name":"ION MARKSMAN","damage":72.0,"fire_rate":2.0,"magazine":12,"reserve_cap":84,"reload":0.9,"pellets":1,"spread":0.002,"range":150.0,"color":Color(0.35,0.55,1.0)}
-		_:
-			return {"name":"PULSE RIFLE","damage":26.0,"fire_rate":9.5,"magazine":30,"reserve_cap":180,"reload":0.72,"pellets":1,"spread":0.008,"range":115.0,"color":Color(0.0,0.95,1.0)}
+func _weapon_spec(index: int) -> WeaponDefinition:
+	return WeaponCatalog.get_definition(index)
 
 func switch_weapon(index: int) -> void:
 	if index < 0 or index >= _weapon_ammo.size() or index == _weapon_index:
@@ -173,8 +173,8 @@ func switch_weapon(index: int) -> void:
 	_weapon_index = index
 	_reload_cooldown = 0.0
 	_refresh_weapon_visual()
-	var spec: Dictionary = _weapon_spec(_weapon_index)
-	weapon_changed.emit(String(spec["name"]), _weapon_index + 1)
+	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
+	weapon_changed.emit(spec.display_name, _weapon_index + 1)
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
 
 func _try_fire() -> void:
@@ -184,7 +184,7 @@ func _try_fire() -> void:
 		_reload()
 		return
 	var spec: Dictionary = _weapon_spec(_weapon_index)
-	_fire_cooldown = 1.0 / float(spec["fire_rate"])
+	_fire_cooldown = 1.0 / spec.fire_rate
 	_weapon_ammo[_weapon_index] -= 1
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
 	_audio_call("play_shot", [_weapon_index])
@@ -194,10 +194,10 @@ func _try_fire() -> void:
 	var base_direction: Vector3 = -camera.global_transform.basis.z.normalized()
 	var right: Vector3 = camera.global_transform.basis.x.normalized()
 	var up: Vector3 = camera.global_transform.basis.y.normalized()
-	var pellets: int = int(spec["pellets"])
-	var spread: float = float(spec["spread"])
-	var weapon_range: float = float(spec["range"])
-	var damage: float = float(spec["damage"])
+	var pellets: int = spec.pellets
+	var spread: float = spec.spread
+	var weapon_range: float = spec.max_range
+	var damage: float = spec.damage
 
 	for pellet in range(pellets):
 		var jitter_x: float = _rng.randf_range(-spread, spread)
@@ -216,7 +216,7 @@ func _try_fire() -> void:
 			if pellet == 0:
 				_spawn_impact(end_point, hit.get("normal", Vector3.UP))
 		if pellet == 0:
-			_spawn_tracer(from, end_point, spec["color"] as Color)
+			_spawn_tracer(from, end_point, spec.accent_color)
 
 func _refresh_weapon_visual() -> void:
 	if DisplayServer.get_name() == "headless" or weapon_root == null:
@@ -327,20 +327,20 @@ func _spawn_impact(position: Vector3, normal: Vector3) -> void:
 
 func _reload() -> void:
 	var spec: Dictionary = _weapon_spec(_weapon_index)
-	var capacity: int = int(spec["magazine"])
+	var capacity: int = spec.magazine_size
 	if _reload_cooldown > 0.0 or _weapon_ammo[_weapon_index] >= capacity or _weapon_reserve[_weapon_index] <= 0:
 		return
 	var needed: int = capacity - _weapon_ammo[_weapon_index]
 	var amount: int = mini(needed, _weapon_reserve[_weapon_index])
 	_weapon_ammo[_weapon_index] += amount
 	_weapon_reserve[_weapon_index] -= amount
-	_reload_cooldown = float(spec["reload"])
+	_reload_cooldown = spec.reload_seconds
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
 	_audio_call("play_reload")
 
 func grant_ammo(amount: int) -> void:
 	var spec: Dictionary = _weapon_spec(_weapon_index)
-	var cap: int = int(spec["reserve_cap"])
+	var cap: int = spec.reserve_cap
 	_weapon_reserve[_weapon_index] = mini(cap, _weapon_reserve[_weapon_index] + maxi(0, amount))
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
 
