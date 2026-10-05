@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="PerformanceBudget" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/performance/performance_budget.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+target_frame_ms = 16.67
+hard_frame_ms = 33.33
+max_active_enemies = 32
+max_active_pickups = 12
