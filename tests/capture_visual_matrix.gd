@@ -27,6 +27,9 @@ func _run() -> void:
 		player.switch_weapon(index)
 		await process_frame
 		await _capture("weapon_%d" % (index + 1))
+	player.switch_weapon(0)
+	if game.message_label != null:
+		game.message_label.modulate.a = 0.0
 
 	var faces := [
 		Vector3.DOWN,
@@ -59,9 +62,9 @@ func _run() -> void:
 		var boss: NeonEnemy = enemies[0] as NeonEnemy
 		boss.set_physics_process(false)
 		player.gravity_down = Vector3.DOWN
-		player.global_position = Vector3(0, -game.cube_size * 0.5 + 1.7, 8.0)
+		player.global_position = Vector3(0, -game.cube_size * 0.5 + 1.7, 16.0)
 		player.global_transform.basis = CubeGravity.tangent_basis(Vector3.DOWN)
-		boss.global_position = Vector3(0, -game.cube_size * 0.5 + 1.3, -1.0)
+		boss.global_position = Vector3(0, -game.cube_size * 0.5 + 1.3, 8.0)
 		boss.gravity_down = Vector3.DOWN
 		await process_frame
 		player.camera.look_at(boss.global_position + Vector3.UP * 0.55, Vector3.UP)
