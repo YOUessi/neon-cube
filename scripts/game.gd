@@ -5,6 +5,7 @@ const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const PICKUP_SCENE := preload("res://scenes/pickup.tscn")
 const MISSION_BLOCKOUT_SCENE := preload("res://scenes/missions/neon_market_siege_blockout.tscn")
+const DESKTOP_PERFORMANCE_BUDGET: PerformanceBudget = preload("res://data/performance/desktop_high.tres")
 
 enum GameState { MENU, PLAYING, PAUSED, VICTORY, GAME_OVER }
 
@@ -20,6 +21,7 @@ var mission_runtime: MissionRuntime = MissionRuntime.new()
 var mission_level: Node3D
 var mission_anchors: Dictionary = {}
 var session: GameSession = GameSession.new()
+var performance_monitor: RuntimePerformanceMonitor
 var game_state: GameState = GameState.MENU
 var difficulty_name := "OPERATIVE"
 var difficulty_scale := 1.0
@@ -71,6 +73,11 @@ func _ready() -> void:
 	mission_level = MISSION_BLOCKOUT_SCENE.instantiate() as Node3D
 	add_child(mission_level)
 	mission_anchors = MissionAnchorRegistry.collect(mission_level)
+	performance_monitor = RuntimePerformanceMonitor.new()
+	performance_monitor.name = "PerformanceMonitor"
+	performance_monitor.budget = DESKTOP_PERFORMANCE_BUDGET
+	performance_monitor.budget_warning.connect(_on_performance_budget_warning)
+	add_child(performance_monitor)
 	var audio: NeonAudio = NeonAudio.new()
 	audio.name = "NeonAudio"
 	add_child(audio)
@@ -714,6 +721,11 @@ func _show_message(text: String, duration: float) -> void:
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_interval(duration)
 	tween.tween_property(message_label, "modulate:a", 0.0, 0.4)
+
+func _on_performance_budget_warning(messages: PackedStringArray) -> void:
+	for message in messages:
+		push_warning("Performance budget: %s" % message)
+
 
 func _audio_call(method: StringName) -> void:
 	var audio: Node = get_tree().get_first_node_in_group("neon_audio")
