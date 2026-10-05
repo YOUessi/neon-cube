@@ -144,7 +144,7 @@ static func _add_building(parent: Node3D, position: Vector3, basis: Basis, size:
 		sign.modulate = neon
 		sign.outline_size = 5
 		sign.outline_modulate = Color(0.01, 0.01, 0.03, 0.85)
-		sign.position = Vector3(0, size.y * 0.22, facade_z - 0.08)
+		sign.position = Vector3(0, size.y * 0.22, -size.z * 0.505 - 0.08)
 		sign.rotation_degrees = Vector3(0, 180, 0)
 		body.add_child(sign)
 
