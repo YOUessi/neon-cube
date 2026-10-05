@@ -206,15 +206,15 @@ static func _build_landmark(parent: Node3D, down: Vector3, half: float, theme: D
 	var center := down * (half - 0.42) + inward * 0.08
 	var ring := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
-	mesh.top_radius = 3.2
-	mesh.bottom_radius = 3.2
-	mesh.height = 0.10
+	mesh.top_radius = 1.55
+	mesh.bottom_radius = 1.55
+	mesh.height = 0.055
 	mesh.radial_segments = 48
 	ring.mesh = mesh
 	ring.position = center
 	ring.basis = basis
 	var a := theme["a"] as Color
-	ring.material_override = _material(Color(0.018,0.024,0.05),a,2.2,0.72,0.18)
+	ring.material_override = _material(Color(0.012,0.018,0.038),a*0.42,0.75,0.72,0.28)
 	parent.add_child(ring)
 
 	var label := Label3D.new()
