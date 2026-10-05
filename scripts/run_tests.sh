@@ -12,6 +12,7 @@ TESTS=(
   "tests/test_campaign_definition.gd"
   "tests/test_profile_store.gd"
   "tests/test_cube_gravity.gd"
+  "tests/test_cube_surface_navigator.gd"
   "tests/test_face_transitions.gd"
   "tests/test_player_contract.gd"
   "tests/test_weapon_system.gd"
