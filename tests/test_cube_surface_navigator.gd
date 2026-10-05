@@ -26,8 +26,8 @@ func _run() -> void:
 				_check(path.size() == 2, "adjacent faces require one edge transition")
 
 	var half := 30.0
-	var from_position := Vector3(0.0, -29.0, 0.0)
-	var opposite_target := Vector3(0.0, 29.0, 0.0)
+	var from_position := Vector3(20.0, -29.0, 0.0)
+	var opposite_target := Vector3(18.0, 29.0, 0.0)
 	var direction := CubeSurfaceNavigator.route_direction(
 		from_position,
 		Vector3.DOWN,
@@ -36,6 +36,17 @@ func _run() -> void:
 	)
 	_check(direction.length() > 0.9, "opposite-face route produces a tangent direction")
 	_check(absf(direction.dot(Vector3.DOWN)) < 0.01, "route direction remains tangent to current face")
+	_check(direction.dot(Vector3.RIGHT) > 0.9, "opposite-face route chooses nearby east seam")
+
+	var west_from := Vector3(-19.0, -29.0, 0.0)
+	var west_target := Vector3(-17.0, 29.0, 0.0)
+	var west_direction := CubeSurfaceNavigator.route_direction(
+		west_from,
+		Vector3.DOWN,
+		west_target,
+		half
+	)
+	_check(west_direction.dot(Vector3.LEFT) > 0.9, "opposite-face route chooses nearby west seam")
 
 	_finish()
 
