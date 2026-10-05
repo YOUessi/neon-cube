@@ -173,7 +173,7 @@ func _finish_wave() -> void:
 		var encounter := mission_runtime.current_encounter()
 		_spawn_encounter_rewards(encounter)
 		mission_runtime.complete_current_encounter()
-		MissionProgressStore.save_runtime(mission_runtime)
+		MissionProgressStore.save_runtime(mission_runtime, session)
 		if mission_runtime.state == MissionRuntime.State.COMPLETED:
 			_finish_game(true)
 			return
@@ -377,12 +377,15 @@ func _on_player_died() -> void:
 func _restart_story_checkpoint() -> void:
 	get_tree().paused = false
 	_clear_runtime_entities()
-	if not MissionProgressStore.load_into(mission_runtime, mission_definition):
+	var restored := MissionProgressStore.load_into(mission_runtime, mission_definition, session)
+	if not restored:
 		mission_runtime.start(mission_definition)
+		session.reset_run(difficulty_name, difficulty_scale)
 	else:
 		mission_runtime.restart_from_checkpoint()
-	session.reset_run(difficulty_name, difficulty_scale)
+		session.set_state(GameSession.State.PLAYING)
 	session.wave_index = mission_runtime.encounter_index
+	session.alive_enemies = 0
 	_sync_session_fields()
 	_spawn_cursor = mission_runtime.encounter_index * 8
 	_wave_transitioning = false
