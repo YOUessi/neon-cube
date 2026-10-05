@@ -8,6 +8,7 @@ GODOT="$("$ROOT/scripts/godot_bin.sh")"
 TESTS=(
   "tests/test_definition_catalogs.gd"
   "tests/test_weapon_loadout.gd"
+  "tests/test_weapon_feedback.gd"
   "tests/test_player_vitals.gd"
   "tests/test_campaign_definition.gd"
   "tests/test_mission_runtime.gd"
