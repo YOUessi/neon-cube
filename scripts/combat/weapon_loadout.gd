@@ -11,7 +11,9 @@ var _current_index := 0
 var _fire_cooldown := 0.0
 var _reload_cooldown := 0.0
 
-func initialize(definitions: Array[WeaponDefinition] = WeaponCatalog.all()) -> void:
+func initialize(definitions: Array[WeaponDefinition] = []) -> void:
+	if definitions.is_empty():
+		definitions = WeaponCatalog.all()
 	_definitions = definitions.duplicate()
 	_ammo.clear()
 	_reserve.clear()
