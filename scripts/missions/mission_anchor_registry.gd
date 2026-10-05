@@ -6,6 +6,17 @@ static func collect(root: Node) -> Dictionary:
 	_collect_recursive(root, result)
 	return result
 
+static func find_for_encounter(
+	anchors: Dictionary,
+	encounter_id: StringName,
+	kind: int
+) -> MissionAnchor:
+	for key in anchors:
+		var anchor: MissionAnchor = anchors[key]
+		if anchor.encounter_id == encounter_id and int(anchor.kind) == kind:
+			return anchor
+	return null
+
 static func validate(root: Node, mission: MissionDefinition) -> PackedStringArray:
 	var errors := PackedStringArray()
 	var anchors := collect(root)
