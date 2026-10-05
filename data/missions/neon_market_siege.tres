@@ -1,0 +1,80 @@
+[gd_resource type="Resource" script_class="MissionDefinition" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/missions/mission_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/missions/encounter_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Arrival"]
+script = ExtResource("2")
+encounter_id = &"arrival_ambush"
+title = "ARRIVAL AMBUSH"
+objective_text = "Secure the Neon Market ingress."
+district_id = &"neon_market"
+enemy_kinds = Array[StringName]([&"grunt", &"grunt", &"grunt", &"runner"])
+checkpoint_id = &"cp_market_ingress"
+reward_health = 15.0
+reward_ammo = 20
+
+[sub_resource type="Resource" id="MarketCrossfire"]
+script = ExtResource("2")
+encounter_id = &"market_crossfire"
+title = "MARKET CROSSFIRE"
+objective_text = "Break through the elevated market lanes."
+district_id = &"neon_market"
+enemy_kinds = Array[StringName]([&"grunt", &"grunt", &"runner", &"runner", &"sniper"])
+checkpoint_id = &"cp_market_core"
+reward_health = 20.0
+reward_ammo = 28
+reward_shield = 15.0
+
+[sub_resource type="Resource" id="GravityBreach"]
+script = ExtResource("2")
+encounter_id = &"gravity_breach"
+title = "GRAVITY BREACH"
+objective_text = "Cross the cube edge and destroy the blocking squad."
+district_id = &"industrial_arc"
+enemy_kinds = Array[StringName]([&"runner", &"runner", &"sniper", &"tank"])
+checkpoint_id = &"cp_gravity_breach"
+reward_health = 20.0
+reward_ammo = 32
+reward_shield = 20.0
+
+[sub_resource type="Resource" id="DataLane"]
+script = ExtResource("2")
+encounter_id = &"data_lane"
+title = "DATA LANE"
+objective_text = "Reach the Warden access relay."
+district_id = &"data_quarter"
+enemy_kinds = Array[StringName]([&"grunt", &"grunt", &"sniper", &"sniper", &"tank"])
+checkpoint_id = &"cp_warden_gate"
+reward_health = 24.0
+reward_ammo = 36
+reward_shield = 20.0
+
+[sub_resource type="Resource" id="Warden"]
+script = ExtResource("2")
+encounter_id = &"null_warden"
+title = "NULL WARDEN"
+objective_text = "Destroy the Null Warden."
+district_id = &"void_docks"
+enemy_kinds = Array[StringName]([&"boss", &"runner", &"sniper", &"tank"])
+checkpoint_id = &"cp_warden_down"
+boss_encounter = true
+reward_health = 30.0
+reward_ammo = 50
+reward_shield = 30.0
+
+[sub_resource type="Resource" id="Extraction"]
+script = ExtResource("2")
+encounter_id = &"extraction"
+title = "EXTRACTION"
+objective_text = "Clear the extraction route."
+district_id = &"neon_market"
+enemy_kinds = Array[StringName]([&"grunt", &"runner", &"runner", &"sniper"])
+checkpoint_id = &"cp_extracted"
+
+[resource]
+script = ExtResource("1")
+mission_id = &"neon_market_siege"
+display_name = "NEON MARKET SIEGE"
+briefing = "Breach the market district, cross the cube seam, destroy the Null Warden, and reopen the extraction route."
+encounters = Array[ExtResource("2")]([SubResource("Arrival"), SubResource("MarketCrossfire"), SubResource("GravityBreach"), SubResource("DataLane"), SubResource("Warden"), SubResource("Extraction")])
