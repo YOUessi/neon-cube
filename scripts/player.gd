@@ -183,7 +183,7 @@ func _try_fire() -> void:
 	if _weapon_ammo[_weapon_index] <= 0:
 		_reload()
 		return
-	var spec: Dictionary = _weapon_spec(_weapon_index)
+	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
 	_fire_cooldown = 1.0 / spec.fire_rate
 	_weapon_ammo[_weapon_index] -= 1
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
@@ -240,8 +240,8 @@ func _refresh_weapon_visual() -> void:
 				weapon_root.add_child(model)
 				return
 
-	var spec: Dictionary = _weapon_spec(_weapon_index)
-	var neon: Color = spec["color"] as Color
+	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
+	var neon: Color = spec.accent_color
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color(0.035, 0.045, 0.075)
 	dark.metallic = 0.8
@@ -326,7 +326,7 @@ func _spawn_impact(position: Vector3, normal: Vector3) -> void:
 	get_tree().create_timer(0.08).timeout.connect(flash.queue_free)
 
 func _reload() -> void:
-	var spec: Dictionary = _weapon_spec(_weapon_index)
+	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
 	var capacity: int = spec.magazine_size
 	if _reload_cooldown > 0.0 or _weapon_ammo[_weapon_index] >= capacity or _weapon_reserve[_weapon_index] <= 0:
 		return
@@ -339,7 +339,7 @@ func _reload() -> void:
 	_audio_call("play_reload")
 
 func grant_ammo(amount: int) -> void:
-	var spec: Dictionary = _weapon_spec(_weapon_index)
+	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
 	var cap: int = spec.reserve_cap
 	_weapon_reserve[_weapon_index] = mini(cap, _weapon_reserve[_weapon_index] + maxi(0, amount))
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
@@ -375,11 +375,11 @@ func _audio_call(method: StringName, args: Array = []) -> void:
 		audio.callv(method, args)
 
 func _emit_status() -> void:
-	var spec: Dictionary = _weapon_spec(_weapon_index)
+	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
 	health_changed.emit(_health, max_health)
 	shield_changed.emit(_shield, max_shield)
 	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
-	weapon_changed.emit(String(spec["name"]), _weapon_index + 1)
+	weapon_changed.emit(spec.display_name, _weapon_index + 1)
 	face_changed.emit(CubeGravity.face_name(gravity_down))
 
 func get_health() -> float:
@@ -401,5 +401,5 @@ func get_weapon_index() -> int:
 	return _weapon_index
 
 func get_weapon_name() -> String:
-	var spec: Dictionary = _weapon_spec(_weapon_index)
-	return String(spec["name"])
+	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
+	return spec.display_name
