@@ -13,7 +13,8 @@ static func shortest_face_path(start_down: Vector3, target_down: Vector3) -> Arr
 		return result
 
 	var queue: Array[Vector3] = [start]
-	var visited := {_face_key(start): true}
+	var visited := {}
+	visited[_face_key(start)] = true
 	var parent := {}
 
 	while not queue.is_empty():
