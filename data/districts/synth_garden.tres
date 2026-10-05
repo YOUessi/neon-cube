@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DistrictDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/district_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+district_id = &"synth_garden"
+display_name = "SYNTH GARDEN"
+face_down = Vector3(0, 0, -1)
+primary_neon = Color(0.35, 1, 0.25, 1)
+secondary_neon = Color(0.05, 0.92, 0.84, 1)
+road_neon = Color(0.25, 1, 0.48, 1)
+building_height_scale = 1.08
+density_skip_mod = 6
+sign_prefix = "SYN"
+prop_seed = 5

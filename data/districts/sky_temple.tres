@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DistrictDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/district_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+district_id = &"sky_temple"
+display_name = "SKY TEMPLE"
+face_down = Vector3(0, 1, 0)
+primary_neon = Color(0.50, 0.25, 1, 1)
+secondary_neon = Color(0.18, 0.62, 1, 1)
+road_neon = Color(0.82, 0.82, 1, 1)
+building_height_scale = 1.35
+density_skip_mod = 6
+sign_prefix = "SKY"
+prop_seed = 1

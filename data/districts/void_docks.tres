@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DistrictDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/district_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+district_id = &"void_docks"
+display_name = "VOID DOCKS"
+face_down = Vector3(0, 0, 1)
+primary_neon = Color(0.72, 0.10, 1, 1)
+secondary_neon = Color(1, 0.20, 0.64, 1)
+road_neon = Color(0.55, 0.28, 1, 1)
+building_height_scale = 0.94
+density_skip_mod = 5
+sign_prefix = "VOID"
+prop_seed = 4

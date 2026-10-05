@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DistrictDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/district_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+district_id = &"industrial_arc"
+display_name = "INDUSTRIAL ARC"
+face_down = Vector3(1, 0, 0)
+primary_neon = Color(1, 0.42, 0.04, 1)
+secondary_neon = Color(1, 0.08, 0.22, 1)
+road_neon = Color(1, 0.78, 0.12, 1)
+building_height_scale = 0.82
+density_skip_mod = 4
+sign_prefix = "ARC"
+prop_seed = 2

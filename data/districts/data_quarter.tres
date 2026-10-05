@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DistrictDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/district_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+district_id = &"data_quarter"
+display_name = "DATA QUARTER"
+face_down = Vector3(-1, 0, 0)
+primary_neon = Color(0.12, 1, 0.58, 1)
+secondary_neon = Color(0.0, 0.68, 1, 1)
+road_neon = Color(0.18, 1, 0.72, 1)
+building_height_scale = 1.12
+density_skip_mod = 7
+sign_prefix = "DAT"
+prop_seed = 3
