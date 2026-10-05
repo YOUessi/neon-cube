@@ -35,6 +35,8 @@ var _pitch := 0.0
 var _vitals: PlayerVitals = PlayerVitals.new()
 var _dash_remaining := 0.0
 var _loadout: WeaponLoadout = WeaponLoadout.new()
+var _weapon_feedback: WeaponFeedbackRuntime = WeaponFeedbackRuntime.new()
+var _weapon_base_position := Vector3.ZERO
 var _last_face := ""
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
@@ -48,6 +50,7 @@ func _ready() -> void:
 	_loadout.ammo_changed.connect(_on_loadout_ammo_changed)
 	_loadout.weapon_changed.connect(_on_loadout_weapon_changed)
 	_loadout.initialize()
+	_weapon_base_position = weapon_root.position
 	var starting_weapon: WeaponDefinition = _loadout.current_definition()
 	magazine_size = starting_weapon.magazine_size
 	reserve_ammo = starting_weapon.initial_reserve
@@ -69,6 +72,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	_loadout.tick(delta)
+	_weapon_feedback.tick(delta, _loadout.current_definition())
+	if DisplayServer.get_name() != "headless" and weapon_root != null:
+		weapon_root.position = _weapon_base_position + Vector3(0, 0, _weapon_feedback.view_kick())
 	_dash_remaining = maxf(0.0, _dash_remaining - delta)
 	_vitals.tick(delta)
 
@@ -138,7 +144,7 @@ func _try_fire() -> void:
 		return
 	var spec: WeaponDefinition = _loadout.current_definition()
 	_audio_call("play_shot", [_loadout.current_index()])
-	_recoil_weapon()
+	_apply_recoil_feedback(spec)
 
 	var from: Vector3 = camera.global_position
 	var base_direction: Vector3 = -camera.global_transform.basis.z.normalized()
@@ -221,12 +227,18 @@ func _weapon_box(pos: Vector3, size: Vector3, material: Material) -> void:
 	instance.material_override = material
 	weapon_root.add_child(instance)
 
-func _recoil_weapon() -> void:
-	if DisplayServer.get_name() == "headless" or weapon_root == null:
+func _apply_recoil_feedback(spec: WeaponDefinition) -> void:
+	if spec == null:
 		return
-	weapon_root.position = Vector3(0.25, -0.23, -0.61)
-	var tween: Tween = create_tween()
-	tween.tween_property(weapon_root, "position", Vector3(0.25, -0.23, -0.65), 0.09)
+	var yaw_sample := _rng.randf_range(-1.0, 1.0)
+	var recoil := _weapon_feedback.apply_shot(spec, yaw_sample)
+	_pitch = clampf(
+		_pitch - deg_to_rad(recoil.x),
+		deg_to_rad(-82.0),
+		deg_to_rad(82.0)
+	)
+	camera_pivot.rotation.x = _pitch
+	rotate_object_local(Vector3.UP, deg_to_rad(recoil.y))
 
 func _spawn_tracer(from: Vector3, to: Vector3, color: Color) -> void:
 	if DisplayServer.get_name() == "headless":
@@ -306,6 +318,9 @@ func _on_loadout_ammo_changed(current: int, reserve: int) -> void:
 	ammo_changed.emit(current, reserve)
 
 func _on_loadout_weapon_changed(definition: WeaponDefinition, slot: int) -> void:
+	_weapon_feedback.reset()
+	if weapon_root != null:
+		weapon_root.position = _weapon_base_position
 	_refresh_weapon_visual()
 	weapon_changed.emit(definition.display_name, slot)
 
