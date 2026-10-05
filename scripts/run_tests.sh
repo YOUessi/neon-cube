@@ -36,9 +36,14 @@ for test_file in "${TESTS[@]}"; do
   echo "== $test_file =="
   log="$(mktemp)"
   set +e
-  "$GODOT" --headless --path "$ROOT" --script "$test_file" 2>&1 | tee "$log"
+  timeout 45s "$GODOT" --headless --path "$ROOT" --script "$test_file" 2>&1 | tee "$log"
   status=${PIPESTATUS[0]}
   set -e
+  if [[ $status -eq 124 ]]; then
+    echo "$test_file timed out after 45 seconds" >&2
+    rm -f "$log"
+    exit 124
+  fi
   if [[ $status -ne 0 ]]; then
     echo "$test_file failed with exit code $status" >&2
     rm -f "$log"
