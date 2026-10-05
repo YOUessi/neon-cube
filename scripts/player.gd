@@ -36,11 +36,7 @@ var _health := 100.0
 var _shield := 50.0
 var _shield_delay_remaining := 0.0
 var _dash_remaining := 0.0
-var _weapon_index := 0
-var _weapon_ammo: Array[int] = [30, 8, 12]
-var _weapon_reserve: Array[int] = [150, 40, 72]
-var _fire_cooldown := 0.0
-var _reload_cooldown := 0.0
+var _loadout: WeaponLoadout = WeaponLoadout.new()
 var _last_face := ""
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
@@ -48,14 +44,12 @@ func _ready() -> void:
 	_ensure_local_input_actions()
 	_health = max_health
 	_shield = max_shield
-	_weapon_ammo.clear()
-	_weapon_reserve.clear()
-	var definitions: Array[WeaponDefinition] = WeaponCatalog.all()
-	for definition in definitions:
-		_weapon_ammo.append(definition.magazine_size)
-		_weapon_reserve.append(definition.initial_reserve)
-	magazine_size = definitions[0].magazine_size
-	reserve_ammo = definitions[0].initial_reserve
+	_loadout.ammo_changed.connect(_on_loadout_ammo_changed)
+	_loadout.weapon_changed.connect(_on_loadout_weapon_changed)
+	_loadout.initialize()
+	var starting_weapon: WeaponDefinition = _loadout.current_definition()
+	magazine_size = starting_weapon.magazine_size
+	reserve_ammo = starting_weapon.initial_reserve
 	up_direction = -gravity_down
 	_rng.seed = 2049
 	if DisplayServer.get_name() != "headless":
@@ -101,8 +95,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _physics_process(delta: float) -> void:
-	_fire_cooldown = maxf(0.0, _fire_cooldown - delta)
-	_reload_cooldown = maxf(0.0, _reload_cooldown - delta)
+	_loadout.tick(delta)
 	_dash_remaining = maxf(0.0, _dash_remaining - delta)
 	_shield_delay_remaining = maxf(0.0, _shield_delay_remaining - delta)
 	if _shield_delay_remaining <= 0.0 and _shield < max_shield:
@@ -168,26 +161,15 @@ func _weapon_spec(index: int) -> WeaponDefinition:
 	return WeaponCatalog.get_definition(index)
 
 func switch_weapon(index: int) -> void:
-	if index < 0 or index >= _weapon_ammo.size() or index == _weapon_index:
-		return
-	_weapon_index = index
-	_reload_cooldown = 0.0
-	_refresh_weapon_visual()
-	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
-	weapon_changed.emit(spec.display_name, _weapon_index + 1)
-	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
+	_loadout.switch_weapon(index)
 
 func _try_fire() -> void:
-	if _fire_cooldown > 0.0 or _reload_cooldown > 0.0:
+	if not _loadout.consume_shot():
+		if _loadout.current_ammo() <= 0:
+			_reload()
 		return
-	if _weapon_ammo[_weapon_index] <= 0:
-		_reload()
-		return
-	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
-	_fire_cooldown = 1.0 / spec.fire_rate
-	_weapon_ammo[_weapon_index] -= 1
-	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
-	_audio_call("play_shot", [_weapon_index])
+	var spec: WeaponDefinition = _loadout.current_definition()
+	_audio_call("play_shot", [_loadout.current_index()])
 	_recoil_weapon()
 
 	var from: Vector3 = camera.global_position
@@ -254,12 +236,12 @@ func _refresh_weapon_visual() -> void:
 	glow.metallic = 0.45
 	glow.roughness = 0.15
 
-	if _weapon_index == 1:
+	if _loadout.current_index() == 1:
 		_weapon_box(Vector3(0, 0, 0), Vector3(0.15, 0.11, 0.42), dark)
 		_weapon_box(Vector3(0, 0.0, -0.29), Vector3(0.10, 0.08, 0.20), glow)
 		for side in [-1.0, 1.0]:
 			_weapon_box(Vector3(0.09 * side, -0.015, -0.20), Vector3(0.045, 0.045, 0.24), dark)
-	elif _weapon_index == 2:
+	elif _loadout.current_index() == 2:
 		_weapon_box(Vector3(0, 0, 0), Vector3(0.09, 0.075, 0.50), dark)
 		_weapon_box(Vector3(0, 0.035, -0.28), Vector3(0.055, 0.035, 0.16), glow)
 		_weapon_box(Vector3(0, -0.055, 0.11), Vector3(0.07, 0.11, 0.16), dark)
@@ -326,23 +308,11 @@ func _spawn_impact(position: Vector3, normal: Vector3) -> void:
 	get_tree().create_timer(0.08).timeout.connect(flash.queue_free)
 
 func _reload() -> void:
-	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
-	var capacity: int = spec.magazine_size
-	if _reload_cooldown > 0.0 or _weapon_ammo[_weapon_index] >= capacity or _weapon_reserve[_weapon_index] <= 0:
-		return
-	var needed: int = capacity - _weapon_ammo[_weapon_index]
-	var amount: int = mini(needed, _weapon_reserve[_weapon_index])
-	_weapon_ammo[_weapon_index] += amount
-	_weapon_reserve[_weapon_index] -= amount
-	_reload_cooldown = spec.reload_seconds
-	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
-	_audio_call("play_reload")
+	if _loadout.try_reload():
+		_audio_call("play_reload")
 
 func grant_ammo(amount: int) -> void:
-	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
-	var cap: int = spec.reserve_cap
-	_weapon_reserve[_weapon_index] = mini(cap, _weapon_reserve[_weapon_index] + maxi(0, amount))
-	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
+	_loadout.grant_ammo(amount)
 
 func take_damage(amount: float) -> void:
 	if _health <= 0.0:
@@ -374,12 +344,19 @@ func _audio_call(method: StringName, args: Array = []) -> void:
 	if audio != null and audio.has_method(method):
 		audio.callv(method, args)
 
+func _on_loadout_ammo_changed(current: int, reserve: int) -> void:
+	ammo_changed.emit(current, reserve)
+
+func _on_loadout_weapon_changed(definition: WeaponDefinition, slot: int) -> void:
+	_refresh_weapon_visual()
+	weapon_changed.emit(definition.display_name, slot)
+
 func _emit_status() -> void:
-	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
 	health_changed.emit(_health, max_health)
 	shield_changed.emit(_shield, max_shield)
-	ammo_changed.emit(_weapon_ammo[_weapon_index], _weapon_reserve[_weapon_index])
-	weapon_changed.emit(spec.display_name, _weapon_index + 1)
+	_on_loadout_ammo_changed(_loadout.current_ammo(), _loadout.current_reserve())
+	var definition: WeaponDefinition = _loadout.current_definition()
+	weapon_changed.emit(definition.display_name, _loadout.current_index() + 1)
 	face_changed.emit(CubeGravity.face_name(gravity_down))
 
 func get_health() -> float:
@@ -392,14 +369,14 @@ func get_dash_remaining() -> float:
 	return _dash_remaining
 
 func get_ammo() -> int:
-	return _weapon_ammo[_weapon_index]
+	return _loadout.current_ammo()
 
 func get_reserve_ammo() -> int:
-	return _weapon_reserve[_weapon_index]
+	return _loadout.current_reserve()
 
 func get_weapon_index() -> int:
-	return _weapon_index
+	return _loadout.current_index()
 
 func get_weapon_name() -> String:
-	var spec: WeaponDefinition = _weapon_spec(_weapon_index)
+	var spec: WeaponDefinition = _loadout.current_definition()
 	return spec.display_name
