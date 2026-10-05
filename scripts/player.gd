@@ -32,9 +32,7 @@ signal died
 
 var gravity_down := Vector3.DOWN
 var _pitch := 0.0
-var _health := 100.0
-var _shield := 50.0
-var _shield_delay_remaining := 0.0
+var _vitals: PlayerVitals = PlayerVitals.new()
 var _dash_remaining := 0.0
 var _loadout: WeaponLoadout = WeaponLoadout.new()
 var _last_face := ""
@@ -42,8 +40,11 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 func _ready() -> void:
 	_ensure_local_input_actions()
-	_health = max_health
-	_shield = max_shield
+	_vitals.health_changed.connect(_on_vitals_health_changed)
+	_vitals.shield_changed.connect(_on_vitals_shield_changed)
+	_vitals.damaged.connect(_on_vitals_damaged)
+	_vitals.died.connect(_on_vitals_died)
+	_vitals.configure(max_health, max_shield, shield_regen_delay, shield_regen_rate)
 	_loadout.ammo_changed.connect(_on_loadout_ammo_changed)
 	_loadout.weapon_changed.connect(_on_loadout_weapon_changed)
 	_loadout.initialize()
@@ -97,12 +98,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	_loadout.tick(delta)
 	_dash_remaining = maxf(0.0, _dash_remaining - delta)
-	_shield_delay_remaining = maxf(0.0, _shield_delay_remaining - delta)
-	if _shield_delay_remaining <= 0.0 and _shield < max_shield:
-		var before: float = _shield
-		_shield = minf(max_shield, _shield + shield_regen_rate * delta)
-		if not is_equal_approx(before, _shield):
-			shield_changed.emit(_shield, max_shield)
+	_vitals.tick(delta)
 
 	var next_down: Vector3 = CubeGravity.nearest_down(global_position, cube_half_extent, gravity_down)
 	if not next_down.is_equal_approx(gravity_down):
@@ -309,29 +305,25 @@ func grant_ammo(amount: int) -> void:
 	_loadout.grant_ammo(amount)
 
 func take_damage(amount: float) -> void:
-	if _health <= 0.0:
-		return
-	var incoming: float = maxf(0.0, amount)
-	if _shield > 0.0:
-		var absorbed: float = minf(_shield, incoming)
-		_shield -= absorbed
-		incoming -= absorbed
-		shield_changed.emit(_shield, max_shield)
-	if incoming > 0.0:
-		_health = maxf(0.0, _health - incoming)
-		health_changed.emit(_health, max_health)
-	_shield_delay_remaining = shield_regen_delay
-	damaged.emit(amount)
-	if _health <= 0.0:
-		died.emit()
+	_vitals.take_damage(amount)
 
 func heal(amount: float) -> void:
-	_health = minf(max_health, _health + maxf(0.0, amount))
-	health_changed.emit(_health, max_health)
+	_vitals.heal(amount)
 
 func grant_shield(amount: float) -> void:
-	_shield = minf(max_shield, _shield + maxf(0.0, amount))
-	shield_changed.emit(_shield, max_shield)
+	_vitals.grant_shield(amount)
+
+func _on_vitals_health_changed(current: float, maximum: float) -> void:
+	health_changed.emit(current, maximum)
+
+func _on_vitals_shield_changed(current: float, maximum: float) -> void:
+	shield_changed.emit(current, maximum)
+
+func _on_vitals_damaged(amount: float) -> void:
+	damaged.emit(amount)
+
+func _on_vitals_died() -> void:
+	died.emit()
 
 func _audio_call(method: StringName, args: Array = []) -> void:
 	var audio: Node = get_tree().get_first_node_in_group("neon_audio")
@@ -346,18 +338,18 @@ func _on_loadout_weapon_changed(definition: WeaponDefinition, slot: int) -> void
 	weapon_changed.emit(definition.display_name, slot)
 
 func _emit_status() -> void:
-	health_changed.emit(_health, max_health)
-	shield_changed.emit(_shield, max_shield)
+	health_changed.emit(_vitals.health(), max_health)
+	shield_changed.emit(_vitals.shield(), max_shield)
 	_on_loadout_ammo_changed(_loadout.current_ammo(), _loadout.current_reserve())
 	var definition: WeaponDefinition = _loadout.current_definition()
 	weapon_changed.emit(definition.display_name, _loadout.current_index() + 1)
 	face_changed.emit(CubeGravity.face_name(gravity_down))
 
 func get_health() -> float:
-	return _health
+	return _vitals.health()
 
 func get_shield() -> float:
-	return _shield
+	return _vitals.shield()
 
 func get_dash_remaining() -> float:
 	return _dash_remaining
