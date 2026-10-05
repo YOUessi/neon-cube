@@ -65,3 +65,17 @@ func snapshot() -> Dictionary:
 		"difficulty_name": difficulty_name,
 		"difficulty_scale": difficulty_scale,
 	}
+
+
+func restore(snapshot_data: Dictionary) -> void:
+	state = clampi(int(snapshot_data.get("state", State.MENU)), State.MENU, State.GAME_OVER)
+	score = maxi(0, int(snapshot_data.get("score", 0)))
+	wave_index = maxi(0, int(snapshot_data.get("wave_index", 0)))
+	alive_enemies = maxi(0, int(snapshot_data.get("alive_enemies", 0)))
+	kills = maxi(0, int(snapshot_data.get("kills", 0)))
+	difficulty_name = String(snapshot_data.get("difficulty_name", "OPERATIVE"))
+	difficulty_scale = maxf(0.5, float(snapshot_data.get("difficulty_scale", 1.0)))
+	state_changed.emit(state)
+	score_changed.emit(score)
+	wave_changed.emit(current_wave_number())
+	hostiles_changed.emit(alive_enemies)
