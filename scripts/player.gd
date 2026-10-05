@@ -47,10 +47,10 @@ func _ready() -> void:
 	_vitals.damaged.connect(_on_vitals_damaged)
 	_vitals.died.connect(_on_vitals_died)
 	_vitals.configure(max_health, max_shield, shield_regen_delay, shield_regen_rate)
+	_weapon_base_position = weapon_root.position
 	_loadout.ammo_changed.connect(_on_loadout_ammo_changed)
 	_loadout.weapon_changed.connect(_on_loadout_weapon_changed)
 	_loadout.initialize()
-	_weapon_base_position = weapon_root.position
 	var starting_weapon: WeaponDefinition = _loadout.current_definition()
 	magazine_size = starting_weapon.magazine_size
 	reserve_ammo = starting_weapon.initial_reserve
