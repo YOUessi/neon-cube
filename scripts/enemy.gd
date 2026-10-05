@@ -76,7 +76,7 @@ func _physics_process(delta: float) -> void:
 	global_transform.basis = CubeGravity.aligned_basis(global_transform.basis, gravity_down, delta, gravity_align_speed)
 
 	var distance: float = (target.global_position - global_position).length()
-	var wish: Vector3 = CubeGravity.surface_route_direction(global_position, gravity_down, target.global_position, cube_half_extent)
+	var wish: Vector3 = CubeSurfaceNavigator.route_direction(global_position, gravity_down, target.global_position, cube_half_extent)
 	wish = _avoid_obstacles(wish)
 
 	var fall_speed: float = velocity.dot(gravity_down)
