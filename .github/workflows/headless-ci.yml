@@ -34,7 +34,7 @@ jobs:
       - name: Capture graphical acceptance matrix
         run: |
           mkdir -p artifacts/visual
-          xvfb-run -a ./.tools/godot --path . --script tests/capture_visual_matrix.gd
+          xvfb-run -a ./.tools/godot --audio-driver Dummy --path . --script tests/capture_visual_matrix.gd
           test "$(find artifacts/visual -name '*.png' | wc -l)" -ge 10
 
       - name: Upload visual acceptance matrix
