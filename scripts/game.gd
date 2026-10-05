@@ -120,7 +120,10 @@ func start_game() -> void:
 	_spawn_current_wave()
 	_update_score()
 	_update_objective()
-	_show_message("%s // MISSION START" % difficulty_name, 2.0)
+	if story_mode:
+		_show_message("%s // %s" % [mission_definition.display_name, mission_runtime.current_encounter().title], 2.0)
+	else:
+		_show_message("%s // MISSION START" % difficulty_name, 2.0)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -164,7 +167,22 @@ func _finish_game(victory: bool) -> void:
 		end_title.text = "SIGNAL LOST"
 	_high_score = maxi(_high_score, _score)
 	_save_high_score()
-	end_details.text = "%s\nSCORE %06d\nHIGH SCORE %06d\nWAVES CLEARED %d / %d" % [difficulty_name, _score, _high_score, mini(_wave, total_waves), total_waves]
+	if story_mode:
+		end_details.text = "%s\nSCORE %06d\nHIGH SCORE %06d\nENCOUNTERS CLEARED %d / %d" % [
+			mission_definition.display_name,
+			_score,
+			_high_score,
+			mini(_wave, total_waves),
+			total_waves,
+		]
+	else:
+		end_details.text = "%s\nSCORE %06d\nHIGH SCORE %06d\nWAVES CLEARED %d / %d" % [
+			difficulty_name,
+			_score,
+			_high_score,
+			mini(_wave, total_waves),
+			total_waves,
+		]
 	end_panel.visible = true
 	hud_panel.visible = false
 	get_tree().paused = true
@@ -666,11 +684,32 @@ func _on_player_damaged(_amount: float) -> void:
 	tween.tween_property(damage_overlay, "color:a", 0.0, 0.24)
 
 func _update_score() -> void:
-	if score_label != null:
-		score_label.text = "SCORE %06d   WAVE %02d/%02d" % [session.score, session.current_wave_number(), total_waves]
+	if score_label == null:
+		return
+	if story_mode:
+		score_label.text = "SCORE %06d   MISSION %02d/%02d" % [
+			session.score,
+			mission_runtime.encounter_index + 1,
+			mission_definition.encounter_count(),
+		]
+	else:
+		score_label.text = "SCORE %06d   WAVE %02d/%02d" % [
+			session.score,
+			session.current_wave_number(),
+			total_waves,
+		]
 
 func _update_objective() -> void:
-	if objective_label != null: objective_label.text = "HOSTILES %02d" % session.alive_enemies
+	if objective_label == null:
+		return
+	if story_mode and mission_runtime.current_encounter() != null:
+		var encounter := mission_runtime.current_encounter()
+		objective_label.text = "%s  //  HOSTILES %02d" % [
+			encounter.objective_text,
+			session.alive_enemies,
+		]
+	else:
+		objective_label.text = "HOSTILES %02d" % session.alive_enemies
 
 func _sync_session_fields() -> void:
 	_score = session.score
