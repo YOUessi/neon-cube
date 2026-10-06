@@ -262,10 +262,24 @@ func _try_auto_step(wish: Vector3) -> bool:
 		return false
 
 	var lift := up * (step_height + 0.025)
-	if test_move(global_transform, lift):
+	if not test_move(global_transform, lift):
+		global_position += lift
+		return true
+
+	# Enemy capsules are slightly wider than the player capsule. When they stop
+	# flush against a riser, a pure vertical sweep can still touch the riser
+	# side even though the tread above is valid. Back off a few centimeters,
+	# then retry the same validated lift. This does not relax the high-ray or
+	# max-step-height checks, so normal cover/walls remain unclimbable.
+	var backoff := -direction * 0.08
+	if test_move(global_transform, backoff):
+		return false
+	var backed_transform := global_transform
+	backed_transform.origin += backoff
+	if test_move(backed_transform, lift):
 		return false
 
-	global_position += lift
+	global_position += backoff + lift
 	return true
 
 
