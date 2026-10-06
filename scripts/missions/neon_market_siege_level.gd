@@ -682,7 +682,7 @@ func _authored_spawn_specs(encounter_id: StringName) -> Array:
 				[Vector3.LEFT, 1.0, 13.0],
 				[Vector3.LEFT, 5.5, 6.2],
 				[Vector3.LEFT, 10.3, 13.2],
-				[Vector3.LEFT, 14.5, 6.0],
+				[Vector3.LEFT, 12.5, 9.5, 3.25],
 				[Vector3.LEFT, 8.0, 15.0],
 			]
 		&"null_warden":
