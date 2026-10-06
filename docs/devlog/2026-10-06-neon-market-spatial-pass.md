@@ -1814,3 +1814,61 @@ Boss hazard 测试新增：
 - 再次调用 `set_boss_phase(2)`，damage_armed 仍保持 true。
 - Phase 3 同理。
 - 同 phase health update 不会重启 0.9s 安全窗口。
+
+
+## 2026-10-07 追加：Headless Performance Signal Cleanup
+
+### 问题
+
+GitHub headless tests 会主动：
+
+- 等待 reinforcement timer。
+- 等待 pause-safe intermission。
+- 等待 Boss telegraph。
+- 手动执行长 delta 的 objective test。
+
+这些逻辑测试曾触发 RuntimePerformanceMonitor：
+
+`peak frame 145ms exceeds 33.33ms hard budget`
+
+但 headless frame time：
+
+- 不包含真实 GPU rendering。
+- 受到测试 await / scheduler 影响。
+- 不能代表真实 gameplay frame budget。
+
+因此这些 warning 属于测试噪音。
+
+### 调整
+
+`NeonGame._ready()` 现在只在：
+
+`DisplayServer.get_name() != "headless"`
+
+时创建 `RuntimePerformanceMonitor`。
+
+Headless：
+
+- 不采样 runtime frame time。
+- 不输出假性能告警。
+
+真实渲染 / Mac：
+
+- RuntimePerformanceMonitor 仍正常存在。
+- desktop performance budget 保持不变。
+
+### 预算测试仍保留
+
+独立：
+
+`tests/test_performance_budget.gd`
+
+仍验证：
+
+- budget resource 合法。
+- average / peak frame overrun 检测。
+- enemy / pickup entity overrun 检测。
+
+`test_project_smoke.gd` 新增断言：
+
+- headless main scene 的 `performance_monitor == null`。
