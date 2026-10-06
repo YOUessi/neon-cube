@@ -1962,3 +1962,89 @@ CI 使用独立 Free Camera，在真实 Godot rendered display 下生成 5 张�
 CI 会逐一 `test -s`，任何截图没有成功生成都会直接失败。
 
 这使 GitHub visual validation 从“开场截图”升级为 Mission 01 全流程空间画廊。
+
+
+## 2026-10-07 追加：Playable Vertical Structures Pass
+
+### Data Lane Maintenance Bridge
+
+Data Lane 新增真正可攀爬的 Maintenance Bridge：
+
+- BridgeDeck：6.8m × 3.0m 高位平台。
+- 5 级实体楼梯。
+- 内外双侧护栏。
+- Bridge Edge Light。
+- 世界标识：`MAINTENANCE // RACK LEVEL`。
+
+这不是 visual-only：
+
+- BridgeDeck / Steps 均为 StaticBody3D。
+- 玩家可以真实爬上去。
+- AI / Player 都会被其碰撞影响。
+- Data Lane 高位 Sniper 的 authored perch 与该桥位置对齐。
+
+### Boss Arena Service Gantries
+
+Void Docks Boss Arena 新增左右两座实体 Gantry：
+
+- 左 / 右各一座 raised deck。
+- 每侧 4 级楼梯。
+- 外侧护栏。
+- 发光边缘条。
+
+用途：
+
+- 玩家可抢占侧翼高位。
+- Null Warden squad 的 slot-2 Sniper 改到右侧 Gantry。
+- Sniper leash radius = 0.55m。
+- Tank / Boss / Runner 保持地面布局。
+
+Boss 高位 Sniper 现在也遵循：
+
+```text
+enemy_index 2
+↔ authored boss spawn[2]
+↔ tactical slot 2
+↔ gantry leash center
+```
+
+### Extraction Dock Platform
+
+最终撤离区从单纯 Beacon 圆盘升级为实体 Dock：
+
+- DockDeck。
+- 3 级登台台阶。
+- 远侧 Rail。
+- 右侧 Rail。
+- 左 / 右 Dock Pillar。
+- Dock Header。
+- `EXTRACTION PAD // E-07` 世界标识。
+- 中央导向灯带。
+
+Beacon / Extraction Area 继续使用原 mission contract，但现在位于明确的登台空间上。
+
+### 空间契约
+
+Spatial summary 新增：
+
+- `elevated_gameplay_space`
+- `data_maintenance_bridge`
+- `boss_service_gantry`
+- `extraction_dock`
+
+Geometry tests 验证：
+
+- Data bridge 节点存在。
+- Boss service gantry 节点存在。
+- Extraction dock 节点存在。
+- 三个 elevated gameplay deck。
+- Data bridge 仍位于 Data Quarter face。
+- Boss gantry 仍位于 Void Docks face。
+- Extraction dock 仍位于 Neon Market face。
+
+Full Mission Playthrough 额外验证：
+
+- Null Warden Sniper 出现在 slot 2。
+- leash center 精确对应 authored Boss gantry spawn socket。
+- Sniper 初始位置位于 leash radius 内。
+- ground Tank 不受 leash 限制。
