@@ -4,7 +4,7 @@ extends Node3D
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const PICKUP_SCENE := preload("res://scenes/pickup.tscn")
-const MISSION_BLOCKOUT_SCENE := preload("res://scenes/missions/neon_market_siege_blockout.tscn")
+const MISSION_LEVEL_SCENE := preload("res://scenes/missions/neon_market_siege.tscn")
 const DESKTOP_PERFORMANCE_BUDGET: PerformanceBudget = preload("res://data/performance/desktop_high.tres")
 
 enum GameState { MENU, PLAYING, PAUSED, VICTORY, GAME_OVER }
@@ -199,6 +199,13 @@ func _finish_wave() -> void:
 	_wave_transitioning = true
 	if story_mode:
 		var encounter := mission_runtime.current_encounter()
+		if encounter != null and encounter.encounter_id == &"extraction":
+			_waiting_for_extraction = true
+			_wave_transitioning = true
+			_set_extraction_armed(true)
+			_show_message("HOSTILES CLEARED // REACH EXTRACTION", 2.0)
+			_update_objective()
+			return
 		_spawn_encounter_rewards(encounter)
 		mission_runtime.complete_current_encounter()
 		MissionProgressStore.save_runtime(mission_runtime, session)
@@ -686,6 +693,9 @@ func _update_objective() -> void:
 		return
 	if story_mode and mission_runtime.current_encounter() != null:
 		var encounter := mission_runtime.current_encounter()
+		if encounter.encounter_id == &"extraction" and _waiting_for_extraction:
+			objective_label.text = "REACH EXTRACTION  //  BEACON ACTIVE"
+			return
 		objective_label.text = "%s  //  HOSTILES %02d" % [
 			encounter.objective_text,
 			session.alive_enemies,
@@ -721,6 +731,26 @@ func _show_message(text: String, duration: float) -> void:
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_interval(duration)
 	tween.tween_property(message_label, "modulate:a", 0.0, 0.4)
+
+
+func _set_extraction_armed(active: bool) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("arm_extraction"):
+		mission_level.call("arm_extraction", active)
+
+
+func _on_extraction_reached() -> void:
+	if not story_mode or not _waiting_for_extraction:
+		return
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.encounter_id != &"extraction":
+		return
+	_waiting_for_extraction = false
+	_set_extraction_armed(false)
+	_spawn_encounter_rewards(encounter)
+	mission_runtime.complete_current_encounter()
+	MissionProgressStore.save_runtime(mission_runtime, session)
+	_finish_game(true)
+
 
 func _on_performance_budget_warning(messages: PackedStringArray) -> void:
 	for message in messages:
