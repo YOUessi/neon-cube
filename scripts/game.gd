@@ -570,11 +570,18 @@ func _spawn_encounter_rewards(encounter: EncounterDefinition) -> void:
 			encounter.reward_shield
 		)
 
-func _spawn_pickup(world_position: Vector3, kind: String, amount: float) -> NeonPickup:
+func _spawn_pickup(
+	world_position: Vector3,
+	kind: String,
+	amount: float,
+	pickup_id: StringName = &""
+) -> NeonPickup:
 	var pickup: NeonPickup = PICKUP_SCENE.instantiate() as NeonPickup
-	pickup.configure(kind, amount)
+	pickup.configure(kind, amount, pickup_id)
 	pickup.position = world_position
 	add_child(pickup)
+	if pickup_id != &"":
+		pickup.collected.connect(_on_authored_pickup_collected)
 	return pickup
 
 
@@ -590,6 +597,9 @@ func _spawn_authored_pickups() -> void:
 		if not spec_variant is Dictionary:
 			continue
 		var spec: Dictionary = spec_variant
+		var pickup_id := StringName(spec.get("pickup_id", &""))
+		if pickup_id != &"" and mission_runtime.is_pickup_consumed(pickup_id):
+			continue
 		var encounter_id := StringName(spec.get("encounter_id", &""))
 		if encounter_id != &"" and mission_runtime.completed_encounters.has(encounter_id):
 			continue
@@ -598,9 +608,16 @@ func _spawn_authored_pickups() -> void:
 			continue
 		var kind := String(spec.get("kind", "health"))
 		var amount := float(spec.get("amount", 25.0))
-		var pickup := _spawn_pickup(position, kind, amount)
-		pickup.name = String(spec.get("pickup_id", &"authored_pickup"))
+		var pickup := _spawn_pickup(position, kind, amount, pickup_id)
+		pickup.name = String(pickup_id if pickup_id != &"" else &"authored_pickup")
 		pickup.add_to_group("authored_pickup")
+
+func _on_authored_pickup_collected(pickup_id: StringName) -> void:
+	if not story_mode or pickup_id == &"":
+		return
+	mission_runtime.mark_pickup_consumed(pickup_id)
+	MissionProgressStore.save_runtime(mission_runtime, session)
+
 
 func _on_enemy_killed(enemy: NeonEnemy) -> void:
 	session.register_kill(enemy.get_score_value())
