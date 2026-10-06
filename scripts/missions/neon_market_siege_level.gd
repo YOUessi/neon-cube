@@ -727,6 +727,32 @@ func combat_gate_count(encounter_id: StringName) -> int:
 	return gates.size()
 
 
+func authored_pickup_specs() -> Array:
+	return [
+		{
+			"pickup_id": &"data_bridge_ammo",
+			"encounter_id": &"data_lane",
+			"kind": "ammo",
+			"amount": 40.0,
+			"position": _face_point(Vector3.LEFT, 12.5, 9.5, 3.15),
+		},
+		{
+			"pickup_id": &"boss_left_gantry_shield",
+			"encounter_id": &"null_warden",
+			"kind": "shield",
+			"amount": 36.0,
+			"position": _face_point(Vector3.BACK, -8.25, 3.8, 2.45),
+		},
+		{
+			"pickup_id": &"extraction_dock_health",
+			"encounter_id": &"extraction",
+			"kind": "health",
+			"amount": 42.0,
+			"position": _face_point(Vector3.DOWN, -1.4, -25.0, 0.95),
+		},
+	]
+
+
 func spawn_points_for(encounter_id: StringName, count: int, sequence_offset: int = 0) -> Array[Vector3]:
 	var authored := _authored_spawn_specs(encounter_id)
 	var result: Array[Vector3] = []
