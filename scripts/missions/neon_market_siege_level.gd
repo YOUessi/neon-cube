@@ -712,6 +712,7 @@ func spatial_summary() -> Dictionary:
 		"boss_hazard": get_tree().get_nodes_in_group("boss_hazard").size(),
 		"mission_objective_node": get_tree().get_nodes_in_group("mission_objective_node").size(),
 		"mission_hold_zone": get_tree().get_nodes_in_group("mission_hold_zone").size(),
+		"market_kiosk_collision": get_tree().get_nodes_in_group("market_kiosk_collision").size(),
 	}
 
 
