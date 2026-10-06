@@ -516,6 +516,12 @@ func _build_neon_market() -> void:
 	_add_face_trim(hall, "HallCrossGuide", down, 13.0, 4.1, 0.085, Vector3(14.5, 0.035, 0.07), CYAN)
 	_add_face_light(hall, "HallLightA", down, 9.0, 2.0, 4.0, MAGENTA, 1.25, 8.0)
 	_add_face_light(hall, "HallLightB", down, 16.0, 7.0, 4.2, CYAN, 1.15, 8.0)
+	_add_market_ceiling_strip(hall, "CeilingStrip_A", down, 8.0, 1.0, 5.35, 5.0, CYAN)
+	_add_market_ceiling_strip(hall, "CeilingStrip_B", down, 13.0, 4.0, 5.35, 5.0, MAGENTA)
+	_add_market_ceiling_strip(hall, "CeilingStrip_C", down, 17.5, 7.0, 5.35, 4.5, WARM)
+	_add_hanging_market_panel(hall, "AislePanel_A", down, 8.5, 2.0, 4.35, "FOOD // A1", CYAN)
+	_add_hanging_market_panel(hall, "AislePanel_B", down, 14.0, 5.2, 4.25, "TECH // B4", MAGENTA)
+	_add_hanging_market_panel(hall, "AislePanel_C", down, 17.0, 8.2, 4.15, "EXIT // EAST", AMBER)
 	_add_prop(hall, "MarketDoor", "res://assets/third_party/quaternius_cyberpunk/door.gltf", down, 9.0, -3.0, 0.0, 1.55, 180.0)
 	_add_prop(hall, "HallFence", "res://assets/third_party/quaternius_cyberpunk/fence.gltf", down, 16.8, 10.8, 0.0, 1.55, 90.0)
 
@@ -1129,6 +1135,78 @@ func _on_objective_node_destroyed(node: MissionObjectiveNode) -> void:
 		return
 	var remaining := objective_nodes_remaining(node.encounter_id)
 	objective_node_destroyed.emit(node.encounter_id, node.objective_id, remaining)
+
+
+func _add_market_ceiling_strip(
+	parent: Node3D,
+	name: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	height: float,
+	length: float,
+	accent: Color
+) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var strip := MeshInstance3D.new()
+	strip.name = name
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(length, 0.06, 0.11)
+	strip.mesh = mesh
+	strip.position = _face_point(down, u, v, height)
+	strip.basis = CubeGravity.tangent_basis(down)
+	strip.material_override = _material(accent * 0.07, accent, 4.2)
+	strip.add_to_group("market_visual")
+	parent.add_child(strip)
+
+
+func _add_hanging_market_panel(
+	parent: Node3D,
+	name: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	height: float,
+	text: String,
+	accent: Color
+) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var root := Node3D.new()
+	root.name = name
+	root.position = _face_point(down, u, v, height)
+	root.basis = CubeGravity.tangent_basis(down)
+	root.add_to_group("market_visual")
+	parent.add_child(root)
+
+	for side in [-1.0, 1.0]:
+		var cable := MeshInstance3D.new()
+		var cable_mesh := CylinderMesh.new()
+		cable_mesh.top_radius = 0.018
+		cable_mesh.bottom_radius = 0.018
+		cable_mesh.height = 0.62
+		cable.mesh = cable_mesh
+		cable.position = Vector3(0.7 * side, 0.31, 0)
+		cable.material_override = _material(Color(0.025, 0.03, 0.04), accent, 0.18)
+		root.add_child(cable)
+
+	var panel := MeshInstance3D.new()
+	var panel_mesh := BoxMesh.new()
+	panel_mesh.size = Vector3(1.85, 0.52, 0.08)
+	panel.mesh = panel_mesh
+	panel.material_override = _material(Color(0.025, 0.028, 0.04), accent, 0.45)
+	root.add_child(panel)
+
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = 25
+	label.outline_size = 5
+	label.modulate = accent
+	label.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
+	label.position = Vector3(0, 0, -0.055)
+	label.rotation_degrees = Vector3(0, 180, 0)
+	root.add_child(label)
 
 
 func _add_market_kiosk(
