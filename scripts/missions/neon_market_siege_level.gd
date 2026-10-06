@@ -76,6 +76,9 @@ func _build_neon_market() -> void:
 			&"combat_cover"
 		)
 	_add_face_label(arrival, "ArrivalSign", down, 0.0, -22.0, 2.7, "NEON MARKET // NIGHT SHIFT", CYAN)
+	_add_prop(arrival, "StreetLight_A", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -4.4, -19.5, 0.0, 1.25, 0.0)
+	_add_prop(arrival, "StreetLight_B", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, 4.4, -13.0, 0.0, 1.25, 180.0)
+	_add_prop(arrival, "StreetLight_C", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -4.4, -6.5, 0.0, 1.25, 0.0)
 
 	var hall := _section(root, "MarketHall")
 	_add_face_box(hall, "HallFloor", down, 13.0, 4.0, 0.025, Vector3(17.0, 0.05, 15.0), Color(0.035, 0.04, 0.07), MAGENTA, false)
@@ -85,6 +88,8 @@ func _build_neon_market() -> void:
 	_add_face_box(hall, "HallSouthPierB", down, 7.0, -3.2, 0.0, Vector3(2.8, 4.8, 0.45), WALL, CYAN, true)
 	_add_face_box(hall, "HallRoof", down, 13.0, 4.0, 5.6, Vector3(16.2, 0.20, 14.4), Color(0.02, 0.025, 0.05), MAGENTA, true)
 	_add_face_label(hall, "MarketHallSign", down, 10.0, -3.0, 3.4, "SUBLEVEL 07 // NIGHT BAZAAR", MAGENTA)
+	_add_prop(hall, "MarketDoor", "res://assets/third_party/quaternius_cyberpunk/door.gltf", down, 9.0, -3.0, 0.0, 1.55, 180.0)
+	_add_prop(hall, "HallFence", "res://assets/third_party/quaternius_cyberpunk/fence.gltf", down, 16.8, 10.8, 0.0, 1.55, 90.0)
 
 	var crossfire := _section(hall, "CrossfireArena")
 	var stall_specs := [
@@ -112,6 +117,7 @@ func _build_neon_market() -> void:
 			true,
 			&"combat_cover"
 		)
+		_add_prop(crossfire, "Terminal_%02d" % i, "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, u, v, 1.28, 1.05, 180.0 if side < 0.0 else 0.0)
 		_add_face_box(
 			crossfire,
 			"Canopy_%02d" % i,
@@ -152,6 +158,8 @@ func _build_neon_market() -> void:
 	_add_face_box(seam, "SeamGateRight", down, 28.0, 8.0, 0.0, Vector3(0.45, 4.0, 0.45), WALL, MAGENTA, true, &"cross_face_passage")
 	_add_face_box(seam, "SeamGateHeader", down, 25.0, 8.0, 3.65, Vector3(6.5, 0.35, 0.45), WALL, AMBER, true, &"cross_face_passage")
 	_add_face_label(seam, "SeamLabel", down, 25.0, 7.6, 3.1, "GRAVITY SEAM // EAST ARC", AMBER)
+	_add_prop(seam, "SeamAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 27.2, 10.2, 0.0, 1.45, 0.0)
+	_add_prop(seam, "SeamFence", "res://assets/third_party/quaternius_cyberpunk/fence.gltf", down, 23.8, 10.6, 0.0, 1.35, 0.0)
 
 
 func _build_gravity_breach() -> void:
@@ -188,6 +196,8 @@ func _build_gravity_breach() -> void:
 			&"combat_cover"
 		)
 	_add_face_label(arena, "BreachSign", down, -8.0, -18.5, 3.0, "INDUSTRIAL ARC // BREACH CONTROL", CYAN)
+	_add_prop(arena, "BreachAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, -13.0, -18.0, 0.0, 1.65, 25.0)
+	_add_prop(arena, "BreachLight", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -2.5, -17.5, 0.0, 1.30, 180.0)
 
 	var relay := _section(root, "RelayApproach")
 	_add_face_box(relay, "RelayLane", down, -3.0, -6.0, 0.02, Vector3(8.0, 0.05, 13.0), DARK, AMBER, false)
@@ -235,6 +245,8 @@ func _build_trans_face_transit() -> void:
 				&"combat_cover"
 			)
 	_add_face_label(south, "TransitSign", Vector3.BACK, 0.0, 8.0, 2.8, "TRANS-FACE CONDUIT // WEST RELAY", VIOLET)
+	_add_prop(south, "TransitAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", Vector3.BACK, 10.5, 7.0, 0.0, 1.35, 20.0)
+	_add_prop(south, "TransitFence", "res://assets/third_party/quaternius_cyberpunk/fence.gltf", Vector3.BACK, -10.0, 6.3, 0.0, 1.5, 90.0)
 
 	var west := _section(root, "SouthToWestConduit")
 	_add_face_box(west, "WestConduitLane", Vector3.LEFT, -10.0, 15.0, 0.02, Vector3(35.0, 0.05, 6.0), DARK, CYAN, false)
@@ -266,12 +278,16 @@ func _build_data_lane() -> void:
 	_add_face_box(lane, "LaneCoverA", down, 13.0, 6.0, 0.0, Vector3(3.0, 1.0, 0.9), COVER, MAGENTA, true, &"combat_cover")
 	_add_face_box(lane, "LaneCoverB", down, 4.0, 13.0, 0.0, Vector3(3.0, 1.0, 0.9), COVER, CYAN, true, &"combat_cover")
 	_add_face_label(lane, "DataLaneSign", down, 8.0, 1.0, 3.0, "DATA QUARTER // RELAY LANE", CYAN)
+	_add_prop(lane, "RelayConsole_A", "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, 1.2, 2.5, 0.0, 1.25, 90.0)
+	_add_prop(lane, "RelayConsole_B", "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, 14.2, 12.5, 0.0, 1.25, -90.0)
+	_add_prop(lane, "RelayAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 13.5, 2.5, 0.0, 1.5, 0.0)
 
 	var gate := _section(root, "WardenGate")
 	_add_face_box(gate, "GateLeft", down, -4.5, 14.0, 0.0, Vector3(0.45, 4.6, 0.55), WALL, VIOLET, true)
 	_add_face_box(gate, "GateRight", down, 4.5, 14.0, 0.0, Vector3(0.45, 4.6, 0.55), WALL, VIOLET, true)
 	_add_face_box(gate, "GateHeader", down, 0.0, 14.0, 4.25, Vector3(9.4, 0.35, 0.55), WALL, MAGENTA, true)
 	_add_face_label(gate, "GateLabel", down, 0.0, 13.7, 3.3, "NULL WARDEN ACCESS", MAGENTA)
+	_add_prop(gate, "WardenAccessDoor", "res://assets/third_party/quaternius_cyberpunk/door.gltf", down, 0.0, 13.8, 0.0, 1.75, 180.0)
 
 
 func _build_boss_arena() -> void:
@@ -311,6 +327,9 @@ func _build_boss_arena() -> void:
 	_add_face_box(arena, "RearCoverA", down, -4.0, -13.0, 0.0, Vector3(3.4, 1.1, 1.0), COVER, CYAN, true, &"combat_cover")
 	_add_face_box(arena, "RearCoverB", down, 4.0, -13.0, 0.0, Vector3(3.4, 1.1, 1.0), COVER, MAGENTA, true, &"combat_cover")
 	_add_face_label(arena, "BossArenaLabel", down, 0.0, 7.8, 3.8, "VOID DOCKS // NULL WARDEN", VIOLET)
+	_add_prop(arena, "BossGateDoor", "res://assets/third_party/quaternius_cyberpunk/door.gltf", down, 0.0, 8.2, 0.0, 1.9, 180.0)
+	_add_prop(arena, "BossRelayA", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, -8.8, -1.5, 0.0, 1.6, 15.0)
+	_add_prop(arena, "BossRelayB", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 8.8, -1.5, 0.0, 1.6, -15.0)
 
 
 func _build_extraction() -> void:
@@ -322,6 +341,9 @@ func _build_extraction() -> void:
 	_add_face_box(yard, "YardBarricadeA", down, -17.0, -12.0, 0.0, Vector3(3.2, 1.0, 0.9), COVER, AMBER, true, &"combat_cover")
 	_add_face_box(yard, "YardBarricadeB", down, -10.0, -8.5, 0.0, Vector3(3.2, 1.0, 0.9), COVER, CYAN, true, &"combat_cover")
 	_add_face_box(yard, "YardBarricadeC", down, -7.0, -15.0, 0.0, Vector3(3.2, 1.0, 0.9), COVER, MAGENTA, true, &"combat_cover")
+	_add_prop(yard, "ExtractionLight_A", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -18.0, -17.0, 0.0, 1.25, 0.0)
+	_add_prop(yard, "ExtractionLight_B", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -6.0, -8.0, 0.0, 1.25, 180.0)
+	_add_prop(yard, "ExtractionFence", "res://assets/third_party/quaternius_cyberpunk/fence.gltf", down, -16.5, -7.5, 0.0, 1.5, 90.0)
 
 	var route := _section(root, "ExtractionRoute")
 	_add_face_box(route, "ExtractionLane", down, -5.0, -20.0, 0.02, Vector3(14.0, 0.05, 10.0), DARK, AMBER, false)
@@ -329,6 +351,7 @@ func _build_extraction() -> void:
 
 	var zone_container := _section(root, "ExtractionBeacon")
 	_add_ring_visual(zone_container, "ExtractionRing", down, 0.0, -25.0, 0.05, 3.4, Color(0.03, 0.06, 0.055), AMBER)
+	_add_prop(zone_container, "ExtractionBeaconAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 2.7, -25.0, 0.0, 1.75, 0.0)
 	_extraction_zone = Area3D.new()
 	_extraction_zone.name = "ExtractionZone"
 	_extraction_zone.position = _face_point(down, 0.0, -25.0, 1.6)
@@ -432,6 +455,39 @@ func _add_face_box(
 		visual.material_override = _material(base_color, emission_color, 2.4 if collidable else 1.6)
 		node.add_child(visual)
 	return node
+
+
+func _add_prop(
+	parent: Node3D,
+	name: String,
+	scene_path: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	height: float,
+	uniform_scale: float = 1.0,
+	yaw_degrees: float = 0.0
+) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	if not ResourceLoader.exists(scene_path):
+		push_warning("Mission prop missing: %s" % scene_path)
+		return
+	var packed := load(scene_path) as PackedScene
+	if packed == null:
+		push_warning("Mission prop is not a PackedScene: %s" % scene_path)
+		return
+	var prop := packed.instantiate() as Node3D
+	if prop == null:
+		push_warning("Mission prop root is not Node3D: %s" % scene_path)
+		return
+	prop.name = name
+	prop.position = _face_point(down, u, v, height)
+	prop.basis = CubeGravity.tangent_basis(down)
+	prop.rotate_object_local(Vector3.UP, deg_to_rad(yaw_degrees))
+	prop.scale = Vector3.ONE * uniform_scale
+	prop.add_to_group("mission_visual_prop")
+	parent.add_child(prop)
 
 
 func _add_ring_visual(
