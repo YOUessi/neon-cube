@@ -270,8 +270,8 @@ Boss Arena 现有 4 个实体危险地面区：
 
 伤害规则：
 
-- Phase 2：每次脉冲 6 HP。
-- Phase 3：每次脉冲 10 HP。
+- Phase 2：每次脉冲造成 6 点伤害（遵循护盾优先吸收规则）。
+- Phase 3：每次脉冲造成 10 点伤害（遵循护盾优先吸收规则）。
 - 脉冲间隔：0.75s。
 - Boss 战结束后自动恢复 Phase 1 并关闭全部危险区。
 
@@ -296,8 +296,8 @@ Boss Arena 现有 4 个实体危险地面区：
 
 `test_boss_arena_hazards.gd`
 
-- Phase 2 实际站入危险区会掉 6 HP。
-- Phase 3 实际站入危险区会掉 10 HP。
+- Phase 2 实际站入危险区会受到 6 点伤害。
+- Phase 3 实际站入危险区会受到 10 点伤害。
 - Phase 1 不造成 hazard damage。
 
 这一步的目标是让 Boss Phase 真正改变玩家的走位和掩体选择，而不是只改变敌人参数。
