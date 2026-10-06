@@ -90,6 +90,7 @@ enemy_kinds = Array[StringName]([&"grunt", &"runner", &"runner", &"sniper"])
 spawn_batch_sizes = Array[int]([2, 2])
 reinforcement_trigger_remaining = 0
 reinforcement_delay = 0.65
+extraction_hold_seconds = 3.0
 checkpoint_id = &"cp_extracted"
 
 [resource]
