@@ -2233,3 +2233,19 @@ Enemy 现在已经能沿 Data Maintenance Bridge / Boss Gantry 的实体楼梯�
 只有“目标距离没有改善 + 身体也没有有效位移”持续超过 timeout，才会 blacklist 当前 waypoint。
 
 这保留了真正卡死恢复，同时不再惩罚楼梯 backoff、tread seating 和绕障横移。
+
+
+### 2026-10-07 修正：Route reset 不读取树外 GlobalTransform
+
+`set_route_points()` 可能在 Enemy 加入 SceneTree 前执行。上一版 `_reset_route_progress()` 在这个阶段直接读取 `global_position`，Godot 会输出：
+
+`Condition "!is_inside_tree()" is true. Returning: Transform3D()`
+
+项目本身仍可解析，但 CI 将任何 Godot `ERROR:` 视为验证失败。
+
+修正：
+
+- reset 阶段只清空 progress position，不访问 global transform；
+- 真正进入 route selection / runtime progress sample 后再用树内 `global_position` 建立 anchor。
+
+这属于生命周期（scene lifecycle）问题，不是导航算法问题。

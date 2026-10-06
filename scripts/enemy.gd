@@ -487,7 +487,10 @@ func _route_waypoint_reached(point: Vector3) -> bool:
 
 func _reset_route_progress() -> void:
 	_route_progress_waypoint = Vector3.ZERO
-	_route_progress_position = global_position
+	# set_route_points() may run before this CharacterBody enters SceneTree.
+	# Reading global_position in that state emits a Godot ERROR and breaks CI.
+	# The first active progress sample/select establishes the real world anchor.
+	_route_progress_position = Vector3.ZERO
 	_route_best_distance = INF
 	_route_stall_elapsed = 0.0
 
