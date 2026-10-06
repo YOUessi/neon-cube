@@ -2497,6 +2497,7 @@ func _add_face_box(
 		var body := StaticBody3D.new()
 		body.name = name
 		var collision := CollisionShape3D.new()
+		collision.name = "CollisionShape3D"
 		var shape := BoxShape3D.new()
 		shape.size = size
 		collision.shape = shape
