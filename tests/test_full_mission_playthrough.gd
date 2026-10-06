@@ -88,6 +88,10 @@ func _run() -> void:
 			ground_data_tank = typed_enemy
 	_check(elevated_data_sniper != null, "Data Lane reinforcement includes slot-three sniper")
 	_check(ground_data_tank != null, "Data Lane reinforcement includes slot-four tank")
+	if elevated_data_sniper != null:
+		_check(is_equal_approx(elevated_data_sniper.get_tactical_leash_radius(), 0.30), "Data Lane elevated sniper receives server-rack leash")
+	if ground_data_tank != null:
+		_check(is_equal_approx(ground_data_tank.get_tactical_leash_radius(), 0.0), "Data Lane ground tank remains unrestricted")
 	if elevated_data_sniper != null and ground_data_tank != null:
 		_check(elevated_data_sniper.global_position.x > ground_data_tank.global_position.x + 1.2, "Data Lane sniper enters above ground-level tank")
 	await _kill_all_enemies(game)
