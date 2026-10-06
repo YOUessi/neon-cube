@@ -1,0 +1,124 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/missions/neon_market_siege_level.gd" id="1_level"]
+[ext_resource type="Script" path="res://scripts/missions/mission_anchor.gd" id="2_anchor"]
+
+[node name="NeonMarketSiege" type="Node3D"]
+script = ExtResource("1_level")
+
+[node name="PlayerStart" type="Marker3D" parent="."]
+position = Vector3(0, -28.2, 18)
+script = ExtResource("2_anchor")
+anchor_id = &"player_start"
+district_id = &"neon_market"
+kind = 0
+
+[node name="ArrivalCenter" type="Marker3D" parent="."]
+position = Vector3(0, -28.5, 10)
+script = ExtResource("2_anchor")
+anchor_id = &"arrival_center"
+encounter_id = &"arrival_ambush"
+district_id = &"neon_market"
+kind = 1
+
+[node name="MarketIngressCheckpoint" type="Marker3D" parent="."]
+position = Vector3(0, -28.5, 5)
+script = ExtResource("2_anchor")
+anchor_id = &"cp_market_ingress"
+encounter_id = &"arrival_ambush"
+district_id = &"neon_market"
+kind = 2
+
+[node name="MarketCrossfireCenter" type="Marker3D" parent="."]
+position = Vector3(12, -28.5, -4)
+script = ExtResource("2_anchor")
+anchor_id = &"market_crossfire_center"
+encounter_id = &"market_crossfire"
+district_id = &"neon_market"
+kind = 1
+
+[node name="MarketCoreCheckpoint" type="Marker3D" parent="."]
+position = Vector3(18, -28.5, -10)
+script = ExtResource("2_anchor")
+anchor_id = &"cp_market_core"
+encounter_id = &"market_crossfire"
+district_id = &"neon_market"
+kind = 2
+
+[node name="GravityBreachCenter" type="Marker3D" parent="."]
+position = Vector3(28.5, -12, -8)
+rotation_degrees = Vector3(0, 0, -90)
+script = ExtResource("2_anchor")
+anchor_id = &"gravity_breach_center"
+encounter_id = &"gravity_breach"
+district_id = &"industrial_arc"
+kind = 1
+
+[node name="GravityBreachCheckpoint" type="Marker3D" parent="."]
+position = Vector3(28.5, -4, 0)
+rotation_degrees = Vector3(0, 0, -90)
+script = ExtResource("2_anchor")
+anchor_id = &"cp_gravity_breach"
+encounter_id = &"gravity_breach"
+district_id = &"industrial_arc"
+kind = 2
+
+[node name="DataLaneCenter" type="Marker3D" parent="."]
+position = Vector3(-28.5, 8, -8)
+rotation_degrees = Vector3(0, 0, 90)
+script = ExtResource("2_anchor")
+anchor_id = &"data_lane_center"
+encounter_id = &"data_lane"
+district_id = &"data_quarter"
+kind = 1
+
+[node name="WardenGateCheckpoint" type="Marker3D" parent="."]
+position = Vector3(-28.5, 14, 0)
+rotation_degrees = Vector3(0, 0, 90)
+script = ExtResource("2_anchor")
+anchor_id = &"cp_warden_gate"
+encounter_id = &"data_lane"
+district_id = &"data_quarter"
+kind = 2
+
+[node name="WardenCenter" type="Marker3D" parent="."]
+position = Vector3(0, -4, 28.5)
+rotation_degrees = Vector3(-90, 0, 0)
+script = ExtResource("2_anchor")
+anchor_id = &"null_warden_center"
+encounter_id = &"null_warden"
+district_id = &"void_docks"
+kind = 1
+
+[node name="WardenDownCheckpoint" type="Marker3D" parent="."]
+position = Vector3(8, 4, 28.5)
+rotation_degrees = Vector3(-90, 0, 0)
+script = ExtResource("2_anchor")
+anchor_id = &"cp_warden_down"
+encounter_id = &"null_warden"
+district_id = &"void_docks"
+kind = 2
+
+[node name="ExtractionCenter" type="Marker3D" parent="."]
+position = Vector3(-12, -28.5, 12)
+script = ExtResource("2_anchor")
+anchor_id = &"extraction_center"
+encounter_id = &"extraction"
+district_id = &"neon_market"
+kind = 1
+
+[node name="ExtractedCheckpoint" type="Marker3D" parent="."]
+position = Vector3(0, -28.5, 22)
+script = ExtResource("2_anchor")
+anchor_id = &"cp_extracted"
+encounter_id = &"extraction"
+district_id = &"neon_market"
+kind = 2
+
+[node name="ExtractionPoint" type="Marker3D" parent="."]
+position = Vector3(0, -28.5, 25)
+script = ExtResource("2_anchor")
+anchor_id = &"extraction_point"
+encounter_id = &"extraction"
+district_id = &"neon_market"
+kind = 3
