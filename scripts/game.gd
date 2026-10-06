@@ -43,6 +43,7 @@ var _encounter_batch_index := 0
 var _encounter_spawned_count := 0
 var _reinforcement_scheduled := false
 var _hold_progress := 0.0
+var _extraction_progress := 0.0
 
 var hud_layer: CanvasLayer
 var hud_panel: Control
@@ -112,6 +113,9 @@ func _process(delta: float) -> void:
 		dash_label.text = "DASH READY" if dash_remaining <= 0.0 else "DASH %.1fs" % dash_remaining
 	if story_mode:
 		_update_hold_objective(delta)
+		if _waiting_for_extraction:
+			_update_extraction_hold(delta)
+			return
 	if story_mode and _has_pending_reinforcements():
 		var encounter := mission_runtime.current_encounter()
 		if (
@@ -154,6 +158,7 @@ func start_game() -> void:
 	_last_boss_phase = 1
 	_clear_encounter_batch_state()
 	_hold_progress = 0.0
+	_extraction_progress = 0.0
 	_reset_objective_nodes()
 	_reset_hold_zones()
 	_set_extraction_armed(false)
@@ -250,6 +255,7 @@ func _finish_wave() -> void:
 				_set_boss_arena_phase(1)
 		if encounter != null and encounter.encounter_id == &"extraction":
 			_set_navigation_target(&"")
+			_extraction_progress = 0.0
 			_waiting_for_extraction = true
 			_wave_transitioning = true
 			_set_extraction_armed(true)
@@ -625,6 +631,7 @@ func _resume_story_from_save() -> void:
 	_waiting_for_encounter_entry = true
 	_clear_encounter_batch_state()
 	_hold_progress = 0.0
+	_extraction_progress = 0.0
 	_reset_objective_nodes()
 	_reset_hold_zones()
 	_set_extraction_armed(false)
@@ -905,7 +912,10 @@ func _update_objective() -> void:
 	if story_mode and mission_runtime.current_encounter() != null:
 		var encounter := mission_runtime.current_encounter()
 		if encounter.encounter_id == &"extraction" and _waiting_for_extraction:
-			objective_label.text = "REACH EXTRACTION\nBEACON ACTIVE"
+			objective_label.text = "HOLD EXTRACTION\nEXTRACT %.1f/%.1fs" % [
+				_extraction_progress,
+				encounter.extraction_hold_seconds,
+			]
 			return
 		if _waiting_for_encounter_entry:
 			objective_label.text = "ADVANCE TO\n%s" % encounter.title
@@ -1039,6 +1049,33 @@ func _set_boss_arena_phase(phase: int) -> void:
 		mission_level.call("set_boss_phase", phase)
 
 
+func _extraction_zone_occupied() -> bool:
+	if not is_instance_valid(mission_level) or not mission_level.has_method("is_extraction_occupied"):
+		return false
+	return bool(mission_level.call("is_extraction_occupied"))
+
+
+func _update_extraction_hold(delta: float) -> void:
+	if not _waiting_for_extraction:
+		return
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null:
+		return
+	var required := maxf(0.0, encounter.extraction_hold_seconds)
+	if required <= 0.0:
+		_on_extraction_reached()
+		return
+	if _extraction_zone_occupied():
+		_extraction_progress = minf(required, _extraction_progress + maxf(0.0, delta))
+		_update_objective()
+		if _extraction_progress >= required:
+			_on_extraction_reached()
+	else:
+		if _extraction_progress > 0.0:
+			_extraction_progress = 0.0
+			_update_objective()
+
+
 func _reset_hold_zones() -> void:
 	if is_instance_valid(mission_level) and mission_level.has_method("reset_hold_zones"):
 		mission_level.call("reset_hold_zones")
@@ -1153,6 +1190,7 @@ func _on_extraction_reached() -> void:
 	if encounter == null or encounter.encounter_id != &"extraction":
 		return
 	_waiting_for_extraction = false
+	_extraction_progress = 0.0
 	_set_extraction_armed(false)
 	_spawn_encounter_rewards(encounter)
 	mission_runtime.complete_current_encounter()
