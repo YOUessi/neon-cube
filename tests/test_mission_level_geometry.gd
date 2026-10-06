@@ -95,6 +95,8 @@ func _run() -> void:
 	var breach_spawns: Array = level.call("spawn_points_for", &"gravity_breach", 4, 0)
 	var boss_spawns: Array = level.call("spawn_points_for", &"null_warden", 4, 0)
 	_check(market_spawns.size() == 5, "market encounter exposes five authored spawn sockets")
+	if market_spawns.size() == 5:
+		_check(market_spawns[4].y > market_spawns[0].y + 1.5, "Market reinforcement sniper spawn is elevated above ground squad")
 	_check(breach_spawns.size() == 4, "breach encounter exposes four authored spawn sockets")
 	_check(boss_spawns.size() == 4, "boss encounter exposes four authored spawn sockets")
 	if not market_spawns.is_empty():
