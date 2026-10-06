@@ -53,6 +53,7 @@ func _run() -> void:
 
 	await _test_enemy_auto_step_bottom_face()
 	await _test_enemy_auto_step_side_face()
+	await _test_enemy_auto_step_back_face()
 	await _test_perch_leash_blocks_stair_step()
 	await _test_data_bridge_authored_route_pursuit()
 	await _test_boss_gantry_authored_route_pursuit()
@@ -114,6 +115,26 @@ func _test_enemy_auto_step_side_face() -> void:
 	var before := stair_enemy.global_position
 	_check(stair_enemy._try_auto_step(Vector3.FORWARD), "enemy auto-steps on non-horizontal cube face")
 	_check(stair_enemy.global_position.x > before.x + 0.35, "enemy side-face stair lift follows local +X up")
+
+	world.queue_free()
+	await process_frame
+
+
+func _test_enemy_auto_step_back_face() -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	# Void Docks face: gravity points +Z, local up points -Z.
+	_add_test_box(world, Vector3(0, 0, 29.60), Vector3(12.0, 12.0, 0.20))
+	_add_test_box(world, Vector3(0, 0.75, 29.29), Vector3(3.0, 0.70, 0.42))
+	var target := _make_stair_target(world, Vector3(2.0, 0, 28.35))
+	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, 0, 28.35))
+	await _settle_stair_enemy(stair_enemy)
+
+	_check(stair_enemy.gravity_down.is_equal_approx(Vector3.BACK), "enemy BACK-face stair acquires Void Docks gravity")
+	stair_enemy.set_physics_process(false)
+	var before := stair_enemy.global_position
+	_check(stair_enemy._try_auto_step(Vector3.UP), "enemy auto-steps on Void Docks BACK face")
+	_check(stair_enemy.global_position.z < before.z - 0.35, "BACK-face stair lift follows local -Z up")
 
 	world.queue_free()
 	await process_frame
@@ -223,14 +244,26 @@ func _test_boss_gantry_authored_route_pursuit() -> void:
 	var start_position := pursuer.global_position
 	var initial_distance := start_position.distance_to(target.global_position)
 	var climbed := false
+	var max_elevation_gain := 0.0
 	for i in range(360):
 		await physics_frame
 		await process_frame
 		var elevation_gain := (pursuer.global_position - start_position).dot(up)
+		max_elevation_gain = maxf(max_elevation_gain, elevation_gain)
 		if elevation_gain > 1.05:
 			climbed = true
 			break
 
+	if not climbed:
+		print(
+			"BOSS_ROUTE_DIAG max_elevation=%.3f final=%s waypoint=%s has_waypoint=%s target=%s" % [
+				max_elevation_gain,
+				str(pursuer.global_position),
+				str(pursuer._route_waypoint),
+				str(pursuer._has_route_waypoint),
+				str(target.global_position),
+			]
+		)
 	_check(climbed, "Boss Arena pursuer uses authored stairs to gain gantry elevation")
 	_check(
 		pursuer.global_position.distance_to(target.global_position) < initial_distance,
