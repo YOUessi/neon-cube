@@ -391,6 +391,7 @@ func _prepare_story_encounter(encounter: EncounterDefinition) -> void:
 func _spawn_next_story_batch() -> void:
 	if not _has_pending_reinforcements():
 		return
+	var encounter := mission_runtime.current_encounter()
 	var batch_size := _encounter_batch_sizes[_encounter_batch_index]
 	var total_count := _encounter_enemy_kinds.size()
 	var batch_number := _encounter_batch_index + 1
@@ -398,12 +399,22 @@ func _spawn_next_story_batch() -> void:
 		var enemy_index := _encounter_spawned_count
 		if enemy_index >= total_count:
 			break
+		var leash_radius := 0.0
+		if (
+			encounter != null
+			and is_instance_valid(mission_level)
+			and mission_level.has_method("perch_radius_for")
+		):
+			leash_radius = float(
+				mission_level.call("perch_radius_for", encounter.encounter_id, enemy_index)
+			)
 		_spawn_enemy_at(
 			String(_encounter_enemy_kinds[enemy_index]),
 			_encounter_positions[enemy_index],
 			_encounter_route_points,
 			enemy_index,
-			total_count
+			total_count,
+			leash_radius
 		)
 		_encounter_spawned_count += 1
 	_encounter_batch_index += 1
@@ -491,7 +502,8 @@ func _spawn_enemy_at(
 	world_position: Vector3,
 	route_points: Array[Vector3] = [],
 	tactical_slot_index: int = -1,
-	tactical_slot_count: int = 0
+	tactical_slot_count: int = 0,
+	tactical_leash_radius: float = 0.0
 ) -> void:
 	if not is_instance_valid(player):
 		return
@@ -501,6 +513,7 @@ func _spawn_enemy_at(
 	enemy.configure(kind, session.current_wave_number(), session.difficulty_scale)
 	enemy.set_route_points(route_points)
 	enemy.set_tactical_slot(tactical_slot_index, tactical_slot_count)
+	enemy.set_tactical_leash(world_position, tactical_leash_radius)
 	enemy.position = world_position
 	enemy.killed.connect(_on_enemy_killed)
 	if kind == "boss":
