@@ -45,6 +45,7 @@ var _objective_nodes: Dictionary = {}
 var _hold_zones: Dictionary = {}
 var _hold_zone_occupied: Dictionary = {}
 var _hold_zone_progress: Dictionary = {}
+var _hold_zone_stable: Dictionary = {}
 var _progression_gate_state: Dictionary = {&"data_lane": false}
 
 
@@ -181,6 +182,7 @@ func reset_hold_zones() -> void:
 		var zone := _hold_zones[key] as Area3D
 		_hold_zone_occupied[key_id] = false
 		_hold_zone_progress[key_id] = 0.0
+		_hold_zone_stable[key_id] = false
 		if zone != null:
 			zone.monitoring = false
 			var visual := zone.get_node_or_null("HoldVisual") as MeshInstance3D
@@ -202,6 +204,7 @@ func arm_hold_zone(encounter_id: StringName, active: bool) -> void:
 		_hold_zone_occupied[key_id] = false
 		if enabled:
 			_hold_zone_progress[key_id] = 0.0
+			_hold_zone_stable[key_id] = false
 		if zone != null:
 			zone.monitoring = enabled
 			var visual := zone.get_node_or_null("HoldVisual") as MeshInstance3D
@@ -234,27 +237,54 @@ func set_hold_zone_progress(encounter_id: StringName, current: float, required: 
 	if required > 0.0:
 		ratio = clampf(current / required, 0.0, 1.0)
 	_hold_zone_progress[encounter_id] = ratio
+	var stable := ratio >= 0.999
+	_hold_zone_stable[encounter_id] = stable
 	if not _hold_zones.has(encounter_id):
 		return
 	var zone := _hold_zones[encounter_id] as Area3D
 	if zone == null:
 		return
+
+	if stable:
+		_hold_zone_occupied[encounter_id] = false
+		zone.set_deferred("monitoring", false)
+
+	var stable_color := Color(0.22, 1.0, 0.52)
+	var active_color := CYAN
+
+	var visual := zone.get_node_or_null("HoldVisual") as MeshInstance3D
+	if visual != null:
+		visual.visible = zone.monitoring or stable
+		var visual_material := visual.material_override as StandardMaterial3D
+		if visual_material != null:
+			visual_material.albedo_color = (stable_color if stable else active_color) * 0.045
+			visual_material.emission = stable_color if stable else active_color
+			visual_material.emission_energy_multiplier = 6.5 if stable else 4.8
+
 	var core := zone.get_node_or_null("ProgressCore") as MeshInstance3D
 	if core != null:
-		core.visible = zone.monitoring
+		core.visible = zone.monitoring or stable
 		core.scale.y = maxf(0.03, ratio)
 		core.position.y = 0.92 * ratio
 		var material := core.material_override as StandardMaterial3D
 		if material != null:
-			material.emission_energy_multiplier = 2.8 + ratio * 4.2
+			material.albedo_color = (stable_color if stable else active_color) * 0.08
+			material.emission = stable_color if stable else active_color
+			material.emission_energy_multiplier = 7.2 if stable else 2.8 + ratio * 4.2
+
 	var label := zone.get_node_or_null("ProgressLabel") as Label3D
 	if label != null:
-		label.visible = zone.monitoring
-		label.text = "UPLINK STABLE" if ratio >= 0.999 else "UPLINK %03d%%" % int(round(ratio * 100.0))
+		label.visible = zone.monitoring or stable
+		label.text = "UPLINK STABLE" if stable else "UPLINK %03d%%" % int(round(ratio * 100.0))
+		label.modulate = stable_color if stable else active_color
 
 
 func hold_zone_progress_state(encounter_id: StringName) -> float:
 	return float(_hold_zone_progress.get(encounter_id, 0.0))
+
+
+func hold_zone_stable_state(encounter_id: StringName) -> bool:
+	return bool(_hold_zone_stable.get(encounter_id, false))
 
 
 func set_extraction_progress(current: float, required: float) -> void:
@@ -976,6 +1006,7 @@ func _build_hold_zones() -> void:
 	_hold_zones[encounter_id] = area
 	_hold_zone_occupied[encounter_id] = false
 	_hold_zone_progress[encounter_id] = 0.0
+	_hold_zone_stable[encounter_id] = false
 
 
 func _on_hold_zone_body_entered(body: Node3D, encounter_id: StringName) -> void:
