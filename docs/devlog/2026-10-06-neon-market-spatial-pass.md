@@ -1872,3 +1872,93 @@ Headless：
 `test_project_smoke.gd` 新增断言：
 
 - headless main scene 的 `performance_monitor == null`。
+
+
+## 2026-10-07 追加：Rendered Mission 01 Level Gallery
+
+### 问题
+
+此前 GitHub visual smoke 只生成：
+
+`artifacts/neon_cube_ci.png`
+
+也就是 Arrival 开场视角。
+
+因此后续区域虽然有 headless 逻辑测试，但以下视觉内容无法自动验收：
+
+- Market Hall。
+- Gravity Breach。
+- Data Lane Relay。
+- Null Warden Boss Arena。
+- Extraction Yard。
+
+### 新增 Level Gallery
+
+新增：
+
+`tests/capture_level_gallery.gd`
+
+CI 使用独立 Free Camera，在真实 Godot rendered display 下生成 5 张额外图片。
+
+#### Market Hall
+
+`neon_market_hall.png`
+
+状态：
+
+- Market Entry + Exit lockdown active。
+- 用于检查室内层次、双门封锁、猫道和市场 signage。
+
+#### Gravity Breach
+
+`gravity_breach.png`
+
+状态：
+
+- Arena lockdown active。
+- Uplink = 50%。
+- 用于检查 Hold Zone、ProgressCore 和东面空间。
+
+#### Data Lane
+
+`data_lane_relays.png`
+
+状态：
+
+- Relay objectives active。
+- Relay A partial damage。
+- 用于检查 Server Rack、Relay 状态牌和 Warden Gate。
+
+#### Void Docks Boss
+
+`void_docks_boss.png`
+
+状态：
+
+- Null Warden Phase 2。
+- twin hazard telegraph visible。
+- Phase 2 Arena lighting active。
+
+#### Extraction
+
+`extraction_yard.png`
+
+状态：
+
+- Extraction Beacon active。
+- hold progress = 50%。
+
+### CI Artifact
+
+`neon-cube-visual-smoke` 现在包含：
+
+- neon_cube_ci.png
+- neon_market_hall.png
+- gravity_breach.png
+- data_lane_relays.png
+- void_docks_boss.png
+- extraction_yard.png
+
+CI 会逐一 `test -s`，任何截图没有成功生成都会直接失败。
+
+这使 GitHub visual validation 从“开场截图”升级为 Mission 01 全流程空间画廊。
