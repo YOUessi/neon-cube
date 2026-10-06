@@ -327,7 +327,13 @@ func _spawn_current_wave() -> void:
 					if route_point is Vector3:
 						route_points.append(route_point)
 		for i in range(encounter.enemy_kinds.size()):
-			_spawn_enemy_at(String(encounter.enemy_kinds[i]), positions[i], route_points)
+			_spawn_enemy_at(
+				String(encounter.enemy_kinds[i]),
+				positions[i],
+				route_points,
+				i,
+				encounter.enemy_kinds.size()
+			)
 		return
 
 	var plan: Array[String] = wave_plan(session.current_wave_number())
@@ -337,7 +343,13 @@ func _spawn_current_wave() -> void:
 func _spawn_enemy(kind: String, index: int) -> void:
 	_spawn_enemy_at(kind, _spawn_position(index + _spawn_cursor))
 
-func _spawn_enemy_at(kind: String, world_position: Vector3, route_points: Array[Vector3] = []) -> void:
+func _spawn_enemy_at(
+	kind: String,
+	world_position: Vector3,
+	route_points: Array[Vector3] = [],
+	tactical_slot_index: int = -1,
+	tactical_slot_count: int = 0
+) -> void:
 	if not is_instance_valid(player):
 		return
 	var enemy: NeonEnemy = ENEMY_SCENE.instantiate() as NeonEnemy
@@ -345,6 +357,7 @@ func _spawn_enemy_at(kind: String, world_position: Vector3, route_points: Array[
 	enemy.target = player
 	enemy.configure(kind, session.current_wave_number(), session.difficulty_scale)
 	enemy.set_route_points(route_points)
+	enemy.set_tactical_slot(tactical_slot_index, tactical_slot_count)
 	enemy.position = world_position
 	enemy.killed.connect(_on_enemy_killed)
 	if kind == "boss":
