@@ -403,6 +403,7 @@ func current_navigation_target() -> StringName:
 
 func set_boss_phase(phase: int) -> void:
 	_boss_phase = clampi(phase, 1, 3)
+	_update_boss_arena_visual_state()
 	_boss_hazard_tick_remaining = 0.0
 	_boss_hazard_damage_armed = false
 	_boss_hazard_phase_serial += 1
@@ -443,6 +444,38 @@ func _arm_boss_hazard_damage_if(serial: int, phase: int) -> void:
 		var material := visual.material_override as StandardMaterial3D
 		if material != null:
 			material.emission_energy_multiplier = 7.0
+
+
+func _update_boss_arena_visual_state() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var arena := get_node_or_null("Geometry/VoidDocks/BossArena")
+	if arena == null:
+		return
+
+	var ring := arena.get_node_or_null("BossArenaRing") as MeshInstance3D
+	if ring != null:
+		var material := ring.material_override as StandardMaterial3D
+		if material != null:
+			var energy := 1.8
+			if _boss_phase == 2:
+				energy = 4.2
+			elif _boss_phase >= 3:
+				energy = 7.5
+			material.emission_energy_multiplier = energy
+
+	var label := arena.get_node_or_null("BossPhaseStatus") as Label3D
+	if label != null:
+		match _boss_phase:
+			2:
+				label.text = "WARDEN // PHASE 2 // TWIN HAZARDS"
+				label.modulate = MAGENTA
+			3:
+				label.text = "WARDEN // PHASE 3 // OVERLOAD"
+				label.modulate = Color(1.0, 0.20, 0.24)
+			_:
+				label.text = "WARDEN // PHASE 1"
+				label.modulate = VIOLET
 
 
 func boss_hazard_state() -> Dictionary:
@@ -1046,6 +1079,18 @@ func _build_boss_arena() -> void:
 	_add_face_box(arena, "RearCoverA", down, -4.0, -13.0, 0.0, Vector3(3.4, 1.1, 1.0), COVER, CYAN, true, &"combat_cover")
 	_add_face_box(arena, "RearCoverB", down, 4.0, -13.0, 0.0, Vector3(3.4, 1.1, 1.0), COVER, MAGENTA, true, &"combat_cover")
 	_add_face_label(arena, "BossArenaLabel", down, 0.0, 7.8, 3.8, "VOID DOCKS // NULL WARDEN", VIOLET)
+	if DisplayServer.get_name() != "headless":
+		var phase_status := Label3D.new()
+		phase_status.name = "BossPhaseStatus"
+		phase_status.text = "WARDEN // PHASE 1"
+		phase_status.font_size = 30
+		phase_status.outline_size = 7
+		phase_status.modulate = VIOLET
+		phase_status.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
+		phase_status.position = _face_point(down, 0.0, 5.8, 4.6)
+		phase_status.basis = CubeGravity.tangent_basis(down)
+		phase_status.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		arena.add_child(phase_status)
 	_add_face_light(arena, "BossLightA", down, -6.0, -4.0, 4.8, VIOLET, 1.35, 9.0)
 	_add_face_light(arena, "BossLightB", down, 6.0, -4.0, 4.8, MAGENTA, 1.25, 9.0)
 	_add_prop(arena, "BossGateDoor", "res://assets/third_party/quaternius_cyberpunk/door.gltf", down, 0.0, 8.2, 0.0, 1.9, 180.0)
