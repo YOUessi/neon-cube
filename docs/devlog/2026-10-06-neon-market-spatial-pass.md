@@ -1327,3 +1327,98 @@ Boss Arena 新增 `BossPhaseStatus`：
 - PHASE 3 // OVERLOAD
 
 BossArenaRing emission 同步随 phase 提升，使阶段变化直接作用于场景，而不是只显示在 HUD。
+
+
+## 2026-10-07 追加：Full Mission Gate + Physical Market + Vertical Reinforcements
+
+### Full Mission Playthrough Regression
+
+新增：
+
+`tests/test_full_mission_playthrough.gd`
+
+它不再只验证单个 subsystem，而是把 Mission 01 整条链串起来：
+
+```text
+Arrival Ambush
+→ Market Crossfire 3+2
+→ Gravity Breach 2+2 + Uplink
+→ Data Lane 3+2 + 双 Relay
+→ Warden Access Open
+→ Null Warden
+→ Extraction 2+2
+→ 3s continuous extraction
+→ Victory
+```
+
+同时断言：
+
+- 每个 Encounter 正确推进。
+- reinforcement batch 不会提前完成 Arena。
+- Data Lane 双 Relay 会阻止提前推进。
+- Gravity Uplink 会阻止提前推进。
+- Warden Gate 完成后打开。
+- 最终 MissionRuntime = COMPLETED。
+- completed_encounters = 6。
+
+### Physical Market Kiosks
+
+Arrival Street 的 6 个市场摊位从 visual-only 升级为实际空间对象：
+
+- 每个 kiosk 增加 StaticBody3D。
+- 简单 BoxShape3D 与 Counter 尺度一致。
+- 加入 `mission_geometry`。
+- 加入 `combat_cover`。
+- 主车道不被占用，但玩家和敌人无法再穿模。
+- 可作为 Arrival 街战侧翼掩体。
+
+Geometry 回归：
+
+- kiosk collision 数量 = 6。
+- 全部仍位于 Neon Market bottom face。
+
+### Persistent Warden Access
+
+Data Lane 完成后：
+
+- WardenAccessDoor 升起。
+- GateStatus = `ACCESS OPEN`。
+- progression state 独立于 visual prop 存储，headless 也可验证。
+
+Continue Story 从 `cp_warden_gate` 恢复时：
+
+- 如果 completed_encounters 已包含 `data_lane`，
+- 门直接恢复 open，
+- 不会出现任务已完成但门视觉上重新关闭的问题。
+
+新增：
+
+`tests/test_checkpoint_world_restore.gd`
+
+### Vertical Reinforcement Layering
+
+#### Market Crossfire
+
+第二批：
+
+- Runner：地面。
+- Sniper：Elevated Lane 高位入场。
+
+高位 Sniper spawn 使用 authored optional height，不再固定 1.05m 地面高度。
+
+#### Data Lane
+
+第二批：
+
+- Sniper：Server Rack 顶部。
+- Tank：地面推进。
+
+形成：
+
+```text
+high-ground precision pressure
++
+ground heavy pressure
+```
+
+Geometry 和真实 runtime 都验证高位 Sniper 的世界高度明显高于地面单位。
