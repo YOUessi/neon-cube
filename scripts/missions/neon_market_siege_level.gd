@@ -810,6 +810,9 @@ func _build_neon_market() -> void:
 	_add_market_kiosk(arrival, "Kiosk_East_C", down, 7.0, -4.0, WARM, "HOT POT // B7")
 	_add_market_signboard(arrival, "MarketBanner_A", down, 0.0, -15.0, 4.4, "NEON MARKET // NIGHT BAZAAR", MAGENTA)
 	_add_market_signboard(arrival, "MarketBanner_B", down, 0.0, -6.8, 4.2, "SUBLEVEL 07 // OPEN ALL NIGHT", CYAN)
+	_add_market_string_lights(arrival, "StringLights_A", down, 0.0, -19.0, 4.8, 11.5, CYAN, WARM)
+	_add_market_string_lights(arrival, "StringLights_B", down, 0.0, -12.5, 4.6, 11.5, MAGENTA, CYAN)
+	_add_market_string_lights(arrival, "StringLights_C", down, 0.0, -5.5, 4.5, 11.5, WARM, MAGENTA)
 
 	var hall := _section(root, "MarketHall")
 	_add_face_box(hall, "HallFloor", down, 13.0, 4.0, 0.025, Vector3(17.0, 0.05, 15.0), Color(0.035, 0.04, 0.07), MAGENTA, false)
@@ -1563,6 +1566,50 @@ func _on_objective_node_destroyed(node: MissionObjectiveNode) -> void:
 		return
 	var remaining := objective_nodes_remaining(node.encounter_id)
 	objective_node_destroyed.emit(node.encounter_id, node.objective_id, remaining)
+
+
+func _add_market_string_lights(
+	parent: Node3D,
+	name: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	height: float,
+	span: float,
+	accent_a: Color,
+	accent_b: Color
+) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var root := Node3D.new()
+	root.name = name
+	root.position = _face_point(down, u, v, height)
+	root.basis = CubeGravity.tangent_basis(down)
+	root.add_to_group("market_visual")
+	parent.add_child(root)
+
+	var cable := MeshInstance3D.new()
+	cable.name = "Cable"
+	var cable_mesh := BoxMesh.new()
+	cable_mesh.size = Vector3(span, 0.025, 0.025)
+	cable.mesh = cable_mesh
+	cable.material_override = _material(Color(0.025, 0.028, 0.035), Color(0.08, 0.10, 0.14), 0.10)
+	root.add_child(cable)
+
+	var bulb_count := 9
+	for i in range(bulb_count):
+		var t := float(i) / float(bulb_count - 1)
+		var x := lerpf(-span * 0.5, span * 0.5, t)
+		var bulb := MeshInstance3D.new()
+		bulb.name = "Bulb_%02d" % i
+		var bulb_mesh := SphereMesh.new()
+		bulb_mesh.radius = 0.065
+		bulb_mesh.height = 0.13
+		bulb.mesh = bulb_mesh
+		bulb.position = Vector3(x, -0.10 - sin(t * PI) * 0.18, 0)
+		var accent := accent_a if i % 2 == 0 else accent_b
+		bulb.material_override = _material(accent * 0.10, accent, 5.4)
+		root.add_child(bulb)
 
 
 func _add_market_ceiling_strip(
