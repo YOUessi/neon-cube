@@ -269,7 +269,7 @@ func _finish_wave() -> void:
 		if mission_runtime.state == MissionRuntime.State.COMPLETED:
 			_finish_game(true)
 			return
-		var timer := get_tree().create_timer(1.8)
+		var timer := get_tree().create_timer(1.8, false)
 		timer.timeout.connect(_advance_wave)
 		return
 
@@ -279,7 +279,7 @@ func _finish_wave() -> void:
 	var current_wave: WaveDefinition = campaign.get_wave(session.wave_index)
 	_show_message("WAVE %02d CLEARED" % session.current_wave_number(), 1.25)
 	_spawn_reward_pickups(session.wave_index)
-	var timer: SceneTreeTimer = get_tree().create_timer(current_wave.intermission_seconds)
+	var timer: SceneTreeTimer = get_tree().create_timer(current_wave.intermission_seconds, false)
 	timer.timeout.connect(_advance_wave)
 
 func _advance_wave() -> void:
@@ -418,7 +418,7 @@ func _schedule_reinforcement(encounter: EncounterDefinition) -> void:
 	_show_reinforcement_warning(encounter)
 	_show_message("REINFORCEMENTS // INBOUND", maxf(0.45, encounter.reinforcement_delay))
 	_update_objective()
-	var timer := get_tree().create_timer(encounter.reinforcement_delay)
+	var timer := get_tree().create_timer(encounter.reinforcement_delay, false)
 	timer.timeout.connect(_on_reinforcement_ready.bind(encounter.encounter_id))
 
 
