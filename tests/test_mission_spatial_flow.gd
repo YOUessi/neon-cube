@@ -89,6 +89,15 @@ func _run() -> void:
 		typed_enemy.set_physics_process(false)
 		reinforced_slots[typed_enemy.get_tactical_slot_index()] = true
 	_check(reinforced_slots.has(3) and reinforced_slots.has(4), "reinforcement batch occupies the remaining authored tactical slots")
+	var elevated_sniper: NeonEnemy = null
+	for enemy in reinforced_enemies:
+		var typed_enemy := enemy as NeonEnemy
+		if typed_enemy.archetype == "sniper":
+			elevated_sniper = typed_enemy
+			break
+	_check(elevated_sniper != null, "Market second batch includes authored sniper reinforcement")
+	if elevated_sniper != null:
+		_check(elevated_sniper.global_position.y > -27.0, "Market sniper reinforcement enters from elevated lane")
 
 	for enemy in reinforced_enemies:
 		var typed_enemy := enemy as NeonEnemy
