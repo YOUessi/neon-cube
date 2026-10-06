@@ -1591,14 +1591,29 @@ func _add_market_kiosk(
 	accent: Color,
 	label_text: String
 ) -> void:
-	if DisplayServer.get_name() == "headless":
-		return
 	var root := Node3D.new()
 	root.name = name
 	root.position = _face_point(down, u, v, 0.0)
 	root.basis = CubeGravity.tangent_basis(down)
 	root.add_to_group("market_visual")
+	root.add_to_group("market_kiosk")
 	parent.add_child(root)
+
+	var body := StaticBody3D.new()
+	body.name = "KioskCollision"
+	body.position = Vector3(0, 0.575, 0)
+	body.add_to_group("mission_geometry")
+	body.add_to_group("combat_cover")
+	body.add_to_group("market_kiosk_collision")
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(2.25, 1.15, 1.25)
+	collision.shape = shape
+	body.add_child(collision)
+	root.add_child(body)
+
+	if DisplayServer.get_name() == "headless":
+		return
 
 	var base := MeshInstance3D.new()
 	base.name = "Counter"
