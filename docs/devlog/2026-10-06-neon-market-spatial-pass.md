@@ -1026,3 +1026,59 @@ Dark Surface + Emissive Trim 之后的 CI 实际截图确认：
 1. 悬挂招牌朝向是否正确。
 2. 两侧 kiosk 是否足够可见但不遮挡战斗。
 3. 暖色窗口是否改善层次。
+
+
+## 2026-10-06 追加：Market Interior Dressing + Mission Event Audio
+
+### Market Hall Interior
+
+在不增加碰撞复杂度的前提下，Market Hall 增加：
+
+- 3 条 ceiling emissive strip。
+- 3 块悬挂 aisle panel：
+  - FOOD // A1
+  - TECH // B4
+  - EXIT // EAST
+- Market signage 全部改为 billboard，保证从 gameplay camera 可读。
+- 跨街 signboard 背板降亮，只保留边框和文字高亮。
+
+### Combat Cover Dressing
+
+所有 `combat_cover` 自动附加 visual-only：
+
+- ArmorPlate。
+- CoverBand。
+- 两个 bolt / status light。
+
+碰撞仍使用原始简单 BoxShape3D，不增加 AI 物理复杂度。
+
+### Mission Event Audio
+
+`NeonAudio` 新增纯程序生成事件提示音：
+
+- `play_lockdown`
+- `play_reinforcement`
+- `play_objective_destroyed`
+- `play_uplink_complete`
+- `play_boss_phase`
+- `play_extraction_ready`
+
+所有声音由短 tone sequence 构成，不引入外部音频资产。
+
+### Gameplay 绑定
+
+- 进入 Arena / lockdown 关闭 → Lockdown cue。
+- reinforcement scheduled → Inbound cue。
+- Data Relay 摧毁 → Objective Destroyed cue。
+- Gravity Breach hold 达到 4s → Uplink Complete cue。
+- Null Warden Phase 2/3 → Boss Phase cue。
+- 最终战清场、Extraction Beacon 激活 → Extraction Ready cue。
+
+Headless 模式下所有声音自动静音，但方法仍可安全调用。
+
+### 测试
+
+新增 `tests/test_mission_audio_events.gd`：
+
+- 验证所有 mission audio 方法存在。
+- 验证 headless 下调用不会产生 ERROR。
