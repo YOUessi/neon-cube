@@ -245,6 +245,7 @@ func hold_zone_world_position(encounter_id: StringName) -> Vector3:
 
 
 func set_hold_zone_progress(encounter_id: StringName, current: float, required: float) -> void:
+	var was_stable := bool(_hold_zone_stable.get(encounter_id, false))
 	var ratio := 0.0
 	if required > 0.0:
 		ratio = clampf(current / required, 0.0, 1.0)
@@ -289,6 +290,15 @@ func set_hold_zone_progress(encounter_id: StringName, current: float, required: 
 		label.visible = zone.monitoring or stable
 		label.text = "UPLINK STABLE" if stable else "UPLINK %03d%%" % int(round(ratio * 100.0))
 		label.modulate = stable_color if stable else active_color
+
+	if stable and not was_stable:
+		_spawn_event_pulse(
+			zone.global_position,
+			CubeGravity.nearest_down(zone.global_position, cube_half_extent),
+			stable_color,
+			3.4,
+			0.55
+		)
 
 
 func hold_zone_progress_state(encounter_id: StringName) -> float:
@@ -420,6 +430,11 @@ func complete_extraction() -> void:
 		_extraction_label.visible = true
 		_extraction_label.text = "EXTRACTION COMPLETE"
 		_extraction_label.modulate = complete_color
+
+	if _extraction_zone != null:
+		var extraction_down := CubeGravity.nearest_down(_extraction_zone.global_position, cube_half_extent)
+		_spawn_event_pulse(_extraction_zone.global_position, extraction_down, complete_color, 4.2, 0.75)
+		_spawn_event_sparks(_extraction_zone.global_position, extraction_down, complete_color, 10)
 
 
 func extraction_complete_state() -> bool:
@@ -1634,8 +1649,91 @@ func _add_objective_node(
 func _on_objective_node_destroyed(node: MissionObjectiveNode) -> void:
 	if node == null:
 		return
+	var down := CubeGravity.nearest_down(node.global_position, cube_half_extent)
+	_spawn_event_pulse(node.global_position, down, Color(1.0, 0.20, 0.10), 2.4, 0.42)
+	_spawn_event_sparks(node.global_position, down, Color(1.0, 0.38, 0.12), 8)
 	var remaining := objective_nodes_remaining(node.encounter_id)
 	objective_node_destroyed.emit(node.encounter_id, node.objective_id, remaining)
+
+
+func _spawn_event_pulse(
+	world_position: Vector3,
+	down: Vector3,
+	accent: Color,
+	end_scale: float,
+	lifetime: float
+) -> void:
+	if DisplayServer.get_name() == "headless" or not is_instance_valid(_geometry_root):
+		return
+
+	var pulse := MeshInstance3D.new()
+	pulse.name = "MissionEventPulse"
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.72
+	mesh.bottom_radius = 0.72
+	mesh.height = 0.045
+	mesh.radial_segments = 48
+	pulse.mesh = mesh
+	pulse.global_position = world_position + down.normalized() * 0.92
+	pulse.basis = CubeGravity.tangent_basis(down)
+	pulse.scale = Vector3(0.55, 1.0, 0.55)
+	pulse.material_override = _material(accent * 0.08, accent, 7.5)
+	pulse.add_to_group("mission_event_fx")
+	_geometry_root.add_child(pulse)
+
+	var tween := create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(
+		pulse,
+		"scale",
+		Vector3(end_scale, 1.0, end_scale),
+		maxf(0.12, lifetime)
+	)
+	tween.tween_callback(pulse.queue_free)
+
+
+func _spawn_event_sparks(
+	world_position: Vector3,
+	down: Vector3,
+	accent: Color,
+	count: int
+) -> void:
+	if DisplayServer.get_name() == "headless" or not is_instance_valid(_geometry_root):
+		return
+
+	var root := Node3D.new()
+	root.name = "MissionEventSparks"
+	root.global_position = world_position + down.normalized() * 0.45
+	root.basis = CubeGravity.tangent_basis(down)
+	root.add_to_group("mission_event_fx")
+	_geometry_root.add_child(root)
+
+	var spark_count := maxi(1, count)
+	for i in range(spark_count):
+		var spark := MeshInstance3D.new()
+		spark.name = "Spark_%02d" % i
+		var mesh := SphereMesh.new()
+		mesh.radius = 0.055
+		mesh.height = 0.11
+		spark.mesh = mesh
+		spark.material_override = _material(accent * 0.12, accent, 8.5)
+		root.add_child(spark)
+
+		var angle := TAU * float(i) / float(spark_count)
+		var planar := Vector3(cos(angle), 0.0, sin(angle))
+		var target := planar * (1.0 + float(i % 3) * 0.28) + Vector3(0, 0.6 + float(i % 2) * 0.35, 0)
+		var tween := create_tween()
+		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		tween.set_trans(Tween.TRANS_QUAD)
+		tween.set_ease(Tween.EASE_OUT)
+		tween.tween_property(spark, "position", target, 0.34 + float(i % 2) * 0.08)
+
+	var cleanup := create_tween()
+	cleanup.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	cleanup.tween_interval(0.48)
+	cleanup.tween_callback(root.queue_free)
 
 
 func _add_market_string_lights(
