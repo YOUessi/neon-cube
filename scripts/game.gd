@@ -529,14 +529,25 @@ func _create_ui() -> void:
 	panel.size = Vector2(430, 196)
 	hud_panel.add_child(panel)
 
+	var right_panel := ColorRect.new()
+	right_panel.color = Color(0.005, 0.008, 0.02, 0.78)
+	right_panel.position = Vector2(930, 20)
+	right_panel.size = Vector2(330, 102)
+	hud_panel.add_child(right_panel)
+
 	health_label = _make_label(Vector2(36, 30), 20, Color(0.1, 1.0, 0.85))
 	shield_label = _make_label(Vector2(36, 58), 18, Color(0.2, 0.65, 1.0))
 	ammo_label = _make_label(Vector2(36, 84), 20, Color(1.0, 0.12, 0.7))
 	weapon_label = _make_label(Vector2(36, 112), 17, Color(1.0, 0.75, 0.2))
 	face_label = _make_label(Vector2(36, 138), 15, Color(0.45, 0.72, 1.0))
 	dash_label = _make_label(Vector2(36, 162), 15, Color(0.7, 1.0, 0.5))
-	score_label = _make_label(Vector2(990, 28), 20, Color(1.0, 0.85, 0.2))
-	objective_label = _make_label(Vector2(980, 60), 16, Color(0.25, 1.0, 0.95))
+	score_label = _make_label(Vector2(946, 30), 18, Color(1.0, 0.85, 0.2))
+	score_label.size = Vector2(292, 24)
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	objective_label = _make_label(Vector2(940, 58), 14, Color(0.25, 1.0, 0.95))
+	objective_label.size = Vector2(300, 54)
+	objective_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for label in [health_label, shield_label, ammo_label, weapon_label, face_label, dash_label, score_label, objective_label]:
 		hud_panel.add_child(label)
 
@@ -568,11 +579,13 @@ func _create_ui() -> void:
 
 	message_label = Label.new()
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	message_label.add_theme_font_size_override("font_size", 30)
+	message_label.add_theme_font_size_override("font_size", 22)
 	message_label.add_theme_color_override("font_color", Color(1.0, 0.14, 0.75))
+	message_label.add_theme_constant_override("outline_size", 4)
+	message_label.add_theme_color_override("font_outline_color", Color(0.005, 0.008, 0.02, 0.95))
 	message_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	message_label.position = Vector2(-300, 38)
-	message_label.size = Vector2(600, 52)
+	message_label.position = Vector2(-210, 28)
+	message_label.size = Vector2(420, 42)
 	hud_panel.add_child(message_label)
 
 	menu_panel = _create_full_overlay(Color(0.006, 0.005, 0.025, 0.94))
@@ -759,12 +772,12 @@ func _update_objective() -> void:
 	if story_mode and mission_runtime.current_encounter() != null:
 		var encounter := mission_runtime.current_encounter()
 		if encounter.encounter_id == &"extraction" and _waiting_for_extraction:
-			objective_label.text = "REACH EXTRACTION  //  BEACON ACTIVE"
+			objective_label.text = "REACH EXTRACTION\nBEACON ACTIVE"
 			return
 		if _waiting_for_encounter_entry:
-			objective_label.text = "ADVANCE TO %s" % encounter.title
+			objective_label.text = "ADVANCE TO\n%s" % encounter.title
 			return
-		objective_label.text = "%s  //  HOSTILES %02d" % [
+		objective_label.text = "%s\nHOSTILES %02d" % [
 			encounter.objective_text,
 			session.alive_enemies,
 		]
