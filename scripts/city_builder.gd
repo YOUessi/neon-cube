@@ -145,8 +145,10 @@ static func _add_building(
 	district: DistrictDefinition
 ) -> void:
 	var body := StaticBody3D.new()
+	body.name = "CityBuilding_%03d" % seed
 	body.position = position
 	body.basis = basis
+	body.add_to_group("city_building")
 	parent.add_child(body)
 
 	var shape := CollisionShape3D.new()
