@@ -50,6 +50,44 @@
 
 `CyberCityBuilder` 仍负责六面的整体城市背景，但现在会针对 Mission 01 的主街、市场大厅、接缝、东面 Arena、西面 Data Lane、南面 Boss Arena 和撤离路线保留净空。这样程序化楼块不会随机堵住正式任务路径。
 
+## Encounter 空间流转
+
+现在战役不再是“上一波结束后，下一波立刻在远处生成”。
+
+- 第一段 `arrival_ambush` 随任务开始直接激活。
+- 从 `market_crossfire` 开始，每个后续 Encounter 都有一个实际 `Area3D` 激活体积。
+- 当前战斗清空后，任务进入 traversal 状态，HUD 提示玩家前往下一战斗区；此时下一批敌人数量保持为 0。
+- 玩家真正进入目标 Arena 后，激活区触发，才生成该 Encounter 的敌人。
+- 这使市场大厅、重力接缝、跨面 Transit、Data Lane 和 Boss 入口成为必须经过的游戏空间，而不是背景装饰。
+- `extraction` Encounter 进入 Extraction Yard 后才刷最后一组敌人；清场后再单独激活最终 Extraction Beacon，玩家进入信标才结算胜利。
+
+## 作者指定出生点
+
+正式 Mission 优先使用 `NeonMarketSiegeLevel.spawn_points_for()` 提供的作者出生点，而不是围绕 Marker 随机排布：
+
+- Arrival Street：4 个入口伏击点。
+- Market Crossfire：5 个摊位/大厅交火点。
+- Gravity Breach：4 个东面 Arena 点位。
+- Data Lane：5 个数据街区点位。
+- Null Warden：Boss 中心 + 3 个随从点位。
+- Extraction Yard：4 个撤离战点位。
+
+如果未来某个 Encounter 没有作者点位，`game.gd` 仍会回退到 `EncounterSpawnPlanner`，不会破坏数据驱动兼容性。
+
+## 美术摆件层
+
+在碰撞 blockmesh 之上，关键区域现在会实例化仓库已有的 Quaternius cyberpunk 资产：
+
+- 主街：street light。
+- 市场大厅：door、fence、computer terminals。
+- 重力接缝 / Gravity Breach：antenna、fence、street light。
+- 跨面 Transit：antenna、fence。
+- Data Lane / Warden Gate：computer、antenna、door。
+- Boss Arena：door、antenna。
+- Extraction：street light、fence、antenna beacon。
+
+这些资产只负责视觉层，碰撞与玩法尺度仍由 authored mission geometry 控制，避免第三方模型碰撞影响路线稳定性。
+
 ## 当前空间契约
 
 - 保留原 14 个 Mission Anchor，现有 MissionRuntime / SpawnPlanner / Checkpoint 不需要重写。
@@ -58,7 +96,10 @@
 - 新增跨面空间分组：`cross_face_passage`。
 - 新增 Boss Arena 分组：`boss_arena`。
 - 新增撤离触发分组：`extraction_zone`。
+- 新增 5 个战斗区触发分组：`encounter_activation_zone`。
+- 新增作者指定 Encounter spawn sockets，并保留 SpawnPlanner fallback。
 - 新增 headless 测试：`tests/test_mission_level_geometry.gd`。
+- 新增整局流转测试：`tests/test_mission_spatial_flow.gd`，验证“清场 → 无敌人旅行 → 进入 Arena → 敌人生成”。
 
 ## 这一阶段还不是最终美术
 
