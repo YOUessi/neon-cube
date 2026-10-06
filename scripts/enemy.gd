@@ -432,7 +432,7 @@ func _tactical_slot_direction(fallback: Vector3) -> Vector3:
 func _authored_route_direction(fallback: Vector3) -> Vector3:
 	if not is_instance_valid(target) or _authored_route_points.is_empty():
 		return fallback
-	if _has_route_waypoint and global_position.distance_to(_route_waypoint) <= 0.70:
+	if _has_route_waypoint and _route_waypoint_reached(_route_waypoint):
 		_has_route_waypoint = false
 	if not _has_route_waypoint:
 		_select_route_waypoint()
@@ -443,6 +443,14 @@ func _authored_route_direction(fallback: Vector3) -> Vector3:
 	if tangent.length_squared() <= 0.01:
 		return fallback
 	return tangent.normalized()
+
+func _route_waypoint_reached(point: Vector3) -> bool:
+	var up := -gravity_down.normalized()
+	var delta := point - global_position
+	var elevation_error := absf(delta.dot(up))
+	var planar_delta := delta - up * delta.dot(up)
+	return planar_delta.length() <= 0.55 and elevation_error <= 0.30
+
 
 func _select_route_waypoint() -> void:
 	_has_route_waypoint = false
@@ -459,8 +467,8 @@ func _select_route_waypoint() -> void:
 	for point in _authored_route_points:
 		var point_delta := point - global_position
 		var travel_cost := point_delta.length()
-		# Never immediately reselect a waypoint we have already reached.
-		if travel_cost <= 0.70:
+		# Never immediately reselect a waypoint we have physically reached.
+		if _route_waypoint_reached(point):
 			continue
 
 		var planar_delta := point_delta - up * point_delta.dot(up)
