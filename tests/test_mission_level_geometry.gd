@@ -115,6 +115,8 @@ func _run() -> void:
 	_check(is_equal_approx(float(level.call("perch_radius_for", &"market_crossfire", 3)), 0.0), "Market ground reinforcement has no perch leash")
 	_check(is_equal_approx(float(level.call("perch_radius_for", &"data_lane", 3)), 0.30), "Data Lane slot-three sniper owns authored rack leash")
 	_check(is_equal_approx(float(level.call("perch_radius_for", &"data_lane", 4)), 0.0), "Data Lane ground tank has no perch leash")
+	_check(is_equal_approx(float(level.call("perch_radius_for", &"null_warden", 2)), 0.55), "Null Warden slot-two sniper owns authored gantry leash")
+	_check(is_equal_approx(float(level.call("perch_radius_for", &"null_warden", 3)), 0.0), "Null Warden ground tank remains unrestricted")
 
 	var market_routes: Array = level.call("route_points_for", &"market_crossfire")
 	var breach_routes: Array = level.call("route_points_for", &"gravity_breach")
@@ -141,6 +143,9 @@ func _run() -> void:
 	if data_spawns.size() == 5:
 		_check(data_spawns[3].x > data_spawns[0].x + 1.5, "Data Lane reinforcement sniper spawn is elevated above ground squad")
 	_check(boss_spawns.size() == 4, "boss encounter exposes four authored spawn sockets")
+	if boss_spawns.size() == 4:
+		_check(CubeGravity.nearest_down(boss_spawns[2], 30.0).is_equal_approx(Vector3.BACK), "Boss gantry sniper socket remains on Void Docks face")
+		_check(boss_spawns[2].distance_to(boss_spawns[3]) > 3.0, "Boss gantry sniper socket remains spatially distinct from ground tank")
 	if not market_spawns.is_empty():
 		_check(CubeGravity.nearest_down(market_spawns[0], 30.0).is_equal_approx(Vector3.DOWN), "market spawns stay on Neon Market face")
 	if not breach_spawns.is_empty():
