@@ -11,6 +11,7 @@ const CYAN := Color(0.05, 0.95, 1.0)
 const MAGENTA := Color(1.0, 0.08, 0.62)
 const AMBER := Color(1.0, 0.68, 0.10)
 const VIOLET := Color(0.62, 0.16, 1.0)
+const WARM := Color(1.0, 0.36, 0.12)
 const DARK := Color(0.025, 0.035, 0.065)
 const WALL := Color(0.055, 0.065, 0.10)
 const COVER := Color(0.07, 0.085, 0.12)
@@ -494,6 +495,14 @@ func _build_neon_market() -> void:
 	_add_prop(arrival, "StreetLight_A", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -4.4, -19.5, 0.0, 1.25, 0.0)
 	_add_prop(arrival, "StreetLight_B", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, 4.4, -13.0, 0.0, 1.25, 180.0)
 	_add_prop(arrival, "StreetLight_C", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -4.4, -6.5, 0.0, 1.25, 0.0)
+	_add_market_kiosk(arrival, "Kiosk_West_A", down, -7.0, -18.0, CYAN, "NOODLES // 24H")
+	_add_market_kiosk(arrival, "Kiosk_East_A", down, 7.0, -16.0, MAGENTA, "SYNTH TEA")
+	_add_market_kiosk(arrival, "Kiosk_West_B", down, -7.0, -11.0, WARM, "NIGHT GRILL")
+	_add_market_kiosk(arrival, "Kiosk_East_B", down, 7.0, -9.0, CYAN, "BYTE MART")
+	_add_market_kiosk(arrival, "Kiosk_West_C", down, -7.0, -5.5, MAGENTA, "AUGMENT REPAIR")
+	_add_market_kiosk(arrival, "Kiosk_East_C", down, 7.0, -4.0, WARM, "HOT POT // B7")
+	_add_market_signboard(arrival, "MarketBanner_A", down, 0.0, -15.0, 4.4, "NEON MARKET // NIGHT BAZAAR", MAGENTA)
+	_add_market_signboard(arrival, "MarketBanner_B", down, 0.0, -6.8, 4.2, "SUBLEVEL 07 // OPEN ALL NIGHT", CYAN)
 
 	var hall := _section(root, "MarketHall")
 	_add_face_box(hall, "HallFloor", down, 13.0, 4.0, 0.025, Vector3(17.0, 0.05, 15.0), Color(0.035, 0.04, 0.07), MAGENTA, false)
@@ -1120,6 +1129,118 @@ func _on_objective_node_destroyed(node: MissionObjectiveNode) -> void:
 		return
 	var remaining := objective_nodes_remaining(node.encounter_id)
 	objective_node_destroyed.emit(node.encounter_id, node.objective_id, remaining)
+
+
+func _add_market_kiosk(
+	parent: Node3D,
+	name: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	accent: Color,
+	label_text: String
+) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var root := Node3D.new()
+	root.name = name
+	root.position = _face_point(down, u, v, 0.0)
+	root.basis = CubeGravity.tangent_basis(down)
+	root.add_to_group("market_visual")
+	parent.add_child(root)
+
+	var base := MeshInstance3D.new()
+	base.name = "Counter"
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(2.25, 1.15, 1.25)
+	base.mesh = base_mesh
+	base.position = Vector3(0, 0.575, 0)
+	base.material_override = _material(Color(0.045, 0.05, 0.065), accent, 0.14)
+	root.add_child(base)
+
+	var canopy := MeshInstance3D.new()
+	canopy.name = "Canopy"
+	var canopy_mesh := BoxMesh.new()
+	canopy_mesh.size = Vector3(2.65, 0.12, 1.55)
+	canopy.mesh = canopy_mesh
+	canopy.position = Vector3(0, 1.72, 0)
+	canopy.material_override = _material(Color(0.055, 0.035, 0.06), accent, 0.40)
+	root.add_child(canopy)
+
+	for side in [-1.0, 1.0]:
+		var post := MeshInstance3D.new()
+		var post_mesh := BoxMesh.new()
+		post_mesh.size = Vector3(0.07, 1.55, 0.07)
+		post.mesh = post_mesh
+		post.position = Vector3(1.02 * side, 0.92, -0.52)
+		post.material_override = _material(Color(0.055, 0.06, 0.075), accent, 1.8)
+		root.add_child(post)
+
+	var lightbox := MeshInstance3D.new()
+	lightbox.name = "Lightbox"
+	var lightbox_mesh := BoxMesh.new()
+	lightbox_mesh.size = Vector3(1.75, 0.38, 0.08)
+	lightbox.mesh = lightbox_mesh
+	lightbox.position = Vector3(0, 1.40, -0.67)
+	lightbox.material_override = _material(accent * 0.10, accent, 3.8)
+	root.add_child(lightbox)
+
+	var label := Label3D.new()
+	label.name = "KioskLabel"
+	label.text = label_text
+	label.font_size = 22
+	label.outline_size = 5
+	label.modulate = Color(0.94, 0.97, 1.0)
+	label.outline_modulate = Color(0.005, 0.008, 0.02, 0.96)
+	label.position = Vector3(0, 1.40, -0.72)
+	label.rotation_degrees = Vector3(0, 180, 0)
+	root.add_child(label)
+
+
+func _add_market_signboard(
+	parent: Node3D,
+	name: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	height: float,
+	text: String,
+	accent: Color
+) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var root := Node3D.new()
+	root.name = name
+	root.position = _face_point(down, u, v, height)
+	root.basis = CubeGravity.tangent_basis(down)
+	root.add_to_group("market_visual")
+	parent.add_child(root)
+
+	var backing := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(5.8, 0.78, 0.12)
+	backing.mesh = mesh
+	backing.material_override = _material(Color(0.025, 0.03, 0.045), accent, 0.55)
+	root.add_child(backing)
+
+	for x in [-2.7, 2.7]:
+		var edge := MeshInstance3D.new()
+		var edge_mesh := BoxMesh.new()
+		edge_mesh.size = Vector3(0.07, 0.66, 0.15)
+		edge.mesh = edge_mesh
+		edge.position = Vector3(x, 0, -0.02)
+		edge.material_override = _material(accent * 0.08, accent, 4.2)
+		root.add_child(edge)
+
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = 28
+	label.outline_size = 6
+	label.modulate = accent
+	label.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
+	label.position = Vector3(0, 0, -0.08)
+	label.rotation_degrees = Vector3(0, 180, 0)
+	root.add_child(label)
 
 
 func _add_face_light(
