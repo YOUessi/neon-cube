@@ -174,6 +174,7 @@ func start_game() -> void:
 	end_panel.visible = false
 	hud_panel.visible = true
 	_create_player()
+	_spawn_authored_pickups()
 	_spawn_current_wave()
 	_update_score()
 	_update_objective()
@@ -569,11 +570,37 @@ func _spawn_encounter_rewards(encounter: EncounterDefinition) -> void:
 			encounter.reward_shield
 		)
 
-func _spawn_pickup(world_position: Vector3, kind: String, amount: float) -> void:
+func _spawn_pickup(world_position: Vector3, kind: String, amount: float) -> NeonPickup:
 	var pickup: NeonPickup = PICKUP_SCENE.instantiate() as NeonPickup
 	pickup.configure(kind, amount)
 	pickup.position = world_position
 	add_child(pickup)
+	return pickup
+
+
+func _spawn_authored_pickups() -> void:
+	if not story_mode:
+		return
+	if not is_instance_valid(mission_level) or not mission_level.has_method("authored_pickup_specs"):
+		return
+	var specs: Variant = mission_level.call("authored_pickup_specs")
+	if not specs is Array:
+		return
+	for spec_variant in specs:
+		if not spec_variant is Dictionary:
+			continue
+		var spec: Dictionary = spec_variant
+		var encounter_id := StringName(spec.get("encounter_id", &""))
+		if encounter_id != &"" and mission_runtime.completed_encounters.has(encounter_id):
+			continue
+		var position: Variant = spec.get("position", Vector3.ZERO)
+		if not position is Vector3:
+			continue
+		var kind := String(spec.get("kind", "health"))
+		var amount := float(spec.get("amount", 25.0))
+		var pickup := _spawn_pickup(position, kind, amount)
+		pickup.name = String(spec.get("pickup_id", &"authored_pickup"))
+		pickup.add_to_group("authored_pickup")
 
 func _on_enemy_killed(enemy: NeonEnemy) -> void:
 	session.register_kill(enemy.get_score_value())
@@ -675,6 +702,7 @@ func _resume_story_from_save() -> void:
 		if mission_anchors.has(checkpoint_key):
 			var checkpoint_anchor: MissionAnchor = mission_anchors[checkpoint_key]
 			player.global_position = checkpoint_anchor.global_position
+	_spawn_authored_pickups()
 	_update_score()
 	_update_objective()
 	_show_message("CHECKPOINT // ADVANCE TO %s" % mission_runtime.current_encounter().title, 1.8)
