@@ -87,6 +87,8 @@ func _ready() -> void:
 		mission_level.connect("extraction_reached", Callable(self, "_on_extraction_reached"))
 	if mission_level.has_signal("encounter_zone_entered"):
 		mission_level.connect("encounter_zone_entered", Callable(self, "_on_encounter_zone_entered"))
+	if mission_level.has_signal("objective_node_destroyed"):
+		mission_level.connect("objective_node_destroyed", Callable(self, "_on_objective_node_destroyed"))
 	performance_monitor = RuntimePerformanceMonitor.new()
 	performance_monitor.name = "PerformanceMonitor"
 	performance_monitor.budget = DESKTOP_PERFORMANCE_BUDGET
@@ -118,6 +120,8 @@ func _process(_delta: float) -> void:
 			_schedule_reinforcement(encounter)
 		return
 	if _alive_enemies <= 0 and not _wave_transitioning:
+		if story_mode and not _story_objectives_complete():
+			return
 		_finish_wave()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -146,6 +150,7 @@ func start_game() -> void:
 	_waiting_for_encounter_entry = false
 	_last_boss_phase = 1
 	_clear_encounter_batch_state()
+	_reset_objective_nodes()
 	_set_extraction_armed(false)
 	_set_encounter_zone_armed(&"", false)
 	_set_encounter_lockdown(&"", false)
@@ -232,6 +237,7 @@ func _finish_wave() -> void:
 		var encounter := mission_runtime.current_encounter()
 		_clear_encounter_batch_state()
 		if encounter != null:
+			_arm_objective_nodes(encounter.encounter_id, false)
 			_set_encounter_lockdown(encounter.encounter_id, false)
 			if encounter.encounter_id == &"null_warden":
 				_set_boss_arena_phase(1)
@@ -610,6 +616,7 @@ func _resume_story_from_save() -> void:
 	_waiting_for_extraction = false
 	_waiting_for_encounter_entry = true
 	_clear_encounter_batch_state()
+	_reset_objective_nodes()
 	_set_extraction_armed(false)
 	_set_encounter_lockdown(&"", false)
 	_set_encounter_zone_armed(mission_runtime.current_encounter().encounter_id, true)
@@ -893,6 +900,30 @@ func _update_objective() -> void:
 		if _waiting_for_encounter_entry:
 			objective_label.text = "ADVANCE TO\n%s" % encounter.title
 			return
+		var remaining_nodes := _objective_nodes_remaining(encounter.encounter_id)
+		if encounter.objective_node_count > 0:
+			if _reinforcement_scheduled:
+				objective_label.text = "%s\nRELAYS %02d LEFT  //  INBOUND" % [
+					encounter.objective_text,
+					remaining_nodes,
+				]
+				return
+			var objective_batch_count := current_story_batch_count()
+			if objective_batch_count > 1:
+				objective_label.text = "%s\nRELAYS %02d  //  HOSTILES %02d  //  BATCH %d/%d" % [
+					encounter.objective_text,
+					remaining_nodes,
+					session.alive_enemies,
+					current_story_batch_number(),
+					objective_batch_count,
+				]
+				return
+			objective_label.text = "%s\nRELAYS %02d  //  HOSTILES %02d" % [
+				encounter.objective_text,
+				remaining_nodes,
+				session.alive_enemies,
+			]
+			return
 		if _reinforcement_scheduled:
 			objective_label.text = "%s\nHOSTILES %02d  //  INBOUND" % [
 				encounter.objective_text,
@@ -977,6 +1008,31 @@ func _set_boss_arena_phase(phase: int) -> void:
 		mission_level.call("set_boss_phase", phase)
 
 
+func _reset_objective_nodes() -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("reset_objective_nodes"):
+		mission_level.call("reset_objective_nodes")
+
+
+func _arm_objective_nodes(encounter_id: StringName, active: bool) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("arm_objective_nodes"):
+		mission_level.call("arm_objective_nodes", encounter_id, active)
+
+
+func _objective_nodes_remaining(encounter_id: StringName) -> int:
+	if not is_instance_valid(mission_level) or not mission_level.has_method("objective_nodes_remaining"):
+		return 0
+	return int(mission_level.call("objective_nodes_remaining", encounter_id))
+
+
+func _story_objectives_complete() -> bool:
+	if not story_mode:
+		return true
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.objective_node_count <= 0:
+		return true
+	return _objective_nodes_remaining(encounter.encounter_id) <= 0
+
+
 func _on_encounter_zone_entered(encounter_id: StringName) -> void:
 	if not story_mode or not _waiting_for_encounter_entry:
 		return
@@ -986,11 +1042,40 @@ func _on_encounter_zone_entered(encounter_id: StringName) -> void:
 	_waiting_for_encounter_entry = false
 	_set_navigation_target(&"")
 	_set_encounter_lockdown(encounter_id, true)
+	_arm_objective_nodes(encounter_id, true)
 	_spawn_current_wave()
 	_wave_transitioning = false
 	_update_score()
 	_update_objective()
 	_show_message("%s // %s" % [encounter.title, encounter.objective_text], 2.0)
+
+
+func _on_objective_node_destroyed(
+	encounter_id: StringName,
+	objective_id: StringName,
+	remaining: int
+) -> void:
+	if not story_mode:
+		return
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.encounter_id != encounter_id:
+		return
+	_show_message(
+		"OBJECTIVE DESTROYED // %s // %d REMAINING" % [
+			String(objective_id).replace("_", " ").to_upper(),
+			remaining,
+		],
+		1.4
+	)
+	_update_objective()
+	if (
+		remaining <= 0
+		and _alive_enemies <= 0
+		and not _has_pending_reinforcements()
+		and not _reinforcement_scheduled
+		and not _wave_transitioning
+	):
+		_finish_wave()
 
 
 func _on_extraction_reached() -> void:
