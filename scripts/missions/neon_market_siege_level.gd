@@ -744,11 +744,13 @@ func authored_pickup_specs() -> Array:
 			"position": _face_point(Vector3.BACK, -8.25, 3.8, 2.45),
 		},
 		{
+			# Keep the stable pickup ID for checkpoint compatibility, but place the
+			# cache in the last combat yard so it matters before the Beacon hold.
 			"pickup_id": &"extraction_dock_health",
 			"encounter_id": &"extraction",
 			"kind": "health",
 			"amount": 42.0,
-			"position": _face_point(Vector3.DOWN, -1.4, -25.0, 0.95),
+			"position": _face_point(Vector3.DOWN, -7.2, -17.2, 0.95),
 		},
 	]
 
