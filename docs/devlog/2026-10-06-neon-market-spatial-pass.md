@@ -1233,3 +1233,97 @@ Encounter cleared
 5. Resume。
 6. 剩余 timer 正常继续。
 7. Market Crossfire 最终只 advance 一次并进入 traversal。
+
+
+## 2026-10-07 追加：Persistent World State + Navigation Feedback
+
+### Gravity Breach Uplink 锁存
+
+修复了一个任务语义问题：
+
+旧行为：
+
+```text
+hold_progress 达到 4s
+→ 如果仍有敌人
+→ 玩家离开控制区
+→ progress 又归零
+```
+
+新行为：
+
+```text
+连续 hold 达到 4s
+→ _hold_completed = true
+→ UPLINK STABLE
+→ 可以离开控制区收尾敌人
+→ 完成状态不会回退
+→ 最后敌人清空后才推进
+```
+
+世界进度柱在完成后保持 100%，Label 显示 `UPLINK STABLE`。
+
+### Data Lane 世界完成状态
+
+Data Relay 摧毁后：
+
+- 主核心 Visual 消失。
+- 保留 DestroyedVisual 残骸。
+- 留下 3 块倾斜装甲碎片。
+- 保留红色 OfflineCore。
+- Billboard 状态显示 `RELAY A/B // OFFLINE`。
+
+Relay 激活期间：
+
+- Billboard 实时显示 health percentage。
+- partial damage 会改变 `health_ratio()`。
+- 受击产生短 emission flash。
+
+### Warden Access Door
+
+Data Lane 完成后，世界状态不再只依赖 lockdown：
+
+- `WardenAccessDoor` 视觉门向上升起。
+- `GateStatus` 从 `ACCESS LOCKED` 改为 `ACCESS OPEN`。
+- headless 下独立维护 progression gate state。
+
+新开局：
+
+- Warden gate 强制关闭。
+
+Checkpoint Continue：
+
+- 如果 `completed_encounters` 已含 `data_lane`，
+- 恢复到 Null Warden 时 Warden gate 直接恢复 open。
+
+新增 `test_checkpoint_world_restore.gd` 验证 checkpoint 不会把已完成世界状态重置。
+
+### Navigation Distance
+
+World-space objective beacon 现在每 0.15s 更新：
+
+```text
+OBJECTIVE // MARKET CROSSFIRE
+042m
+```
+
+使用实际玩家与 beacon 的世界距离，不改变 MissionRuntime。
+
+### Extraction Ring Progress
+
+Extraction 0→100% hold 除了中央 ProgressCore：
+
+- 外圈 Ring emission 也随进度增强。
+- 0% 保持基础亮度。
+- 100% 达到最高亮度。
+- 离开 Beacon 重置时 Ring 同步回落。
+
+### Boss Arena World Phase
+
+Boss Arena 新增 `BossPhaseStatus`：
+
+- PHASE 1
+- PHASE 2 // TWIN HAZARDS
+- PHASE 3 // OVERLOAD
+
+BossArenaRing emission 同步随 phase 提升，使阶段变化直接作用于场景，而不是只显示在 HUD。
