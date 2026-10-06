@@ -1057,6 +1057,11 @@ func _set_extraction_armed(active: bool) -> void:
 		mission_level.call("set_extraction_progress", 0.0, 1.0)
 
 
+func _complete_extraction_world_state() -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("complete_extraction"):
+		mission_level.call("complete_extraction")
+
+
 func _set_encounter_zone_armed(encounter_id: StringName, active: bool) -> void:
 	if is_instance_valid(mission_level) and mission_level.has_method("arm_encounter_zone"):
 		mission_level.call("arm_encounter_zone", encounter_id, active)
@@ -1261,8 +1266,8 @@ func _on_extraction_reached() -> void:
 	if encounter == null or encounter.encounter_id != &"extraction":
 		return
 	_waiting_for_extraction = false
-	_extraction_progress = 0.0
-	_set_extraction_armed(false)
+	_extraction_progress = encounter.extraction_hold_seconds
+	_complete_extraction_world_state()
 	_spawn_encounter_rewards(encounter)
 	mission_runtime.complete_current_encounter()
 	MissionProgressStore.save_runtime(mission_runtime, session)
