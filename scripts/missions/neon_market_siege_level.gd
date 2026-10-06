@@ -489,6 +489,8 @@ func _build_neon_market() -> void:
 	_add_face_trim(arrival, "ArrivalLaneWest", down, -1.85, -13.0, 0.07, Vector3(0.07, 0.035, 21.0), CYAN)
 	_add_face_trim(arrival, "ArrivalLaneEast", down, 1.85, -13.0, 0.07, Vector3(0.07, 0.035, 21.0), MAGENTA)
 	_add_face_trim(arrival, "ArrivalStopLine", down, 0.0, -3.6, 0.075, Vector3(7.0, 0.035, 0.08), AMBER)
+	_add_face_light(arrival, "ArrivalLightA", down, -3.8, -17.0, 3.2, CYAN, 1.35, 8.5)
+	_add_face_light(arrival, "ArrivalLightB", down, 3.8, -8.0, 3.0, MAGENTA, 1.15, 7.5)
 	_add_prop(arrival, "StreetLight_A", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -4.4, -19.5, 0.0, 1.25, 0.0)
 	_add_prop(arrival, "StreetLight_B", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, 4.4, -13.0, 0.0, 1.25, 180.0)
 	_add_prop(arrival, "StreetLight_C", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -4.4, -6.5, 0.0, 1.25, 0.0)
@@ -503,6 +505,8 @@ func _build_neon_market() -> void:
 	_add_face_label(hall, "MarketHallSign", down, 10.0, -3.0, 3.4, "SUBLEVEL 07 // NIGHT BAZAAR", MAGENTA)
 	_add_face_trim(hall, "HallCenterGuide", down, 12.7, 4.0, 0.08, Vector3(0.08, 0.035, 13.0), MAGENTA)
 	_add_face_trim(hall, "HallCrossGuide", down, 13.0, 4.1, 0.085, Vector3(14.5, 0.035, 0.07), CYAN)
+	_add_face_light(hall, "HallLightA", down, 9.0, 2.0, 4.0, MAGENTA, 1.25, 8.0)
+	_add_face_light(hall, "HallLightB", down, 16.0, 7.0, 4.2, CYAN, 1.15, 8.0)
 	_add_prop(hall, "MarketDoor", "res://assets/third_party/quaternius_cyberpunk/door.gltf", down, 9.0, -3.0, 0.0, 1.55, 180.0)
 	_add_prop(hall, "HallFence", "res://assets/third_party/quaternius_cyberpunk/fence.gltf", down, 16.8, 10.8, 0.0, 1.55, 90.0)
 
@@ -613,6 +617,7 @@ func _build_gravity_breach() -> void:
 	_add_face_label(arena, "BreachSign", down, -8.0, -18.5, 3.0, "INDUSTRIAL ARC // BREACH CONTROL", CYAN)
 	_add_face_trim(arena, "BreachAxisA", down, -8.0, -12.0, 0.08, Vector3(0.08, 0.035, 13.5), CYAN)
 	_add_face_trim(arena, "BreachAxisB", down, -8.0, -12.0, 0.085, Vector3(13.5, 0.035, 0.08), AMBER)
+	_add_face_light(arena, "BreachLocalLight", down, -8.0, -12.0, 4.4, CYAN, 1.35, 9.0)
 	_add_prop(arena, "BreachAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, -13.0, -18.0, 0.0, 1.65, 25.0)
 	_add_prop(arena, "BreachLight", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -2.5, -17.5, 0.0, 1.30, 180.0)
 
@@ -749,6 +754,8 @@ func _build_data_lane() -> void:
 	_add_face_label(lane, "DataLaneSign", down, 8.0, 1.0, 3.0, "DATA QUARTER // RELAY LANE", CYAN)
 	_add_face_trim(lane, "DataSpine", down, 8.0, 8.0, 0.08, Vector3(0.08, 0.035, 13.0), CYAN)
 	_add_face_trim(lane, "RelayDivider", down, 8.0, 8.0, 0.085, Vector3(15.5, 0.035, 0.08), VIOLET)
+	_add_face_light(lane, "DataLightA", down, 4.0, 6.0, 4.0, CYAN, 1.15, 7.5)
+	_add_face_light(lane, "DataLightB", down, 12.0, 10.0, 4.0, VIOLET, 1.25, 7.5)
 	_add_objective_node(lane, "RelayCore_A", &"data_lane", &"relay_a", down, 3.0, 8.0, 90.0, CYAN)
 	_add_objective_node(lane, "RelayCore_B", &"data_lane", &"relay_b", down, 13.0, 9.5, 90.0, MAGENTA)
 	_add_prop(lane, "RelayConsole_A", "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, 1.2, 2.5, 0.0, 1.25, 90.0)
@@ -800,6 +807,8 @@ func _build_boss_arena() -> void:
 	_add_face_box(arena, "RearCoverA", down, -4.0, -13.0, 0.0, Vector3(3.4, 1.1, 1.0), COVER, CYAN, true, &"combat_cover")
 	_add_face_box(arena, "RearCoverB", down, 4.0, -13.0, 0.0, Vector3(3.4, 1.1, 1.0), COVER, MAGENTA, true, &"combat_cover")
 	_add_face_label(arena, "BossArenaLabel", down, 0.0, 7.8, 3.8, "VOID DOCKS // NULL WARDEN", VIOLET)
+	_add_face_light(arena, "BossLightA", down, -6.0, -4.0, 4.8, VIOLET, 1.35, 9.0)
+	_add_face_light(arena, "BossLightB", down, 6.0, -4.0, 4.8, MAGENTA, 1.25, 9.0)
 	_add_prop(arena, "BossGateDoor", "res://assets/third_party/quaternius_cyberpunk/door.gltf", down, 0.0, 8.2, 0.0, 1.9, 180.0)
 	_add_prop(arena, "BossRelayA", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, -8.8, -1.5, 0.0, 1.6, 15.0)
 	_add_prop(arena, "BossRelayB", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 8.8, -1.5, 0.0, 1.6, -15.0)
@@ -872,6 +881,7 @@ func _build_extraction() -> void:
 	_add_face_box(route, "ExtractionLane", down, -5.0, -20.0, 0.02, Vector3(14.0, 0.05, 10.0), DARK, AMBER, false)
 	_add_face_box(route, "RouteRail", down, -11.5, -20.0, 0.0, Vector3(0.3, 0.75, 10.0), WALL, AMBER, true, &"combat_cover")
 	_add_face_trim(route, "ExtractionGuide", down, -5.0, -20.0, 0.08, Vector3(0.08, 0.035, 9.0), AMBER)
+	_add_face_light(route, "ExtractionRouteLight", down, -5.0, -20.0, 3.6, AMBER, 1.25, 8.0)
 
 	var zone_container := _section(root, "ExtractionBeacon")
 	_add_ring_visual(zone_container, "ExtractionRing", down, 0.0, -25.0, 0.05, 3.4, Color(0.03, 0.06, 0.055), AMBER)
@@ -1110,6 +1120,33 @@ func _on_objective_node_destroyed(node: MissionObjectiveNode) -> void:
 		return
 	var remaining := objective_nodes_remaining(node.encounter_id)
 	objective_node_destroyed.emit(node.encounter_id, node.objective_id, remaining)
+
+
+func _add_face_light(
+	parent: Node3D,
+	name: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	height: float,
+	color: Color,
+	energy: float,
+	range: float
+) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var light := OmniLight3D.new()
+	light.name = name
+	light.position = _face_point(down, u, v, height)
+	light.light_color = color
+	light.light_energy = energy
+	light.omni_range = range
+	light.shadow_enabled = false
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = range * 0.72
+	light.distance_fade_length = range * 0.28
+	light.add_to_group("mission_local_light")
+	parent.add_child(light)
 
 
 func _add_face_trim(
