@@ -41,6 +41,9 @@ func _run() -> void:
 	_check(int(summary.get("boss_hazard", 0)) == 4, "boss arena exposes four hazard pads")
 	_check(int(summary.get("mission_objective_node", 0)) == 2, "Data Lane exposes two mission objective nodes")
 	_check(int(summary.get("mission_hold_zone", 0)) == 1, "Gravity Breach exposes one mission hold zone")
+	_check(int(summary.get("market_kiosk_collision", 0)) == 6, "Arrival Street exposes six physical market kiosks")
+	for kiosk in get_nodes_in_group("market_kiosk_collision"):
+		_check(CubeGravity.nearest_down(kiosk.global_position, 30.0).is_equal_approx(Vector3.DOWN), "market kiosk collision remains on Neon Market face")
 
 	_check(StringName(level.call("current_navigation_target")) == &"", "navigation target starts clear")
 	level.call("set_navigation_target", &"market_crossfire")
