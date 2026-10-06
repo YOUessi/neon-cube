@@ -8,6 +8,8 @@ extends Resource
 @export var attack_range := 15.0
 @export var attack_damage := 8.0
 @export var attack_interval := 0.8
+@export var attack_windup := 0.08
+@export var attack_fx_color := Color(0.0, 0.95, 1.0)
 @export var score_value := 100
 @export var model_scene: PackedScene
 @export var model_scale := 0.72
@@ -29,6 +31,8 @@ func validation_errors() -> PackedStringArray:
 		errors.append("attack_damage must be positive")
 	if attack_interval <= 0.0:
 		errors.append("attack_interval must be positive")
+	if attack_windup < 0.0 or attack_windup >= attack_interval:
+		errors.append("attack_windup must be non-negative and shorter than attack_interval")
 	if score_value <= 0:
 		errors.append("score_value must be positive")
 	return errors
