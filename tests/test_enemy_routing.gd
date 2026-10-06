@@ -207,14 +207,14 @@ func _test_boss_gantry_authored_route_pursuit() -> void:
 	world.add_child(level)
 	await process_frame
 	var routes: Array = level.route_points_for(&"null_warden")
-	_check(routes.size() == 12, "Boss pursuit fixture receives dual-gantry authored route chain")
-	if routes.size() != 12:
+	_check(routes.size() == 18, "Boss pursuit fixture receives tread-by-tread dual-gantry route chain")
+	if routes.size() != 18:
 		world.queue_free()
 		await process_frame
 		return
 
-	# routes[6..8] are the left gantry approach, stair crest and deck.
-	var target := _make_stair_target(world, routes[8])
+	# routes[6..11] follow the left gantry approach, each stair tread and deck.
+	var target := _make_stair_target(world, routes[11])
 	var pursuer := _make_stair_enemy(world, target, routes[6])
 	pursuer.set_route_points(routes)
 	await _settle_stair_enemy(pursuer)
