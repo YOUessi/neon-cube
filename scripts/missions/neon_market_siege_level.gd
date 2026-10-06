@@ -1631,9 +1631,9 @@ func _build_boss_arena() -> void:
 			"GantryDeck_%s" % ("L" if side < 0.0 else "R"),
 			down,
 			gantry_u,
-			3.8,
+			4.45,
 			1.55,
-			Vector3(3.0, 0.18, 4.2),
+			Vector3(3.0, 0.18, 2.9),
 			Color(0.028, 0.032, 0.05),
 			VIOLET if side < 0.0 else MAGENTA,
 			true
