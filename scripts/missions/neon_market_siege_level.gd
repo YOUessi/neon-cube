@@ -587,14 +587,14 @@ func _set_data_exit_route(ready: bool) -> void:
 
 
 func _set_data_lane_gate_status(open: bool) -> void:
+	_data_exit_ready = open
+	_set_data_exit_route(open)
 	if DisplayServer.get_name() == "headless":
 		return
 	var label := get_node_or_null("Geometry/DataLane/WardenGate/GateStatus") as Label3D
 	if label == null:
 		return
 	var state_color := Color(0.28, 1.0, 0.58) if open else Color(1.0, 0.26, 0.34)
-	_data_exit_ready = open
-	_set_data_exit_route(open)
 	label.text = "ACCESS OPEN" if open else "ACCESS LOCKED"
 	label.modulate = state_color
 	var gate := get_node_or_null("Geometry/DataLane/WardenGate") as Node3D
