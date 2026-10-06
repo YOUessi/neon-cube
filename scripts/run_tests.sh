@@ -22,6 +22,7 @@ TESTS=(
   "tests/test_boss_arena_hazards.gd"
   "tests/test_encounter_spawn_planner.gd"
   "tests/test_mission_progress_store.gd"
+  "tests/test_checkpoint_world_restore.gd"
   "tests/test_profile_store.gd"
   "tests/test_performance_budget.gd"
   "tests/test_input_bootstrap.gd"
