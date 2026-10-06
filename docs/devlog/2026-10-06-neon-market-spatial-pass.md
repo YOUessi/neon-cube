@@ -824,3 +824,67 @@ Mission 与 Geometry 测试分别断言：
 
 - `hold_zone_seconds = 4.0`
 - 全关卡正好存在 1 个 `mission_hold_zone`
+
+
+## 2026-10-06 追加：Continuous Extraction Hold
+
+### 问题
+
+此前最后一个 Encounter 清场后：
+
+```text
+Extraction Beacon active
+→ 玩家一进入 Area3D
+→ 立即 Victory
+```
+
+撤离缺少最后的紧张感，也没有“守住撤离点”的语义。
+
+### Mission 数据
+
+Extraction：
+
+- `extraction_hold_seconds = 3.0`
+
+### 新流程
+
+```text
+最终 reinforcement 清空
+→ Extraction Beacon 激活
+→ 玩家进入撤离区
+→ extraction_progress 连续累计
+→ 中途离开
+→ progress 归零
+→ 连续保持 3 秒
+→ MissionRuntime complete
+→ Victory
+```
+
+### Beacon Area
+
+关卡不再在 `body_entered` 内直接发胜利信号，而只维护：
+
+- armed
+- occupied
+
+Game 负责倒计时与 Mission 完成，避免把任务状态机塞进场景触发器。
+
+### HUD
+
+撤离阶段：
+
+`HOLD EXTRACTION`
+`EXTRACT X.X/3.0s`
+
+### 回归
+
+新增 `tests/test_extraction_hold.gd`：
+
+1. 最后一战清空后不立即 Victory。
+2. Beacon trigger 激活。
+3. 站在区外 progress = 0。
+4. 进区 1.5 秒仍不完成。
+5. 离开后 progress 清零。
+6. 重新进入并连续保持 3 秒。
+7. GameState = VICTORY。
+8. MissionRuntime = COMPLETED。
