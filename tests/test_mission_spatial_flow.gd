@@ -53,6 +53,7 @@ func _run() -> void:
 	for enemy in enemies:
 		var down := CubeGravity.nearest_down(enemy.global_position, game.cube_size * 0.5)
 		_check(down.is_equal_approx(Vector3.DOWN), "Market Crossfire hostile uses authored Neon Market spawn face")
+		_check((enemy as NeonEnemy).get_route_point_count() == 6, "Market Crossfire hostile receives authored route network")
 		break
 
 	for enemy in enemies:
