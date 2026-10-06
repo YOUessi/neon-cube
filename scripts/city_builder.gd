@@ -289,7 +289,7 @@ static func _build_authored_props(
 		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 + forward * 6.0, 1.25],
 		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 - forward * 6.0, 1.25],
 		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 - forward * 6.0, 1.25],
-		["res://assets/third_party/quaternius_cyberpunk/computer.gltf", center + right * 7.5 + forward * 1.5, 1.4],
+		["res://assets/third_party/quaternius_cyberpunk/computer.gltf", center + right * 7.5 + forward * 1.5, 0.55],
 		["res://assets/third_party/quaternius_cyberpunk/door.gltf", center - right * 8.0 - forward * 2.0, 1.7],
 		["res://assets/third_party/quaternius_cyberpunk/antenna.gltf", center + right * 10.5 - forward * 9.0, 1.65],
 		["res://assets/third_party/quaternius_cyberpunk/fence.gltf", center - right * 10.0 + forward * 9.0, 1.8],
@@ -314,7 +314,7 @@ static func _build_authored_props(
 	for light_offset in [-8.0, 8.0]:
 		var glow_light := OmniLight3D.new()
 		glow_light.light_color = district.primary_neon if light_offset < 0.0 else district.secondary_neon
-		glow_light.light_energy = 2.2
+		glow_light.light_energy = 1.3
 		glow_light.omni_range = 9.0
 		glow_light.position = center + right * light_offset + inward * 2.2
 		parent.add_child(glow_light)
