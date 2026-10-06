@@ -1,12 +1,16 @@
 class_name NeonPickup
 extends Area3D
 
+signal collected(pickup_id: StringName)
+
 @export_enum("health", "ammo", "shield") var pickup_type := "health"
 @export var amount := 25.0
+var pickup_id: StringName = &""
 
-func configure(kind: String, value: float) -> void:
+func configure(kind: String, value: float, authored_id: StringName = &"") -> void:
 	pickup_type = kind
 	amount = value
+	pickup_id = authored_id
 
 func _ready() -> void:
 	add_to_group("pickups")
@@ -28,6 +32,8 @@ func _on_body_entered(body: Node3D) -> void:
 		player.grant_ammo(int(amount))
 	var audio: Node = get_tree().get_first_node_in_group("neon_audio")
 	if audio != null and audio.has_method("play_pickup"): audio.call("play_pickup")
+	if pickup_id != &"":
+		collected.emit(pickup_id)
 	queue_free()
 
 func _build_visual() -> void:
