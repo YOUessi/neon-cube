@@ -259,6 +259,7 @@ func _finish_wave() -> void:
 			_waiting_for_extraction = true
 			_wave_transitioning = true
 			_set_extraction_armed(true)
+			_audio_call("play_extraction_ready")
 			_show_message("HOSTILES CLEARED // REACH EXTRACTION", 2.0)
 			_update_objective()
 			return
@@ -413,6 +414,7 @@ func _has_pending_reinforcements() -> bool:
 
 func _schedule_reinforcement(encounter: EncounterDefinition) -> void:
 	_reinforcement_scheduled = true
+	_audio_call("play_reinforcement")
 	_show_reinforcement_warning(encounter)
 	_show_message("REINFORCEMENTS // INBOUND", maxf(0.45, encounter.reinforcement_delay))
 	_update_objective()
@@ -1000,6 +1002,7 @@ func _on_boss_health_changed(current: float, maximum: float, phase: int) -> void
 	_set_boss_arena_phase(phase)
 	if phase > _last_boss_phase:
 		_last_boss_phase = phase
+		_audio_call("play_boss_phase")
 		if phase == 2:
 			_show_message("NULL WARDEN // PHASE 2 // TWIN HAZARDS ONLINE", 2.0)
 		elif phase >= 3:
@@ -1099,6 +1102,9 @@ func _update_hold_objective(delta: float) -> void:
 	if _hold_zone_occupied(encounter.encounter_id):
 		var previous := _hold_progress
 		_hold_progress = minf(encounter.hold_zone_seconds, _hold_progress + maxf(0.0, delta))
+		if previous < encounter.hold_zone_seconds and _hold_progress >= encounter.hold_zone_seconds:
+			_audio_call("play_uplink_complete")
+			_show_message("UPLINK STABLE // HOLD COMPLETE", 1.4)
 		if not is_equal_approx(previous, _hold_progress):
 			_update_objective()
 	else:
@@ -1145,6 +1151,7 @@ func _on_encounter_zone_entered(encounter_id: StringName) -> void:
 	_waiting_for_encounter_entry = false
 	_set_navigation_target(&"")
 	_set_encounter_lockdown(encounter_id, true)
+	_audio_call("play_lockdown")
 	_arm_objective_nodes(encounter_id, true)
 	_arm_hold_zone(encounter_id, true)
 	_hold_progress = 0.0
@@ -1165,6 +1172,7 @@ func _on_objective_node_destroyed(
 	var encounter := mission_runtime.current_encounter()
 	if encounter == null or encounter.encounter_id != encounter_id:
 		return
+	_audio_call("play_objective_destroyed")
 	_show_message(
 		"OBJECTIVE DESTROYED // %s // %d REMAINING" % [
 			String(objective_id).replace("_", " ").to_upper(),
