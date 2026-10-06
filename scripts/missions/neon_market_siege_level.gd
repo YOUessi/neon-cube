@@ -407,6 +407,7 @@ func objective_nodes_remaining(encounter_id: StringName) -> int:
 func arm_extraction(active: bool = true) -> void:
 	_extraction_armed = active
 	_extraction_complete = false
+	_set_extraction_dock_signal(active, false)
 	_extraction_occupied = false
 	_extraction_progress_ratio = 0.0
 	var active_color := AMBER
@@ -438,9 +439,39 @@ func arm_extraction(active: bool = true) -> void:
 			_extraction_label.text = "EXTRACTION // 000%"
 
 
+func _set_extraction_dock_signal(armed: bool, complete: bool) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var signal_color := Color(0.24, 1.0, 0.56) if complete else AMBER
+	var signal_energy := 7.0 if complete else 5.2 if armed else 0.9
+
+	var guide := get_node_or_null("Geometry/Extraction/ExtractionDock/DockCenterGuide") as MeshInstance3D
+	if guide != null:
+		var guide_material := guide.material_override as StandardMaterial3D
+		if guide_material != null:
+			guide_material.albedo_color = signal_color * (0.08 if armed or complete else 0.03)
+			guide_material.emission = signal_color
+			guide_material.emission_energy_multiplier = signal_energy
+
+	var header := get_node_or_null("Geometry/Extraction/ExtractionDock/DockHeader") as Node3D
+	if header != null:
+		var header_visual := header.get_node_or_null("Visual") as MeshInstance3D
+		if header_visual != null:
+			var header_material := header_visual.material_override as StandardMaterial3D
+			if header_material != null:
+				header_material.emission = signal_color
+				header_material.emission_energy_multiplier = 0.75 if complete else 0.45 if armed else 0.12
+
+	var label := get_node_or_null("Geometry/Extraction/ExtractionDock/DockLabel") as Label3D
+	if label != null:
+		label.modulate = signal_color
+		label.text = "EXTRACTION PAD // COMPLETE" if complete else "EXTRACTION PAD // READY" if armed else "EXTRACTION PAD // E-07"
+
+
 func complete_extraction() -> void:
 	_extraction_armed = false
 	_extraction_complete = true
+	_set_extraction_dock_signal(false, true)
 	_extraction_occupied = false
 	_extraction_progress_ratio = 1.0
 	var complete_color := Color(0.24, 1.0, 0.56)
@@ -742,6 +773,28 @@ func _update_boss_arena_visual_state() -> void:
 			_:
 				label.text = "WARDEN // PHASE 1"
 				label.modulate = VIOLET
+
+	var gantries := arena.get_node_or_null("ServiceGantries") as Node3D
+	if gantries != null:
+		for side_name in ["L", "R"]:
+			var edge := gantries.get_node_or_null("GantryEdge_%s" % side_name) as MeshInstance3D
+			if edge == null:
+				continue
+			var edge_material := edge.material_override as StandardMaterial3D
+			if edge_material == null:
+				continue
+			var base_color := VIOLET if side_name == "L" else MAGENTA
+			var phase_color := base_color
+			var energy := 2.8
+			if _boss_phase == 2:
+				phase_color = MAGENTA if side_name == "R" else VIOLET
+				energy = 5.0
+			elif _boss_phase >= 3:
+				phase_color = Color(1.0, 0.18, 0.22)
+				energy = 7.2
+			edge_material.albedo_color = phase_color * 0.08
+			edge_material.emission = phase_color
+			edge_material.emission_energy_multiplier = energy
 
 
 func boss_hazard_state() -> Dictionary:
@@ -1829,6 +1882,8 @@ func _build_extraction() -> void:
 		_extraction_label.basis = CubeGravity.tangent_basis(down)
 		_extraction_label.visible = false
 		zone_container.add_child(_extraction_label)
+
+	_set_extraction_dock_signal(false, false)
 
 
 func _build_lockdown_visual(size: Vector3, accent: Color) -> Node3D:
