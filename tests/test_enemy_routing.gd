@@ -2,6 +2,7 @@ extends SceneTree
 
 const ENEMY_SCENE = preload("res://scenes/enemy.tscn")
 const PLAYER_SCENE = preload("res://scenes/player.tscn")
+const MISSION_LEVEL_SCENE = preload("res://scenes/missions/neon_market_siege.tscn")
 var failures := 0
 
 func _init() -> void:
@@ -53,6 +54,7 @@ func _run() -> void:
 	await _test_enemy_auto_step_bottom_face()
 	await _test_enemy_auto_step_side_face()
 	await _test_perch_leash_blocks_stair_step()
+	await _test_data_bridge_authored_route_pursuit()
 
 	enemy.queue_free()
 	boss.queue_free()
@@ -130,6 +132,55 @@ func _test_perch_leash_blocks_stair_step() -> void:
 	var before := stair_enemy.global_position
 	_check(not stair_enemy._try_auto_step(Vector3.FORWARD), "perch-leashed enemy ignores stair traversal")
 	_check(stair_enemy.global_position.distance_to(before) < 0.02, "perch-leashed enemy stays on authored perch")
+
+	world.queue_free()
+	await process_frame
+
+
+func _test_data_bridge_authored_route_pursuit() -> void:
+	var world := Node3D.new()
+	world.name = "DataBridgePursuitWorld"
+	root.add_child(world)
+
+	# Supply the physical cube-face floor that CyberCityBuilder normally owns.
+	_add_test_box(
+		world,
+		Vector3(-30.0, 8.0, 8.0),
+		Vector3(0.20, 30.0, 30.0)
+	)
+
+	var level := MISSION_LEVEL_SCENE.instantiate() as NeonMarketSiegeLevel
+	world.add_child(level)
+	await process_frame
+	var routes: Array = level.route_points_for(&"data_lane")
+	_check(routes.size() == 9, "Data pursuit fixture receives elevated authored route chain")
+	if routes.size() != 9:
+		world.queue_free()
+		await process_frame
+		return
+
+	var target := _make_stair_target(world, routes[8])
+	var pursuer := _make_stair_enemy(world, target, routes[6])
+	pursuer.set_route_points(routes)
+	await _settle_stair_enemy(pursuer)
+
+	var up := -Vector3.LEFT
+	var start_position := pursuer.global_position
+	var initial_distance := start_position.distance_to(target.global_position)
+	var climbed := false
+	for i in range(360):
+		await physics_frame
+		await process_frame
+		var elevation_gain := (pursuer.global_position - start_position).dot(up)
+		if elevation_gain > 1.20:
+			climbed = true
+			break
+
+	_check(climbed, "Data Lane pursuer uses authored stairs to gain bridge elevation")
+	_check(
+		pursuer.global_position.distance_to(target.global_position) < initial_distance,
+		"Data Lane pursuer closes distance toward player on Maintenance Bridge"
+	)
 
 	world.queue_free()
 	await process_frame
