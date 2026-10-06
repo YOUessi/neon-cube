@@ -1706,3 +1706,56 @@ Extraction：
 - world progress = 1.0
 - trigger monitoring=false
 - re-arm 后 complete=false、progress=0、trigger active
+
+
+## 2026-10-07 追加：Mission Objective Event VFX
+
+### 目标
+
+任务状态已经有 HUD、世界状态牌和程序音效，但关键完成瞬间仍缺少明确的空间反馈。
+
+本阶段新增短生命周期、visual-only 的 mission event VFX。
+
+### Relay Destruction
+
+Data Relay 被摧毁时：
+
+- 生成红橙色扩散冲击环。
+- 生成 8 个 emissive spark。
+- spark 沿当前 cube face 切平面向外散射。
+- 原 Relay 同时切换到 OFFLINE wreckage 状态。
+
+### Gravity Uplink Stable
+
+`hold_zone_progress` 首次达到 100% 时：
+
+- 生成绿色扩散 pulse。
+- 只在 `stable: false → true` 的第一次触发。
+- 后续重复写入 100% 不会重复刷 VFX。
+
+### Extraction Complete
+
+撤离达到 100% 时：
+
+- 生成更大的绿色完成 pulse。
+- 生成 10 个绿色 spark。
+- Extraction Ring/Core 保持满格 completed state。
+
+### Pause 语义
+
+所有 Mission Event Tween：
+
+`Tween.TWEEN_PAUSE_PROCESS`
+
+因此 Extraction 完成后即使 Victory UI 马上暂停 SceneTree：
+
+- 完成脉冲仍会自然播放完。
+- 不改变任何 MissionRuntime / physics / collision 状态。
+
+### 性能边界
+
+- 无实时粒子系统。
+- 无新增 OmniLight。
+- 使用短生命周期 MeshInstance3D。
+- 生命周期结束自动 queue_free。
+- headless 模式完全跳过 Mesh/Tween 创建。
