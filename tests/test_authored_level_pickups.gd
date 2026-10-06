@@ -22,7 +22,7 @@ func _run() -> void:
 	for node in pickups:
 		var pickup := node as NeonPickup
 		if pickup != null:
-			by_name[pickup.name] = pickup
+			by_name[String(pickup.pickup_id)] = pickup
 
 	_check(by_name.has("data_bridge_ammo"), "Data Bridge authored ammo pickup exists")
 	_check(by_name.has("boss_left_gantry_shield"), "Boss left gantry authored shield pickup exists")
@@ -58,7 +58,9 @@ func _run() -> void:
 		_check(game.mission_runtime.is_pickup_consumed(&"boss_left_gantry_shield"), "checkpoint reload restores consumed pickup state")
 		var restored_names := {}
 		for node in get_nodes_in_group("authored_pickup"):
-			restored_names[node.name] = true
+			var restored_pickup := node as NeonPickup
+			if restored_pickup != null:
+				restored_names[String(restored_pickup.pickup_id)] = true
 		_check(not restored_names.has("boss_left_gantry_shield"), "consumed Boss gantry shield does not respawn after checkpoint reload")
 		_check(restored_names.has("data_bridge_ammo"), "unconsumed Data Bridge ammo remains available after checkpoint reload")
 		_check(restored_names.has("extraction_dock_health"), "unconsumed Extraction health remains available after checkpoint reload")
