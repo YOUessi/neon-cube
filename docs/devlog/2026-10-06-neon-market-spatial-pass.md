@@ -1082,3 +1082,81 @@ Headless 模式下所有声音自动静音，但方法仍可安全调用。
 
 - 验证所有 mission audio 方法存在。
 - 验证 headless 下调用不会产生 ERROR。
+
+
+## 2026-10-07 追加：World Objective Feedback + Boss Hazard Telegraph
+
+### Relay World Status
+
+Data Lane Relay 目标现在不再只是发光方块。
+
+每个 Relay 新增：
+
+- BaseRing。
+- Billboard StatusLabel。
+- 未激活：`RELAY A/B // LOCKED`。
+- 激活：实时显示完整度百分比。
+- 被击中：短暂 emission boost。
+- health 越低，核心视觉纵向强度越弱。
+- 摧毁：`OFFLINE` 状态。
+
+Headless 回归验证 partial damage 会降低 `health_ratio()`，但不会误判摧毁；destroyed 后 ratio = 0。
+
+### Gravity Breach World Progress
+
+Hold Zone 新增世界空间进度反馈：
+
+- 中央 ProgressCore。
+- `UPLINK 000% → 100%` Billboard。
+- 进度柱高度与 Game 的 `_hold_progress / hold_zone_seconds` 同步。
+- 玩家离开控制区，HUD 和世界进度同时归零。
+
+测试验证 2.0 / 4.0 秒时 world ratio ≈ 0.5。
+
+### Extraction World Progress
+
+Extraction Beacon 新增中央进度核心：
+
+- 进入 Beacon 后随连续 hold 从 0% 升至 100%。
+- 世界进度和 HUD `EXTRACT X.X/3.0s` 共用同一 Game 状态。
+- 中途离开时两者同时归零。
+
+测试验证 1.5 / 3.0 秒时 world ratio ≈ 0.5。
+
+### Null Warden Hazard Telegraph
+
+此前 Boss Phase 2/3 一切换，危险地面立即具备伤害，留给玩家的反应窗口过短。
+
+新流程：
+
+```text
+Boss phase changes
+→ Hazard pads immediately light up
+→ emission = telegraph state
+→ 0.9s warning window
+→ damage arms
+→ emission rises
+→ normal 0.75s damage pulse
+```
+
+Phase 2：
+
+- 2 个 hazard pad 先预警。
+- 0.9s 内不造成伤害。
+- 预警后每次 pulse 6 damage。
+
+Phase 3：
+
+- 4 个 pad 全部预警。
+- 同样有 0.9s 安全反应窗口。
+- 预警后每次 pulse 10 damage。
+
+`boss_hazard_state()` 现在暴露：
+
+- phase
+- active_count
+- damage
+- damage_armed
+- telegraph_seconds
+
+回归测试明确验证 telegraph 阶段不会扣玩家护盾。
