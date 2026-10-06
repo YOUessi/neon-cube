@@ -882,6 +882,10 @@ func spatial_summary() -> Dictionary:
 		"mission_objective_node": get_tree().get_nodes_in_group("mission_objective_node").size(),
 		"mission_hold_zone": get_tree().get_nodes_in_group("mission_hold_zone").size(),
 		"market_kiosk_collision": get_tree().get_nodes_in_group("market_kiosk_collision").size(),
+		"elevated_gameplay_space": get_tree().get_nodes_in_group("elevated_gameplay_space").size(),
+		"data_maintenance_bridge": get_tree().get_nodes_in_group("data_maintenance_bridge").size(),
+		"boss_service_gantry": get_tree().get_nodes_in_group("boss_service_gantry").size(),
+		"extraction_dock": get_tree().get_nodes_in_group("extraction_dock").size(),
 	}
 
 
@@ -1243,6 +1247,86 @@ func _build_data_lane() -> void:
 	_add_prop(lane, "RelayConsole_B", "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, 14.2, 12.5, 0.0, 1.25, -90.0)
 	_add_prop(lane, "RelayAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 13.5, 2.5, 0.0, 1.5, 0.0)
 
+	var maintenance := _section(root, "MaintenanceBridge")
+	var bridge_deck := _add_face_box(
+		maintenance,
+		"BridgeDeck",
+		down,
+		12.5,
+		9.5,
+		2.35,
+		Vector3(6.8, 0.18, 3.0),
+		Color(0.025, 0.035, 0.055),
+		CYAN,
+		true
+	)
+	bridge_deck.add_to_group("elevated_gameplay_space")
+	bridge_deck.add_to_group("data_maintenance_bridge")
+
+	_add_face_box(
+		maintenance,
+		"BridgeRailOuter",
+		down,
+		15.85,
+		9.5,
+		2.42,
+		Vector3(0.14, 0.72, 2.9),
+		WALL,
+		CYAN,
+		true,
+		&"combat_cover"
+	)
+	_add_face_box(
+		maintenance,
+		"BridgeRailInner",
+		down,
+		9.15,
+		9.5,
+		2.42,
+		Vector3(0.14, 0.72, 2.9),
+		WALL,
+		VIOLET,
+		true,
+		&"combat_cover"
+	)
+
+	for i in range(5):
+		var step_height := 0.46 + float(i) * 0.46
+		var step := _add_face_box(
+			maintenance,
+			"BridgeStep_%02d" % i,
+			down,
+			15.0,
+			5.8 + float(i) * 0.62,
+			0.0,
+			Vector3(1.8, step_height, 0.58),
+			WALL,
+			CYAN,
+			true
+		)
+		step.add_to_group("data_maintenance_bridge")
+
+	_add_face_trim(
+		maintenance,
+		"BridgeEdgeLight",
+		down,
+		12.5,
+		8.02,
+		2.58,
+		Vector3(6.5, 0.035, 0.07),
+		CYAN
+	)
+	_add_face_label(
+		maintenance,
+		"BridgeLabel",
+		down,
+		12.5,
+		8.1,
+		3.45,
+		"MAINTENANCE // RACK LEVEL",
+		CYAN
+	)
+
 	var gate := _section(root, "WardenGate")
 	_add_face_box(gate, "GateLeft", down, -4.5, 14.0, 0.0, Vector3(0.45, 4.6, 0.55), WALL, VIOLET, true)
 	_add_face_box(gate, "GateRight", down, 4.5, 14.0, 0.0, Vector3(0.45, 4.6, 0.55), WALL, VIOLET, true)
@@ -1341,6 +1425,65 @@ func _build_boss_arena() -> void:
 		pylon.add_to_group("boss_arena")
 	_add_face_box(arena, "RearCoverA", down, -4.0, -13.0, 0.0, Vector3(3.4, 1.1, 1.0), COVER, CYAN, true, &"combat_cover")
 	_add_face_box(arena, "RearCoverB", down, 4.0, -13.0, 0.0, Vector3(3.4, 1.1, 1.0), COVER, MAGENTA, true, &"combat_cover")
+
+	var gantries := _section(arena, "ServiceGantries")
+	for side in [-1.0, 1.0]:
+		var gantry_u := 8.25 * side
+		var deck := _add_face_box(
+			gantries,
+			"GantryDeck_%s" % ("L" if side < 0.0 else "R"),
+			down,
+			gantry_u,
+			3.8,
+			1.55,
+			Vector3(3.0, 0.18, 4.2),
+			Color(0.028, 0.032, 0.05),
+			VIOLET if side < 0.0 else MAGENTA,
+			true
+		)
+		deck.add_to_group("elevated_gameplay_space")
+		deck.add_to_group("boss_service_gantry")
+
+		_add_face_box(
+			gantries,
+			"GantryRail_%s" % ("L" if side < 0.0 else "R"),
+			down,
+			9.72 * side,
+			3.8,
+			1.62,
+			Vector3(0.12, 0.68, 4.0),
+			WALL,
+			VIOLET if side < 0.0 else MAGENTA,
+			true,
+			&"combat_cover"
+		)
+
+		for i in range(4):
+			var step_height := 0.40 + float(i) * 0.40
+			var step := _add_face_box(
+				gantries,
+				"GantryStep_%s_%02d" % [("L" if side < 0.0 else "R"), i],
+				down,
+				gantry_u,
+				0.9 + float(i) * 0.62,
+				0.0,
+				Vector3(1.9, step_height, 0.58),
+				WALL,
+				VIOLET if side < 0.0 else MAGENTA,
+				true
+			)
+			step.add_to_group("boss_service_gantry")
+
+		_add_face_trim(
+			gantries,
+			"GantryEdge_%s" % ("L" if side < 0.0 else "R"),
+			down,
+			gantry_u,
+			1.72,
+			1.78,
+			Vector3(2.7, 0.035, 0.07),
+			VIOLET if side < 0.0 else MAGENTA
+		)
 	_add_face_label(arena, "BossArenaLabel", down, 0.0, 7.8, 3.8, "VOID DOCKS // NULL WARDEN", VIOLET)
 	if DisplayServer.get_name() != "headless":
 		var phase_status := Label3D.new()
@@ -1429,6 +1572,70 @@ func _build_extraction() -> void:
 	_add_face_box(route, "RouteRail", down, -11.5, -20.0, 0.0, Vector3(0.3, 0.75, 10.0), WALL, AMBER, true, &"combat_cover")
 	_add_face_trim(route, "ExtractionGuide", down, -5.0, -20.0, 0.08, Vector3(0.08, 0.035, 9.0), AMBER)
 	_add_face_light(route, "ExtractionRouteLight", down, -5.0, -20.0, 3.6, AMBER, 1.25, 8.0)
+
+	var dock := _section(root, "ExtractionDock")
+	var dock_deck := _add_face_box(
+		dock,
+		"DockDeck",
+		down,
+		0.0,
+		-25.0,
+		0.12,
+		Vector3(8.4, 0.18, 7.2),
+		Color(0.035, 0.038, 0.045),
+		AMBER,
+		true
+	)
+	dock_deck.add_to_group("extraction_dock")
+
+	for i in range(3):
+		var step_height := 0.12 + float(i) * 0.12
+		var step := _add_face_box(
+			dock,
+			"DockStep_%02d" % i,
+			down,
+			-3.5 + float(i) * 1.15,
+			-22.0 - float(i) * 0.75,
+			0.0,
+			Vector3(1.2, step_height, 1.1),
+			WALL,
+			AMBER,
+			true
+		)
+		step.add_to_group("extraction_dock")
+
+	_add_face_box(
+		dock,
+		"DockFarRail",
+		down,
+		0.0,
+		-28.55,
+		0.22,
+		Vector3(8.1, 0.72, 0.14),
+		WALL,
+		AMBER,
+		true,
+		&"combat_cover"
+	)
+	_add_face_box(
+		dock,
+		"DockRightRail",
+		down,
+		4.12,
+		-25.0,
+		0.22,
+		Vector3(0.14, 0.72, 6.8),
+		WALL,
+		CYAN,
+		true,
+		&"combat_cover"
+	)
+
+	_add_face_box(dock, "DockPillarL", down, -3.4, -27.4, 0.0, Vector3(0.30, 3.4, 0.30), WALL, AMBER, true)
+	_add_face_box(dock, "DockPillarR", down, 3.4, -27.4, 0.0, Vector3(0.30, 3.4, 0.30), WALL, CYAN, true)
+	_add_face_box(dock, "DockHeader", down, 0.0, -27.4, 3.25, Vector3(7.0, 0.24, 0.34), WALL, AMBER, true)
+	_add_face_label(dock, "DockLabel", down, 0.0, -27.2, 2.75, "EXTRACTION PAD // E-07", AMBER)
+	_add_face_trim(dock, "DockCenterGuide", down, 0.0, -25.0, 0.34, Vector3(0.08, 0.035, 6.0), AMBER)
 
 	var zone_container := _section(root, "ExtractionBeacon")
 	_add_disc_visual(
