@@ -86,7 +86,17 @@ func _test_enemy_auto_step_bottom_face() -> void:
 	stair_enemy.set_physics_process(false)
 	stair_enemy.velocity = Vector3.ZERO
 	var before := stair_enemy.global_position
-	_check(stair_enemy._try_auto_step(Vector3.FORWARD), "ordinary enemy auto-steps a 0.42m stair")
+	var stepped := stair_enemy._try_auto_step(Vector3.FORWARD)
+	if not stepped:
+		print(
+			"BOTTOM_STEP_DIAG reason=%s pos=%s floor=%s gravity=%s" % [
+				stair_enemy.last_auto_step_failure_reason(),
+				str(stair_enemy.global_position),
+				str(stair_enemy.is_on_floor()),
+				str(stair_enemy.gravity_down),
+			]
+		)
+	_check(stepped, "ordinary enemy auto-steps a 0.42m stair")
 	_check(stair_enemy.global_position.y > before.y + 0.35, "enemy bottom-face stair lift follows local up")
 
 	low_step.queue_free()
@@ -206,6 +216,20 @@ func _test_data_bridge_authored_route_pursuit() -> void:
 			climbed = true
 			break
 
+	if not climbed:
+		print(
+			"DATA_ROUTE_DIAG max_elevation=%.3f final=%s waypoint=%s has_waypoint=%s blocked=%s cooldown=%.3f stall=%.3f step_reason=%s target=%s" % [
+				max_elevation_gain,
+				str(pursuer.global_position),
+				str(pursuer._route_waypoint),
+				str(pursuer._has_route_waypoint),
+				str(pursuer._blocked_route_waypoint),
+				pursuer._blocked_route_cooldown,
+				pursuer._route_stall_elapsed,
+				pursuer.last_auto_step_failure_reason(),
+				str(target.global_position),
+			]
+		)
 	_check(climbed, "Data Lane pursuer uses authored stairs to gain bridge elevation")
 	_check(
 		pursuer.global_position.distance_to(target.global_position) < initial_distance,

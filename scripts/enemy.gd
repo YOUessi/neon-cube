@@ -44,6 +44,7 @@ var _route_best_distance := INF
 var _route_stall_elapsed := 0.0
 var _blocked_route_waypoint := Vector3.ZERO
 var _blocked_route_cooldown := 0.0
+var _last_auto_step_failure_reason := "not_attempted"
 var _tactical_slot_index := -1
 var _tactical_slot_count := 0
 var _tactical_leash_center := Vector3.ZERO
@@ -216,12 +217,15 @@ func _physics_process(delta: float) -> void:
 		_begin_attack()
 
 func _try_auto_step(wish: Vector3) -> bool:
+	_last_auto_step_failure_reason = ""
 	if _tactical_leash_radius > 0.0:
-		return false
+		return _auto_step_fail("tactical_leash")
 	if max_step_height <= 0.0 or step_probe_distance <= 0.0:
-		return false
-	if not is_on_floor() or wish.length_squared() <= 0.001:
-		return false
+		return _auto_step_fail("step_disabled")
+	if not is_on_floor():
+		return _auto_step_fail("not_on_floor")
+	if wish.length_squared() <= 0.001:
+		return _auto_step_fail("zero_wish")
 
 	var up := -gravity_down.normalized()
 	var direction := wish.normalized()
@@ -235,10 +239,10 @@ func _try_auto_step(wish: Vector3) -> bool:
 	floor_query.collision_mask = collision_mask
 	var floor_hit := space.intersect_ray(floor_query)
 	if floor_hit.is_empty():
-		return false
+		return _auto_step_fail("floor_ray_miss")
 	var floor_normal: Vector3 = floor_hit.get("normal", up)
 	if floor_normal.dot(up) < 0.55:
-		return false
+		return _auto_step_fail("floor_normal")
 	var floor_point: Vector3 = floor_hit.get("position", global_position)
 
 	var low_origin := floor_point + up * 0.14
@@ -249,7 +253,7 @@ func _try_auto_step(wish: Vector3) -> bool:
 	low_query.exclude = [get_rid()]
 	low_query.collision_mask = collision_mask
 	if space.intersect_ray(low_query).is_empty():
-		return false
+		return _auto_step_fail("low_probe_clear")
 
 	var high_origin := floor_point + up * (max_step_height + 0.16)
 	var high_query := PhysicsRayQueryParameters3D.create(
@@ -259,7 +263,7 @@ func _try_auto_step(wish: Vector3) -> bool:
 	high_query.exclude = [get_rid()]
 	high_query.collision_mask = collision_mask
 	if not space.intersect_ray(high_query).is_empty():
-		return false
+		return _auto_step_fail("high_probe_blocked")
 
 	var landing_probe_origin := (
 		floor_point
@@ -274,14 +278,14 @@ func _try_auto_step(wish: Vector3) -> bool:
 	landing_query.collision_mask = collision_mask
 	var landing_hit := space.intersect_ray(landing_query)
 	if landing_hit.is_empty():
-		return false
+		return _auto_step_fail("landing_ray_miss")
 	var landing_normal: Vector3 = landing_hit.get("normal", up)
 	if landing_normal.dot(up) < 0.55:
-		return false
+		return _auto_step_fail("landing_normal")
 	var landing_point: Vector3 = landing_hit.get("position", floor_point)
 	var step_height := (landing_point - floor_point).dot(up)
 	if step_height <= 0.04 or step_height > max_step_height + 0.02:
-		return false
+		return _auto_step_fail("step_height_%.3f" % step_height)
 
 	var lift := up * (step_height + 0.025)
 	var base_transform := global_transform
@@ -296,11 +300,11 @@ func _try_auto_step(wish: Vector3) -> bool:
 		# unclimbable.
 		var backoff := -direction * 0.08
 		if test_move(base_transform, backoff):
-			return false
+			return _auto_step_fail("backoff_blocked")
 		base_transform.origin += backoff
 		base_offset = backoff
 		if test_move(base_transform, lift):
-			return false
+			return _auto_step_fail("lift_blocked_after_backoff")
 
 	# A vertical lift alone can leave a slow-moving enemy suspended just before
 	# the riser. Seat the capsule onto the validated tread so the next gravity
@@ -313,6 +317,15 @@ func _try_auto_step(wish: Vector3) -> bool:
 	else:
 		global_position += base_offset + lift
 	return true
+
+
+func _auto_step_fail(reason: String) -> bool:
+	_last_auto_step_failure_reason = reason
+	return false
+
+
+func last_auto_step_failure_reason() -> String:
+	return _last_auto_step_failure_reason
 
 
 func _begin_attack() -> void:

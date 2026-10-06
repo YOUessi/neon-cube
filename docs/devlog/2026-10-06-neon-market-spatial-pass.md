@@ -2291,3 +2291,24 @@ Enemy 现在已经能沿 Data Maintenance Bridge / Boss Gantry 的实体楼梯�
 同样修正 `tests/test_enemy_stair_step.gd` 的 settle helper，避免两套楼梯测试以后产生不同的隐式前置状态。
 
 这是测试 fixture 隔离修复，不修改游戏运行时 Enemy Stair Step 参数。
+
+
+### 2026-10-07 诊断阶段：不再调参数，记录 Stair / Data Route 失败前置条件
+
+`ff38f8a` 证明“settle 阶段禁用 AI”仍不能解释 bottom-face 失败，同时让 Data Bridge 从真正静止的 authored 起点暴露出新的追击失败。
+
+按连续失败后的固定规则，本提交只增加诊断，不改变导航/楼梯判定阈值：
+
+- `NeonEnemy._try_auto_step()` 记录最后一个失败阶段，例如：
+  - `not_on_floor`
+  - `floor_ray_miss`
+  - `low_probe_clear`
+  - `high_probe_blocked`
+  - `landing_ray_miss`
+  - `step_height_...`
+  - `backoff_blocked`
+  - `lift_blocked_after_backoff`
+- bottom-face fixture 失败时打印位置、floor 状态、重力和精确 step failure reason。
+- Data Bridge pursuit 失败时打印最大爬升、最终位置、active/blocked waypoint、cooldown、stall timer 和最后 stair failure reason。
+
+目标是让下一次 Linux CI 直接告诉我们失败发生在 stair solver 的哪一个前置条件，而不是继续靠参数试错。
