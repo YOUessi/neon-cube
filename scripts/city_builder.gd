@@ -181,7 +181,7 @@ static func _add_building(
 		edge_mesh.size = Vector3(0.06, size.y * 0.9, 0.06)
 		edge.mesh = edge_mesh
 		edge.position = Vector3(size.x * 0.43 * side, 0, -size.z * 0.51)
-		edge.material_override = _material(neon * 0.1, neon, 8.0, 0.05, 0.65)
+		edge.material_override = _material(neon * 0.07, neon, 3.8, 0.05, 0.68)
 		body.add_child(edge)
 
 	if seed % 3 == 0:
@@ -203,7 +203,7 @@ static func _add_building(
 		antenna_mesh.height = 1.4
 		antenna.mesh = antenna_mesh
 		antenna.position = Vector3(0, size.y * 0.5 + 0.7, 0)
-		antenna.material_override = _material(neon * 0.1, neon, 8.5, 0.05, 0.7)
+		antenna.material_override = _material(neon * 0.07, neon, 4.0, 0.05, 0.72)
 		body.add_child(antenna)
 
 static func _add_window_strip(parent: Node3D, position: Vector3, size: Vector3, neon: Color) -> void:
@@ -212,7 +212,7 @@ static func _add_window_strip(parent: Node3D, position: Vector3, size: Vector3, 
 	strip_mesh.size = size
 	strip.mesh = strip_mesh
 	strip.position = position
-	strip.material_override = _material(neon * 0.18, neon, 6.2, 0.08, 0.55)
+	strip.material_override = _material(neon * 0.10, neon, 2.8, 0.08, 0.62)
 	parent.add_child(strip)
 
 static func _build_neon_grid(
@@ -323,7 +323,7 @@ static func _add_strip(parent: Node3D, position: Vector3, basis: Basis, size: Ve
 	strip.mesh = mesh
 	strip.position = position
 	strip.basis = basis
-	strip.material_override = _material(color * 0.12, color, 6.4, 0.02, 0.72)
+	strip.material_override = _material(color * 0.07, color, 2.6, 0.02, 0.78)
 	parent.add_child(strip)
 
 static func _material(
