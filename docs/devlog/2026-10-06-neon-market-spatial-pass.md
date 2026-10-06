@@ -1759,3 +1759,58 @@ Data Relay 被摧毁时：
 - 使用短生命周期 MeshInstance3D。
 - 生命周期结束自动 queue_free。
 - headless 模式完全跳过 Mesh/Tween 创建。
+
+
+## 2026-10-07 追加：Boss Phase Transition State Fix
+
+### 发现的问题
+
+`NeonEnemy.health_changed` 会在 Boss 每次受伤时触发，Game 会持续调用：
+
+`set_boss_phase(current_phase)`
+
+旧的 Level 实现即使 phase 没有变化，也会：
+
+- 清空 `damage_armed`
+- 增加 phase serial
+- 重新创建 0.9s telegraph timer
+
+因此在玩家持续输出 Boss 时，Phase 2/3 hazard 可能被反复重新预警，真正伤害不断延后。
+
+### 修复
+
+`set_boss_phase()` 现在严格按 transition 运行：
+
+```text
+next_phase == current_phase
+→ return
+→ 不改 hazard
+→ 不改 serial
+→ 不重新 telegraph
+```
+
+只有：
+
+- 1 → 2
+- 2 → 3
+- 3 → 1
+
+才真正重建 Arena phase 状态。
+
+### Phase VFX
+
+真实 phase 上升时额外触发一次 Arena event pulse：
+
+- Phase 2：MAGENTA
+- Phase 3：红色 OVERLOAD
+
+普通同 phase 受伤不会重复刷 pulse。
+
+### 回归
+
+Boss hazard 测试新增：
+
+- Phase 2 telegraph 完成后 damage_armed=true。
+- 再次调用 `set_boss_phase(2)`，damage_armed 仍保持 true。
+- Phase 3 同理。
+- 同 phase health update 不会重启 0.9s 安全窗口。
