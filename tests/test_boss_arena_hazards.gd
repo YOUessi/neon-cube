@@ -42,6 +42,8 @@ func _run() -> void:
 	_check(is_equal_approx(player.get_shield(), telegraph_before), "phase two telegraph does not damage player")
 	await create_timer(0.95).timeout
 	_check(bool(level.boss_hazard_state().get("damage_armed", false)), "phase two hazard arms after telegraph window")
+	level.set_boss_phase(2)
+	_check(bool(level.boss_hazard_state().get("damage_armed", false)), "repeated phase-two health updates do not restart hazard telegraph")
 	var before := player.get_shield()
 	level._physics_process(1.0)
 	await process_frame
@@ -60,6 +62,9 @@ func _run() -> void:
 	await process_frame
 	_check(is_equal_approx(player.get_shield(), phase_three_telegraph_before), "phase three telegraph does not damage player")
 	await create_timer(0.95).timeout
+	_check(bool(level.boss_hazard_state().get("damage_armed", false)), "phase three hazard arms after its own transition telegraph")
+	level.set_boss_phase(3)
+	_check(bool(level.boss_hazard_state().get("damage_armed", false)), "repeated phase-three health updates keep overload armed")
 	var before_phase_three := player.get_shield()
 	level._physics_process(1.0)
 	await process_frame
