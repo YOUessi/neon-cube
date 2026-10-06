@@ -296,7 +296,16 @@ func _test_route_stall_recovery() -> void:
 	pursuer._route_waypoint = blocked
 	pursuer._has_route_waypoint = true
 	pursuer._route_progress_waypoint = blocked
+	pursuer._route_progress_position = pursuer.global_position
 	pursuer._route_best_distance = pursuer.global_position.distance_to(blocked)
+
+	# Stair seating/backoff and obstacle detours can temporarily move sideways or
+	# slightly away from a waypoint. Real body movement is still progress and
+	# must not be classified as a route stall.
+	pursuer.global_position += Vector3.RIGHT * 0.12
+	pursuer._update_route_progress(0.15)
+	_check(pursuer._has_route_waypoint, "physical route movement prevents a false stall even without closer waypoint distance")
+	_check(pursuer._route_stall_elapsed <= 0.001, "physical route movement resets the stall timer")
 
 	pursuer._update_route_progress(0.11)
 	pursuer._update_route_progress(0.11)

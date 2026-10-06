@@ -2188,8 +2188,8 @@ Enemy 现在已经能沿 Data Maintenance Bridge / Boss Gantry 的实体楼梯�
 ```text
 选择 authored waypoint
 → 记录当前距离
-→ 持续移动时检测是否取得至少 0.10m 的新进展
-→ 有进展：重置 stall timer
+→ 持续移动时检测是否取得至少 0.10m 的真实位移或更接近 waypoint
+→ 身体发生有效位移（包括楼梯 backoff / 横向就位）或距离目标点改善：重置 stall timer
 → 1.35s 无进展：判定该 waypoint 局部不可达
 → 临时屏蔽该点 1.0s
 → 重新选择其它 authored waypoint / fallback steering
@@ -2213,3 +2213,23 @@ Enemy 现在已经能沿 Data Maintenance Bridge / Boss Gantry 的实体楼梯�
 - cooldown 期间不得立刻重新选回刚失败的 waypoint。
 
 这一步把 AI 导航从“能沿正确楼梯走”推进到“局部受阻后也能自恢复”，减少真实关卡继续增加装饰、碰撞和动态对象之后的永久卡敌风险。
+
+
+### 2026-10-07 修正：Stall 判据使用真实位移
+
+首版 watchdog 在 GitHub CI 的 routing regression 暴露了一个重要误判：
+
+- Data Maintenance Bridge 追击 PASS。
+- Boss Gantry 追击只爬升到约 0.797m 后被中断。
+- 新增的 isolated stall-recovery fixture 本身全部 PASS。
+
+定位后确认：Boss stair solver 在某些 tread 会执行 capsule backoff / seating，敌人身体确实在移动，但短时间内“到当前 waypoint 的欧氏距离”不一定单调下降。首版 watchdog 因此把正常楼梯机动误判成 stall。
+
+修正后 progress 条件为二选一：
+
+1. 到当前 waypoint 的距离至少改善 `route_progress_epsilon`；
+2. 或 Enemy 自上次 progress anchor 起实际移动至少 `route_progress_epsilon`。
+
+只有“目标距离没有改善 + 身体也没有有效位移”持续超过 timeout，才会 blacklist 当前 waypoint。
+
+这保留了真正卡死恢复，同时不再惩罚楼梯 backoff、tread seating 和绕障横移。

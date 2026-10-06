@@ -39,6 +39,7 @@ var _authored_route_points: Array[Vector3] = []
 var _route_waypoint := Vector3.ZERO
 var _has_route_waypoint := false
 var _route_progress_waypoint := Vector3.ZERO
+var _route_progress_position := Vector3.ZERO
 var _route_best_distance := INF
 var _route_stall_elapsed := 0.0
 var _blocked_route_waypoint := Vector3.ZERO
@@ -486,6 +487,7 @@ func _route_waypoint_reached(point: Vector3) -> bool:
 
 func _reset_route_progress() -> void:
 	_route_progress_waypoint = Vector3.ZERO
+	_route_progress_position = global_position
 	_route_best_distance = INF
 	_route_stall_elapsed = 0.0
 
@@ -501,12 +503,18 @@ func _update_route_progress(delta: float) -> void:
 		or _route_progress_waypoint.distance_to(_route_waypoint) > 0.05
 	):
 		_route_progress_waypoint = _route_waypoint
+		_route_progress_position = global_position
 		_route_best_distance = current_distance
 		_route_stall_elapsed = 0.0
 		return
 
-	if current_distance + route_progress_epsilon < _route_best_distance:
-		_route_best_distance = current_distance
+	var distance_progress := current_distance + route_progress_epsilon < _route_best_distance
+	var physical_progress := (
+		global_position.distance_to(_route_progress_position) >= route_progress_epsilon
+	)
+	if distance_progress or physical_progress:
+		_route_best_distance = minf(_route_best_distance, current_distance)
+		_route_progress_position = global_position
 		_route_stall_elapsed = 0.0
 		return
 
@@ -606,6 +614,7 @@ func _select_route_waypoint() -> void:
 
 	if _has_route_waypoint:
 		_route_progress_waypoint = _route_waypoint
+		_route_progress_position = global_position
 		_route_best_distance = global_position.distance_to(_route_waypoint)
 		_route_stall_elapsed = 0.0
 
