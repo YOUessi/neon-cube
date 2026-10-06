@@ -1160,3 +1160,76 @@ Phase 3：
 - telegraph_seconds
 
 回归测试明确验证 telegraph 阶段不会扣玩家护盾。
+
+
+## 2026-10-07 追加：Combat Fairness + Pause-safe Mission Timers
+
+### Sniper Windup 可被掩体打断
+
+新增端到端物理回归：
+
+`tests/test_enemy_attack_telegraph.gd`
+
+验证：
+
+```text
+sniper begin windup
+→ windup 期间出现墙体遮挡 LOS
+→ windup 到期
+→ resolve attack 再检查 LOS
+→ 玩家不受伤
+```
+
+墙体移除后再次攻击：
+
+- windup 正常结束。
+- LOS 保持开放。
+- 玩家护盾下降。
+
+因此 Sniper 的 0.55s 前摇是真正可利用的躲避窗口，而不是纯视觉特效。
+
+### Pause-safe Gameplay Timers
+
+发现 Godot `SceneTree.create_timer()` 默认 `process_always = true`。
+
+原风险：
+
+```text
+Encounter cleared
+→ 1.8s intermission timer
+→ 玩家暂停
+→ timer 仍然到期
+→ _advance_wave() 在 PAUSED 状态 return
+→ _wave_transitioning 永远为 true
+→ Mission 卡死
+```
+
+现在以下 gameplay timers 都使用 `process_always = false`：
+
+- Story Encounter 1.8s intermission。
+- Campaign wave intermission。
+- Reinforcement delay。
+- Reinforcement world-warning lifetime。
+- Null Warden hazard telegraph。
+
+仍允许继续运行的 timer：
+
+- UI message fade。
+- Audio tone queue。
+- 短 tracer / impact visual lifetime。
+
+因为这些不会改变任务状态。
+
+新增：
+
+`tests/test_pause_safe_mission_timers.gd`
+
+验证：
+
+1. Arrival 清场进入 intermission。
+2. 立即 Pause。
+3. 等待超过原本 1.8 秒。
+4. Market Crossfire 仍未 armed，session wave index 不变。
+5. Resume。
+6. 剩余 timer 正常继续。
+7. Market Crossfire 最终只 advance 一次并进入 traversal。
