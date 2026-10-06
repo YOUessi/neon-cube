@@ -208,10 +208,12 @@ func _test_data_bridge_authored_route_pursuit() -> void:
 	var start_position := pursuer.global_position
 	var initial_distance := start_position.distance_to(target.global_position)
 	var climbed := false
+	var max_elevation_gain := 0.0
 	for i in range(360):
 		await physics_frame
 		await process_frame
 		var elevation_gain := (pursuer.global_position - start_position).dot(up)
+		max_elevation_gain = maxf(max_elevation_gain, elevation_gain)
 		if elevation_gain > 1.20:
 			climbed = true
 			break
