@@ -90,14 +90,17 @@ func _run() -> void:
 		reinforced_slots[typed_enemy.get_tactical_slot_index()] = true
 	_check(reinforced_slots.has(3) and reinforced_slots.has(4), "reinforcement batch occupies the remaining authored tactical slots")
 	var elevated_sniper: NeonEnemy = null
+	var ground_runner: NeonEnemy = null
 	for enemy in reinforced_enemies:
 		var typed_enemy := enemy as NeonEnemy
-		if typed_enemy.archetype == "sniper":
+		if typed_enemy.get_tactical_slot_index() == 4 and typed_enemy.archetype == "sniper":
 			elevated_sniper = typed_enemy
-			break
-	_check(elevated_sniper != null, "Market second batch includes authored sniper reinforcement")
-	if elevated_sniper != null:
-		_check(elevated_sniper.global_position.y > -27.0, "Market sniper reinforcement enters from elevated lane")
+		elif typed_enemy.get_tactical_slot_index() == 3 and typed_enemy.archetype == "runner":
+			ground_runner = typed_enemy
+	_check(elevated_sniper != null, "Market second batch includes authored slot-four sniper reinforcement")
+	_check(ground_runner != null, "Market second batch includes slot-three ground runner")
+	if elevated_sniper != null and ground_runner != null:
+		_check(elevated_sniper.global_position.y > ground_runner.global_position.y + 0.75, "Market sniper reinforcement remains clearly above ground runner")
 
 	for enemy in reinforced_enemies:
 		var typed_enemy := enemy as NeonEnemy
