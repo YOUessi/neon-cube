@@ -39,13 +39,25 @@ jobs:
         run: |
           mkdir -p artifacts
           xvfb-run -a ./.tools/godot --path . --script tests/capture_screenshot.gd
+          xvfb-run -a ./.tools/godot --path . --script tests/capture_level_gallery.gd
           test -s artifacts/neon_cube_ci.png
+          test -s artifacts/neon_market_hall.png
+          test -s artifacts/gravity_breach.png
+          test -s artifacts/data_lane_relays.png
+          test -s artifacts/void_docks_boss.png
+          test -s artifacts/extraction_yard.png
 
       - name: Upload visual smoke artifact
         uses: actions/upload-artifact@v4
         with:
           name: neon-cube-visual-smoke
-          path: artifacts/neon_cube_ci.png
+          path: |
+            artifacts/neon_cube_ci.png
+            artifacts/neon_market_hall.png
+            artifacts/gravity_breach.png
+            artifacts/data_lane_relays.png
+            artifacts/void_docks_boss.png
+            artifacts/extraction_yard.png
 
       - name: Bootstrap export templates
         run: ./scripts/bootstrap_export_templates.sh
