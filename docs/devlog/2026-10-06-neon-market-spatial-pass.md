@@ -2249,3 +2249,45 @@ Enemy 现在已经能沿 Data Maintenance Bridge / Boss Gantry 的实体楼梯�
 - 真正进入 route selection / runtime progress sample 后再用树内 `global_position` 建立 anchor。
 
 这属于生命周期（scene lifecycle）问题，不是导航算法问题。
+
+
+### 2026-10-07 修正：Stair fixture 的 settle 阶段禁止导航与自动迈步
+
+在 `0769e37` 上，Push/PR 两条 Linux CI 都通过项目验证，但再次稳定复现：
+
+- `ordinary enemy auto-steps a 0.42m stair` FAIL
+- `enemy bottom-face stair lift follows local up` FAIL
+
+同时日志确认：
+
+- `enemy stair test settles on authored floor` PASS
+- Side face / BACK face stair PASS
+- Data Maintenance Bridge pursuit PASS
+- Boss Gantry pursuit PASS
+- Route Stall Recovery 全部 PASS
+
+这说明问题不在 route recovery，也不在关卡几何，而在 fixture 的“准备阶段”仍然运行完整 Enemy AI。
+
+旧 `_settle_stair_enemy()` 只是打开 physics process 等待 `is_on_floor()`，但这期间 Enemy 仍会：
+
+- 计算 target / authored route；
+- 生成 wish；
+- 尝试 `_try_auto_step()`；
+- 运行水平移动与碰撞修正。
+
+因此所谓 settle 并不只是“让重力把胶囊落到地面”，测试准备阶段可能已经执行了被测的楼梯/追击行为，并且 Linux 与 macOS 的 frame/contact 时序不同会放大这一差异。
+
+修正后的 fixture：
+
+```text
+保存 move_speed / max_step_height
+→ move_speed = 0
+→ max_step_height = 0
+→ 只运行重力 + move_and_slide，直到 is_on_floor
+→ 恢复原参数
+→ 再开始真正断言
+```
+
+同样修正 `tests/test_enemy_stair_step.gd` 的 settle helper，避免两套楼梯测试以后产生不同的隐式前置状态。
+
+这是测试 fixture 隔离修复，不修改游戏运行时 Enemy Stair Step 参数。

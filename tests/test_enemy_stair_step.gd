@@ -141,12 +141,20 @@ func _make_target(parent: Node3D, position: Vector3) -> NeonPlayer:
 
 
 func _settle_enemy(enemy: NeonEnemy, frames: int = 60) -> void:
+	# Settle only gravity/floor state. Do not let pursuit or auto-step run while
+	# the fixture is still establishing its initial contact.
+	var saved_move_speed := enemy.move_speed
+	var saved_step_height := enemy.max_step_height
+	enemy.move_speed = 0.0
+	enemy.max_step_height = 0.0
 	enemy.set_physics_process(true)
 	for i in range(frames):
 		await physics_frame
 		await process_frame
 		if enemy.is_on_floor():
-			return
+			break
+	enemy.move_speed = saved_move_speed
+	enemy.max_step_height = saved_step_height
 
 
 func _add_box(parent: Node3D, name: String, position: Vector3, size: Vector3) -> StaticBody3D:

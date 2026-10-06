@@ -343,12 +343,21 @@ func _make_stair_target(parent: Node3D, position: Vector3) -> NeonPlayer:
 
 
 func _settle_stair_enemy(enemy: NeonEnemy, frames: int = 60) -> void:
+	# Fixture setup must establish a real CharacterBody floor contact without
+	# accidentally exercising pursuit or the stair solver before the assertion.
+	# Otherwise platform/frame timing can move the enemy while it is "settling".
+	var saved_move_speed := enemy.move_speed
+	var saved_step_height := enemy.max_step_height
+	enemy.move_speed = 0.0
+	enemy.max_step_height = 0.0
 	enemy.set_physics_process(true)
 	for i in range(frames):
 		await physics_frame
 		await process_frame
 		if enemy.is_on_floor():
-			return
+			break
+	enemy.move_speed = saved_move_speed
+	enemy.max_step_height = saved_step_height
 
 
 func _add_test_box(parent: Node3D, position: Vector3, size: Vector3) -> StaticBody3D:
