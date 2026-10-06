@@ -320,6 +320,67 @@ func is_encounter_locked(encounter_id: StringName) -> bool:
 	return bool(_lockdown_state.get(encounter_id, false))
 
 
+func reset_progression_gates() -> void:
+	_reset_visual_gate("Geometry/DataLane/WardenGate/WardenAccessDoor")
+
+
+func set_progression_gate_open(encounter_id: StringName, open: bool, animate: bool = true) -> void:
+	match encounter_id:
+		&"data_lane":
+			_set_visual_gate_open(
+				"Geometry/DataLane/WardenGate/WardenAccessDoor",
+				open,
+				animate,
+				3.4
+			)
+
+
+func progression_gate_open(encounter_id: StringName) -> bool:
+	match encounter_id:
+		&"data_lane":
+			var door := get_node_or_null("Geometry/DataLane/WardenGate/WardenAccessDoor") as Node3D
+			if door == null:
+				return false
+			return bool(door.get_meta("progression_open", false))
+	return false
+
+
+func _reset_visual_gate(path: String) -> void:
+	var door := get_node_or_null(path) as Node3D
+	if door == null:
+		return
+	if not door.has_meta("closed_position"):
+		door.set_meta("closed_position", door.position)
+	var closed_position: Vector3 = door.get_meta("closed_position")
+	door.position = closed_position
+	door.set_meta("progression_open", false)
+
+
+func _set_visual_gate_open(
+	path: String,
+	open: bool,
+	animate: bool,
+	travel_distance: float
+) -> void:
+	var door := get_node_or_null(path) as Node3D
+	if door == null:
+		return
+	if not door.has_meta("closed_position"):
+		door.set_meta("closed_position", door.position)
+	var closed_position: Vector3 = door.get_meta("closed_position")
+	var target_position := closed_position
+	if open:
+		target_position = closed_position + door.basis.y.normalized() * travel_distance
+	door.set_meta("progression_open", open)
+	if not animate or DisplayServer.get_name() == "headless":
+		door.position = target_position
+		return
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(door, "position", target_position, 0.75)
+
+
 func set_navigation_target(encounter_id: StringName) -> void:
 	_navigation_target = encounter_id
 	for key in _navigation_beacons:
