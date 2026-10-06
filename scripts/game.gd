@@ -43,6 +43,7 @@ var _encounter_batch_index := 0
 var _encounter_spawned_count := 0
 var _reinforcement_scheduled := false
 var _hold_progress := 0.0
+var _hold_completed := false
 var _extraction_progress := 0.0
 
 var hud_layer: CanvasLayer
@@ -158,6 +159,7 @@ func start_game() -> void:
 	_last_boss_phase = 1
 	_clear_encounter_batch_state()
 	_hold_progress = 0.0
+	_hold_completed = false
 	_extraction_progress = 0.0
 	_reset_objective_nodes()
 	_reset_hold_zones()
@@ -290,6 +292,7 @@ func _advance_wave() -> void:
 	if story_mode:
 		var encounter := mission_runtime.current_encounter()
 		_hold_progress = 0.0
+		_hold_completed = false
 		_waiting_for_encounter_entry = true
 		_wave_transitioning = true
 		_set_encounter_zone_armed(encounter.encounter_id, true)
@@ -633,6 +636,7 @@ func _resume_story_from_save() -> void:
 	_waiting_for_encounter_entry = true
 	_clear_encounter_batch_state()
 	_hold_progress = 0.0
+	_hold_completed = false
 	_extraction_progress = 0.0
 	_reset_objective_nodes()
 	_reset_hold_zones()
@@ -923,7 +927,7 @@ func _update_objective() -> void:
 			objective_label.text = "ADVANCE TO\n%s" % encounter.title
 			return
 		if encounter.hold_zone_seconds > 0.0:
-			var hold_status := "UPLINK %.1f/%.1fs" % [_hold_progress, encounter.hold_zone_seconds]
+			var hold_status := "UPLINK STABLE" if _hold_completed else "UPLINK %.1f/%.1fs" % [_hold_progress, encounter.hold_zone_seconds]
 			if _reinforcement_scheduled:
 				objective_label.text = "%s\n%s  //  INBOUND" % [encounter.objective_text, hold_status]
 				return
@@ -1119,11 +1123,14 @@ func _update_hold_objective(delta: float) -> void:
 	var encounter := mission_runtime.current_encounter()
 	if encounter == null or encounter.hold_zone_seconds <= 0.0 or _waiting_for_encounter_entry:
 		return
+	if _hold_completed:
+		return
 	if _hold_zone_occupied(encounter.encounter_id):
 		var previous := _hold_progress
 		_hold_progress = minf(encounter.hold_zone_seconds, _hold_progress + maxf(0.0, delta))
 		_set_hold_world_progress(encounter.encounter_id, _hold_progress, encounter.hold_zone_seconds)
 		if previous < encounter.hold_zone_seconds and _hold_progress >= encounter.hold_zone_seconds:
+			_hold_completed = true
 			_audio_call("play_uplink_complete")
 			_show_message("UPLINK STABLE // HOLD COMPLETE", 1.4)
 		if not is_equal_approx(previous, _hold_progress):
@@ -1159,7 +1166,7 @@ func _story_objectives_complete() -> bool:
 		return true
 	if encounter.objective_node_count > 0 and _objective_nodes_remaining(encounter.encounter_id) > 0:
 		return false
-	if encounter.hold_zone_seconds > 0.0 and _hold_progress < encounter.hold_zone_seconds:
+	if encounter.hold_zone_seconds > 0.0 and not _hold_completed:
 		return false
 	return true
 
@@ -1177,6 +1184,7 @@ func _on_encounter_zone_entered(encounter_id: StringName) -> void:
 	_arm_objective_nodes(encounter_id, true)
 	_arm_hold_zone(encounter_id, true)
 	_hold_progress = 0.0
+	_hold_completed = false
 	_spawn_current_wave()
 	_wave_transitioning = false
 	_update_score()
