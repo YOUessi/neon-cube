@@ -1238,6 +1238,29 @@ func _add_objective_node(
 		visual.material_override = _material(accent * 0.08, accent, 5.5)
 		node.add_child(visual)
 
+		var base_ring := MeshInstance3D.new()
+		base_ring.name = "BaseRing"
+		var ring_mesh := CylinderMesh.new()
+		ring_mesh.top_radius = 1.05
+		ring_mesh.bottom_radius = 1.05
+		ring_mesh.height = 0.055
+		ring_mesh.radial_segments = 40
+		base_ring.mesh = ring_mesh
+		base_ring.position = Vector3(0, -0.96, 0)
+		base_ring.material_override = _material(accent * 0.06, accent, 3.2)
+		node.add_child(base_ring)
+
+		var status := Label3D.new()
+		status.name = "StatusLabel"
+		status.text = "RELAY // LOCKED"
+		status.font_size = 26
+		status.outline_size = 6
+		status.modulate = Color(0.45, 0.55, 0.70)
+		status.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
+		status.position = Vector3(0, 1.55, 0)
+		status.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		node.add_child(status)
+
 	node.configure(encounter_id, objective_id, health)
 	node.destroyed.connect(_on_objective_node_destroyed)
 	parent.add_child(node)
