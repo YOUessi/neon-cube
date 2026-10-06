@@ -1,0 +1,169 @@
+extends SceneTree
+
+const MAIN := preload("res://scenes/main.tscn")
+var failures := 0
+
+
+func _init() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
+	var game: NeonGame = MAIN.instantiate() as NeonGame
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	game.set_process(false)
+	game.player.set_physics_process(false)
+
+	# 1. Arrival Ambush
+	_check(game.mission_runtime.current_encounter().encounter_id == &"arrival_ambush", "playthrough starts at Arrival Ambush")
+	_check(game.session.alive_enemies == 4, "Arrival opens with four hostiles")
+	await _kill_all_enemies(game)
+	game._process(0.016)
+	_check(game.mission_runtime.current_encounter().encounter_id == &"market_crossfire", "Arrival clear advances to Market Crossfire")
+	game._advance_wave()
+	_check(game._waiting_for_encounter_entry, "Market Crossfire waits for arena entry")
+
+	# 2. Market Crossfire: 3 + 2.
+	await _enter_encounter_zone(game, "MarketCrossfireActivation")
+	_check(game.current_story_batch_number() == 1, "Market starts batch one")
+	_check(game.session.alive_enemies == 3, "Market opening batch has three hostiles")
+	await _kill_enemy_count(game, 2)
+	game._process(0.016)
+	_check(game._reinforcement_scheduled, "Market schedules second batch at threshold")
+	game._on_reinforcement_ready(&"market_crossfire")
+	_check(game.current_story_batch_number() == 2, "Market reinforcement becomes batch two")
+	_check(game.session.alive_enemies == 3, "Market reinforcement joins surviving hostile")
+	await _kill_all_enemies(game)
+	game._process(0.016)
+	_check(game.mission_runtime.current_encounter().encounter_id == &"gravity_breach", "Market clear advances to Gravity Breach")
+	game._advance_wave()
+
+	# 3. Gravity Breach: 2 + 2 plus continuous uplink.
+	await _enter_encounter_zone(game, "GravityBreachActivation")
+	_check(game.session.alive_enemies == 2, "Gravity Breach opens with two hostiles")
+	await _kill_enemy_count(game, 1)
+	game._process(0.016)
+	_check(game._reinforcement_scheduled, "Gravity Breach schedules second batch")
+	game._on_reinforcement_ready(&"gravity_breach")
+	await _kill_all_enemies(game)
+	game._process(0.016)
+	_check(game.mission_runtime.current_encounter().encounter_id == &"gravity_breach", "hostile clear alone cannot bypass Gravity uplink")
+	var hold_zone := game.mission_level.get_node("Geometry/HoldZones/GravityBreachHold") as Area3D
+	await _move_player_into_area(game, hold_zone)
+	game._process(4.1)
+	_check(game._hold_completed, "Gravity uplink completes during full playthrough")
+	_check(game.mission_runtime.current_encounter().encounter_id == &"data_lane", "Gravity objective advances to Data Lane")
+	game._advance_wave()
+
+	# 4. Data Lane: 3 + 2 plus two destructible relays.
+	await _enter_encounter_zone(game, "DataLaneActivation")
+	_check(game.session.alive_enemies == 3, "Data Lane opens with three hostiles")
+	var relays := get_nodes_in_group("mission_objective_node")
+	_check(relays.size() == 2, "Data Lane exposes both relay objectives")
+	await _kill_enemy_count(game, 2)
+	game._process(0.016)
+	_check(game._reinforcement_scheduled, "Data Lane schedules second batch")
+	game._on_reinforcement_ready(&"data_lane")
+	await _kill_all_enemies(game)
+	game._process(0.016)
+	_check(game.mission_runtime.current_encounter().encounter_id == &"data_lane", "Data Lane hostile clear waits for relay destruction")
+	for relay in relays:
+		(relay as MissionObjectiveNode).take_damage(999.0)
+		await process_frame
+	_check(game.mission_runtime.current_encounter().encounter_id == &"null_warden", "relay destruction advances to Null Warden")
+	_check(bool(game.mission_level.call("progression_gate_open", &"data_lane")), "Warden access is open after Data Lane")
+	game._advance_wave()
+
+	# 5. Null Warden.
+	await _enter_encounter_zone(game, "NullWardenActivation")
+	_check(game.session.alive_enemies == 4, "Null Warden encounter spawns boss squad")
+	_check(get_nodes_in_group("enemies").any(func(enemy): return (enemy as NeonEnemy).archetype == "boss"), "boss squad contains Null Warden")
+	await _kill_all_enemies(game)
+	game._process(0.016)
+	_check(game.mission_runtime.current_encounter().encounter_id == &"extraction", "boss clear advances to Extraction")
+	game._advance_wave()
+
+	# 6. Extraction: 2 + 2, then three-second hold.
+	await _enter_encounter_zone(game, "ExtractionActivation")
+	_check(game.session.alive_enemies == 2, "Extraction opens with two hostiles")
+	await _kill_all_enemies(game)
+	game._process(0.016)
+	_check(game._reinforcement_scheduled, "Extraction schedules final reinforcement")
+	game._on_reinforcement_ready(&"extraction")
+	_check(game.session.alive_enemies == 2, "final reinforcement contains two hostiles")
+	await _kill_all_enemies(game)
+	game._process(0.016)
+	_check(game._waiting_for_extraction, "final hostile clear activates extraction hold")
+	_check(game.game_state == NeonGame.GameState.PLAYING, "mission remains active until extraction hold finishes")
+
+	var extraction_zone := game.mission_level.get_node(
+		"Geometry/Extraction/ExtractionBeacon/ExtractionZone"
+	) as Area3D
+	await _move_player_into_area(game, extraction_zone)
+	game._process(3.1)
+
+	_check(game.game_state == NeonGame.GameState.VICTORY, "full mission playthrough ends in Victory")
+	_check(game.mission_runtime.state == MissionRuntime.State.COMPLETED, "full mission playthrough completes MissionRuntime")
+	_check(game.mission_runtime.completed_encounters.size() == 6, "all six encounters are recorded complete")
+
+	paused = false
+	game.queue_free()
+	await process_frame
+	_finish()
+
+
+func _enter_encounter_zone(game: NeonGame, node_name: String) -> void:
+	var zone := game.mission_level.get_node(
+		"Geometry/EncounterActivationZones/%s" % node_name
+	) as Area3D
+	await _move_player_into_area(game, zone)
+	_check(not game._waiting_for_encounter_entry, "%s entry activates encounter" % node_name)
+
+
+func _move_player_into_area(game: NeonGame, area: Area3D) -> void:
+	_check(area != null, "target Area3D exists")
+	if area == null:
+		return
+	game.player.global_position = area.global_position
+	game.player.velocity = Vector3.ZERO
+	for i in range(4):
+		await physics_frame
+		await process_frame
+
+
+func _kill_enemy_count(game: NeonGame, count: int) -> void:
+	var enemies := get_nodes_in_group("enemies")
+	var kill_count := mini(count, enemies.size())
+	for i in range(kill_count):
+		var enemy := enemies[i] as NeonEnemy
+		game._on_enemy_killed(enemy)
+		enemy.queue_free()
+	await process_frame
+
+
+func _kill_all_enemies(game: NeonGame) -> void:
+	var enemies := get_nodes_in_group("enemies")
+	for node in enemies:
+		var enemy := node as NeonEnemy
+		game._on_enemy_killed(enemy)
+		enemy.queue_free()
+	await process_frame
+
+
+func _check(condition: bool, label: String) -> void:
+	if condition:
+		print("PASS: %s" % label)
+	else:
+		failures += 1
+		push_error("FAIL: %s" % label)
+
+
+func _finish() -> void:
+	if failures == 0:
+		print("full mission playthrough tests: PASS")
+		quit(0)
+	else:
+		print("full mission playthrough tests: FAIL (%d)" % failures)
+		quit(1)
