@@ -11,6 +11,8 @@ signal health_changed(current: float, maximum: float, phase: int)
 @export var acceleration := 16.0
 @export var gravity_strength := 24.0
 @export var gravity_align_speed := 10.0
+@export var max_step_height := 0.52
+@export var step_probe_distance := 0.72
 @export var attack_range := 15.0
 @export var attack_damage := 8.0
 @export var attack_interval := 0.8
@@ -87,6 +89,7 @@ func _ready() -> void:
 	_build_visual()
 	gravity_down = CubeGravity.nearest_down(global_position, cube_half_extent)
 	up_direction = -gravity_down
+	floor_snap_length = maxf(floor_snap_length, max_step_height + 0.08)
 
 func _process(delta: float) -> void:
 	if DisplayServer.get_name() == "headless" or visual_root == null or _dead:
@@ -156,6 +159,12 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() and fall_speed > 1.0:
 		fall_speed = 1.0
 	velocity = horizontal + gravity_down * fall_speed
+	if (
+		wish.length_squared() > 0.05
+		and is_on_floor()
+		and _tactical_leash_radius <= 0.0
+	):
+		_try_auto_step(wish)
 	if wish.length_squared() > 0.05:
 		_face_tangent_direction(wish, delta)
 	move_and_slide()
@@ -165,6 +174,80 @@ func _physics_process(delta: float) -> void:
 			_resolve_pending_attack()
 	elif distance <= attack_range and _attack_cooldown <= 0.0 and has_line_of_sight:
 		_begin_attack()
+
+func _try_auto_step(wish: Vector3) -> bool:
+	if max_step_height <= 0.0 or step_probe_distance <= 0.0:
+		return false
+	if not is_on_floor() or wish.length_squared() <= 0.001:
+		return false
+
+	var up := -gravity_down.normalized()
+	var direction := wish.normalized()
+	var space := get_world_3d().direct_space_state
+
+	var floor_query := PhysicsRayQueryParameters3D.create(
+		global_position,
+		global_position + gravity_down.normalized() * 1.35
+	)
+	floor_query.exclude = [get_rid()]
+	floor_query.collision_mask = collision_mask
+	var floor_hit := space.intersect_ray(floor_query)
+	if floor_hit.is_empty():
+		return false
+	var floor_normal: Vector3 = floor_hit.get("normal", up)
+	if floor_normal.dot(up) < 0.55:
+		return false
+	var floor_point: Vector3 = floor_hit.get("position", global_position)
+
+	var low_origin := floor_point + up * 0.14
+	var low_query := PhysicsRayQueryParameters3D.create(
+		low_origin,
+		low_origin + direction * step_probe_distance
+	)
+	low_query.exclude = [get_rid()]
+	low_query.collision_mask = collision_mask
+	if space.intersect_ray(low_query).is_empty():
+		return false
+
+	var high_origin := floor_point + up * (max_step_height + 0.16)
+	var high_query := PhysicsRayQueryParameters3D.create(
+		high_origin,
+		high_origin + direction * step_probe_distance
+	)
+	high_query.exclude = [get_rid()]
+	high_query.collision_mask = collision_mask
+	if not space.intersect_ray(high_query).is_empty():
+		return false
+
+	var landing_probe_origin := (
+		floor_point
+		+ direction * step_probe_distance
+		+ up * (max_step_height + 0.22)
+	)
+	var landing_query := PhysicsRayQueryParameters3D.create(
+		landing_probe_origin,
+		landing_probe_origin + gravity_down.normalized() * (max_step_height + 0.30)
+	)
+	landing_query.exclude = [get_rid()]
+	landing_query.collision_mask = collision_mask
+	var landing_hit := space.intersect_ray(landing_query)
+	if landing_hit.is_empty():
+		return false
+	var landing_normal: Vector3 = landing_hit.get("normal", up)
+	if landing_normal.dot(up) < 0.55:
+		return false
+	var landing_point: Vector3 = landing_hit.get("position", floor_point)
+	var step_height := (landing_point - floor_point).dot(up)
+	if step_height <= 0.04 or step_height > max_step_height + 0.02:
+		return false
+
+	var lift := up * (step_height + 0.025)
+	if test_move(global_transform, lift):
+		return false
+
+	global_position += lift
+	return true
+
 
 func _begin_attack() -> void:
 	if _definition == null or not is_instance_valid(target):
