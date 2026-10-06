@@ -33,6 +33,7 @@ var _spawn_cursor := 0
 var _kills := 0
 var _wave_transitioning := false
 var _waiting_for_extraction := false
+var _waiting_for_encounter_entry := false
 
 var hud_layer: CanvasLayer
 var hud_panel: Control
@@ -76,6 +77,8 @@ func _ready() -> void:
 	mission_anchors = MissionAnchorRegistry.collect(mission_level)
 	if mission_level.has_signal("extraction_reached"):
 		mission_level.connect("extraction_reached", Callable(self, "_on_extraction_reached"))
+	if mission_level.has_signal("encounter_zone_entered"):
+		mission_level.connect("encounter_zone_entered", Callable(self, "_on_encounter_zone_entered"))
 	performance_monitor = RuntimePerformanceMonitor.new()
 	performance_monitor.name = "PerformanceMonitor"
 	performance_monitor.budget = DESKTOP_PERFORMANCE_BUDGET
@@ -122,7 +125,9 @@ func start_game() -> void:
 	_spawn_cursor = 0
 	_wave_transitioning = false
 	_waiting_for_extraction = false
+	_waiting_for_encounter_entry = false
 	_set_extraction_armed(false)
+	_set_encounter_zone_armed(&"", false)
 	game_state = GameState.PLAYING
 	menu_panel.visible = false
 	pause_panel.visible = false
@@ -235,14 +240,19 @@ func _advance_wave() -> void:
 		return
 	session.advance_wave()
 	_sync_session_fields()
+	if story_mode:
+		var encounter := mission_runtime.current_encounter()
+		_waiting_for_encounter_entry = true
+		_wave_transitioning = true
+		_set_encounter_zone_armed(encounter.encounter_id, true)
+		_update_score()
+		_update_objective()
+		_show_message("ADVANCE // %s" % encounter.title, 2.0)
+		return
 	_wave_transitioning = false
 	_spawn_current_wave()
 	_update_score()
 	_update_objective()
-	if story_mode:
-		var encounter := mission_runtime.current_encounter()
-		_show_message("%s // %s" % [encounter.title, encounter.objective_text], 2.0)
-		return
 	var wave: WaveDefinition = campaign.get_wave(session.wave_index)
 	if wave.boss_wave:
 		_show_message("FINAL WAVE // %s ONLINE" % wave.title, 2.0)
@@ -271,22 +281,35 @@ func _spawn_current_wave() -> void:
 			encounter.encounter_id,
 			MissionAnchor.Kind.ENCOUNTER_CENTER
 		)
-		var positions: Array[Vector3]
-		if center_anchor != null:
-			positions = EncounterSpawnPlanner.spawn_positions_around(
-				encounter,
+		var positions: Array[Vector3] = []
+		if is_instance_valid(mission_level) and mission_level.has_method("spawn_points_for"):
+			var authored_positions: Variant = mission_level.call(
+				"spawn_points_for",
+				encounter.encounter_id,
 				encounter.enemy_kinds.size(),
-				cube_size,
-				center_anchor.global_position,
 				_spawn_cursor
 			)
-		else:
-			positions = EncounterSpawnPlanner.spawn_positions(
-				encounter,
-				encounter.enemy_kinds.size(),
-				cube_size,
-				_spawn_cursor
-			)
+			if authored_positions is Array:
+				for authored_position in authored_positions:
+					if authored_position is Vector3:
+						positions.append(authored_position)
+		if positions.size() != encounter.enemy_kinds.size():
+			positions.clear()
+			if center_anchor != null:
+				positions = EncounterSpawnPlanner.spawn_positions_around(
+					encounter,
+					encounter.enemy_kinds.size(),
+					cube_size,
+					center_anchor.global_position,
+					_spawn_cursor
+				)
+			else:
+				positions = EncounterSpawnPlanner.spawn_positions(
+					encounter,
+					encounter.enemy_kinds.size(),
+					cube_size,
+					_spawn_cursor
+				)
 		for i in range(encounter.enemy_kinds.size()):
 			_spawn_enemy_at(String(encounter.enemy_kinds[i]), positions[i])
 		return
@@ -436,9 +459,11 @@ func _resume_story_from_save() -> void:
 	session.alive_enemies = 0
 	_sync_session_fields()
 	_spawn_cursor = mission_runtime.encounter_index * 8
-	_wave_transitioning = false
+	_wave_transitioning = true
 	_waiting_for_extraction = false
+	_waiting_for_encounter_entry = true
 	_set_extraction_armed(false)
+	_set_encounter_zone_armed(mission_runtime.current_encounter().encounter_id, true)
 	game_state = GameState.PLAYING
 	menu_panel.visible = false
 	pause_panel.visible = false
@@ -450,10 +475,9 @@ func _resume_story_from_save() -> void:
 		if mission_anchors.has(checkpoint_key):
 			var checkpoint_anchor: MissionAnchor = mission_anchors[checkpoint_key]
 			player.global_position = checkpoint_anchor.global_position
-	_spawn_current_wave()
 	_update_score()
 	_update_objective()
-	_show_message("CHECKPOINT // %s" % mission_runtime.current_encounter().title, 1.8)
+	_show_message("CHECKPOINT // ADVANCE TO %s" % mission_runtime.current_encounter().title, 1.8)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -703,6 +727,9 @@ func _update_objective() -> void:
 		if encounter.encounter_id == &"extraction" and _waiting_for_extraction:
 			objective_label.text = "REACH EXTRACTION  //  BEACON ACTIVE"
 			return
+		if _waiting_for_encounter_entry:
+			objective_label.text = "ADVANCE TO %s" % encounter.title
+			return
 		objective_label.text = "%s  //  HOSTILES %02d" % [
 			encounter.objective_text,
 			session.alive_enemies,
@@ -743,6 +770,26 @@ func _show_message(text: String, duration: float) -> void:
 func _set_extraction_armed(active: bool) -> void:
 	if is_instance_valid(mission_level) and mission_level.has_method("arm_extraction"):
 		mission_level.call("arm_extraction", active)
+
+
+func _set_encounter_zone_armed(encounter_id: StringName, active: bool) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("arm_encounter_zone"):
+		mission_level.call("arm_encounter_zone", encounter_id, active)
+
+
+func _on_encounter_zone_entered(encounter_id: StringName) -> void:
+	if not story_mode or not _waiting_for_encounter_entry:
+		return
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.encounter_id != encounter_id:
+		return
+	_waiting_for_encounter_entry = false
+	_set_encounter_zone_armed(encounter_id, false)
+	_spawn_current_wave()
+	_wave_transitioning = false
+	_update_score()
+	_update_objective()
+	_show_message("%s // %s" % [encounter.title, encounter.objective_text], 2.0)
 
 
 func _on_extraction_reached() -> void:
