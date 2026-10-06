@@ -55,6 +55,7 @@ func _run() -> void:
 	await _test_enemy_auto_step_side_face()
 	await _test_perch_leash_blocks_stair_step()
 	await _test_data_bridge_authored_route_pursuit()
+	await _test_boss_gantry_authored_route_pursuit()
 
 	enemy.queue_free()
 	boss.queue_free()
@@ -183,6 +184,57 @@ func _test_data_bridge_authored_route_pursuit() -> void:
 	_check(
 		pursuer.global_position.distance_to(target.global_position) < initial_distance,
 		"Data Lane pursuer closes distance toward player on Maintenance Bridge"
+	)
+
+	world.queue_free()
+	await process_frame
+
+
+func _test_boss_gantry_authored_route_pursuit() -> void:
+	var world := Node3D.new()
+	world.name = "BossGantryPursuitWorld"
+	root.add_child(world)
+
+	# Void Docks uses BACK gravity. The authored face surface is z=29.55,
+	# so a 0.20m slab centered at 29.65 reproduces the real combat floor.
+	_add_test_box(
+		world,
+		Vector3(0.0, -4.0, 29.65),
+		Vector3(30.0, 30.0, 0.20)
+	)
+
+	var level := MISSION_LEVEL_SCENE.instantiate() as NeonMarketSiegeLevel
+	world.add_child(level)
+	await process_frame
+	var routes: Array = level.route_points_for(&"null_warden")
+	_check(routes.size() == 12, "Boss pursuit fixture receives dual-gantry authored route chain")
+	if routes.size() != 12:
+		world.queue_free()
+		await process_frame
+		return
+
+	# routes[6..8] are the left gantry approach, stair crest and deck.
+	var target := _make_stair_target(world, routes[8])
+	var pursuer := _make_stair_enemy(world, target, routes[6])
+	pursuer.set_route_points(routes)
+	await _settle_stair_enemy(pursuer)
+
+	var up := -Vector3.BACK
+	var start_position := pursuer.global_position
+	var initial_distance := start_position.distance_to(target.global_position)
+	var climbed := false
+	for i in range(360):
+		await physics_frame
+		await process_frame
+		var elevation_gain := (pursuer.global_position - start_position).dot(up)
+		if elevation_gain > 1.05:
+			climbed = true
+			break
+
+	_check(climbed, "Boss Arena pursuer uses authored stairs to gain gantry elevation")
+	_check(
+		pursuer.global_position.distance_to(target.global_position) < initial_distance,
+		"Boss Arena pursuer closes distance toward player on Service Gantry"
 	)
 
 	world.queue_free()
