@@ -19,6 +19,7 @@ var _geometry_root: Node3D
 var _extraction_zone: Area3D
 var _extraction_label: Label3D
 var _extraction_armed := false
+var _extraction_occupied := false
 var _encounter_zones: Dictionary = {}
 var _combat_gates: Dictionary = {}
 var _lockdown_state: Dictionary = {}
@@ -208,10 +209,15 @@ func objective_nodes_remaining(encounter_id: StringName) -> int:
 
 func arm_extraction(active: bool = true) -> void:
 	_extraction_armed = active
+	_extraction_occupied = false
 	if _extraction_zone != null:
 		_extraction_zone.monitoring = active
 	if _extraction_label != null:
 		_extraction_label.visible = active
+
+
+func is_extraction_occupied() -> bool:
+	return _extraction_armed and _extraction_occupied
 
 
 func arm_encounter_zone(encounter_id: StringName, active: bool = true) -> void:
@@ -871,12 +877,13 @@ func _build_extraction() -> void:
 	shape_node.shape = shape
 	_extraction_zone.add_child(shape_node)
 	_extraction_zone.body_entered.connect(_on_extraction_body_entered)
+	_extraction_zone.body_exited.connect(_on_extraction_body_exited)
 	zone_container.add_child(_extraction_zone)
 
 	if DisplayServer.get_name() != "headless":
 		_extraction_label = Label3D.new()
 		_extraction_label.name = "ExtractionStatus"
-		_extraction_label.text = "EXTRACTION // READY"
+		_extraction_label.text = "EXTRACTION // HOLD POSITION"
 		_extraction_label.font_size = 44
 		_extraction_label.outline_size = 8
 		_extraction_label.modulate = AMBER
@@ -1012,13 +1019,13 @@ func _on_encounter_zone_body_entered(body: Node3D, encounter_id: StringName) -> 
 
 
 func _on_extraction_body_entered(body: Node3D) -> void:
-	if not _extraction_armed:
-		return
+	if _extraction_armed and body is NeonPlayer:
+		_extraction_occupied = true
+
+
+func _on_extraction_body_exited(body: Node3D) -> void:
 	if body is NeonPlayer:
-		_extraction_armed = false
-		if _extraction_zone != null:
-			_extraction_zone.set_deferred("monitoring", false)
-		extraction_reached.emit()
+		_extraction_occupied = false
 
 
 func _region(name: String) -> Node3D:
