@@ -28,6 +28,7 @@ var _combat_gates: Dictionary = {}
 var _lockdown_state: Dictionary = {}
 var _navigation_beacons: Dictionary = {}
 var _navigation_target: StringName = &""
+var _navigation_update_remaining := 0.0
 var _boss_hazards: Array[Area3D] = []
 var _boss_hazard_active: Array[bool] = []
 var _boss_phase := 1
@@ -67,6 +68,30 @@ func _ready() -> void:
 
 func set_player(player: NeonPlayer) -> void:
 	_tracked_player = player
+
+
+func _process(delta: float) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	if _navigation_target == &"" or not is_instance_valid(_tracked_player):
+		return
+	_navigation_update_remaining -= maxf(0.0, delta)
+	if _navigation_update_remaining > 0.0:
+		return
+	_navigation_update_remaining = 0.15
+	if not _navigation_beacons.has(_navigation_target):
+		return
+	var beacon := _navigation_beacons[_navigation_target] as Node3D
+	if beacon == null:
+		return
+	var label := beacon.get_node_or_null("Label") as Label3D
+	if label == null:
+		return
+	var distance := _tracked_player.global_position.distance_to(beacon.global_position)
+	label.text = "OBJECTIVE // %s\n%03dm" % [
+		String(_navigation_target).replace("_", " ").to_upper(),
+		int(round(distance)),
+	]
 
 
 func show_reinforcement_warning(
@@ -243,6 +268,11 @@ func set_extraction_progress(current: float, required: float) -> void:
 		var material := _extraction_progress_core.material_override as StandardMaterial3D
 		if material != null:
 			material.emission_energy_multiplier = 3.0 + _extraction_progress_ratio * 5.0
+	var extraction_ring := get_node_or_null("Geometry/Extraction/ExtractionBeacon/ExtractionRing") as MeshInstance3D
+	if extraction_ring != null:
+		var ring_material := extraction_ring.material_override as StandardMaterial3D
+		if ring_material != null:
+			ring_material.emission_energy_multiplier = 2.5 + _extraction_progress_ratio * 5.5
 	if _extraction_label != null and _extraction_armed:
 		_extraction_label.text = "EXTRACTION // %03d%%" % int(round(_extraction_progress_ratio * 100.0))
 
@@ -291,6 +321,11 @@ func arm_extraction(active: bool = true) -> void:
 		_extraction_progress_core.visible = active
 		_extraction_progress_core.scale.y = 0.03
 		_extraction_progress_core.position.y = 0.0
+	var extraction_ring := get_node_or_null("Geometry/Extraction/ExtractionBeacon/ExtractionRing") as MeshInstance3D
+	if extraction_ring != null:
+		var ring_material := extraction_ring.material_override as StandardMaterial3D
+		if ring_material != null:
+			ring_material.emission_energy_multiplier = 2.5 if active else 1.0
 	if _extraction_label != null:
 		_extraction_label.visible = active
 		if active:
@@ -392,6 +427,7 @@ func _set_visual_gate_open(
 
 func set_navigation_target(encounter_id: StringName) -> void:
 	_navigation_target = encounter_id
+	_navigation_update_remaining = 0.0
 	for key in _navigation_beacons:
 		var beacon: Node3D = _navigation_beacons[key]
 		beacon.visible = encounter_id != &"" and StringName(key) == encounter_id
