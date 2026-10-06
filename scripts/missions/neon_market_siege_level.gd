@@ -44,6 +44,7 @@ var _objective_nodes: Dictionary = {}
 var _hold_zones: Dictionary = {}
 var _hold_zone_occupied: Dictionary = {}
 var _hold_zone_progress: Dictionary = {}
+var _progression_gate_state: Dictionary = {&"data_lane": false}
 
 
 func _ready() -> void:
@@ -321,10 +322,12 @@ func is_encounter_locked(encounter_id: StringName) -> bool:
 
 
 func reset_progression_gates() -> void:
+	_progression_gate_state[&"data_lane"] = false
 	_reset_visual_gate("Geometry/DataLane/WardenGate/WardenAccessDoor")
 
 
 func set_progression_gate_open(encounter_id: StringName, open: bool, animate: bool = true) -> void:
+	_progression_gate_state[encounter_id] = open
 	match encounter_id:
 		&"data_lane":
 			_set_visual_gate_open(
@@ -336,13 +339,7 @@ func set_progression_gate_open(encounter_id: StringName, open: bool, animate: bo
 
 
 func progression_gate_open(encounter_id: StringName) -> bool:
-	match encounter_id:
-		&"data_lane":
-			var door := get_node_or_null("Geometry/DataLane/WardenGate/WardenAccessDoor") as Node3D
-			if door == null:
-				return false
-			return bool(door.get_meta("progression_open", false))
-	return false
+	return bool(_progression_gate_state.get(encounter_id, false))
 
 
 func _reset_visual_gate(path: String) -> void:
