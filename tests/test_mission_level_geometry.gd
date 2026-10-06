@@ -29,6 +29,21 @@ func _run() -> void:
 	_check(level.get_node_or_null("Geometry/DataLane/MaintenanceBridge/BridgeDeck") != null, "Data Lane maintenance bridge exists")
 	_check(level.get_node_or_null("Geometry/VoidDocks/BossArena/ServiceGantries") != null, "Boss Arena service gantries exist")
 	_check(level.get_node_or_null("Geometry/Extraction/ExtractionDock/DockDeck") != null, "Extraction dock platform exists")
+
+	var dock_deck := level.get_node_or_null("Geometry/Extraction/ExtractionDock/DockDeck") as StaticBody3D
+	var dock_last_step := level.get_node_or_null("Geometry/Extraction/ExtractionDock/DockStep_02") as StaticBody3D
+	if dock_deck != null and dock_last_step != null:
+		var deck_collision := dock_deck.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		var step_collision := dock_last_step.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		_check(deck_collision != null and step_collision != null, "Extraction dock deck and final stair expose collision shapes")
+		if deck_collision != null and step_collision != null:
+			var inward := CubeGravity.tangent_basis(Vector3.DOWN).y.normalized()
+			var deck_shape := deck_collision.shape as BoxShape3D
+			var step_shape := step_collision.shape as BoxShape3D
+			var deck_top := dock_deck.global_position.dot(inward) + deck_shape.size.y * 0.5
+			var step_top := dock_last_step.global_position.dot(inward) + step_shape.size.y * 0.5
+			var final_rise := deck_top - step_top
+			_check(final_rise >= -0.01 and final_rise <= 0.10, "Extraction final stair transitions smoothly onto Dock deck")
 	_check(level.get_node_or_null("Geometry/VoidDocks/BossArena") != null, "boss arena exists")
 	_check(level.get_node_or_null("Geometry/Extraction/ExtractionYard") != null, "extraction yard exists")
 
