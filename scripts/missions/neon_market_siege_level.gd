@@ -324,12 +324,14 @@ func is_encounter_locked(encounter_id: StringName) -> bool:
 func reset_progression_gates() -> void:
 	_progression_gate_state[&"data_lane"] = false
 	_reset_visual_gate("Geometry/DataLane/WardenGate/WardenAccessDoor")
+	_set_data_lane_gate_status(false)
 
 
 func set_progression_gate_open(encounter_id: StringName, open: bool, animate: bool = true) -> void:
 	_progression_gate_state[encounter_id] = open
 	match encounter_id:
 		&"data_lane":
+			_set_data_lane_gate_status(open)
 			_set_visual_gate_open(
 				"Geometry/DataLane/WardenGate/WardenAccessDoor",
 				open,
@@ -340,6 +342,16 @@ func set_progression_gate_open(encounter_id: StringName, open: bool, animate: bo
 
 func progression_gate_open(encounter_id: StringName) -> bool:
 	return bool(_progression_gate_state.get(encounter_id, false))
+
+
+func _set_data_lane_gate_status(open: bool) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var label := get_node_or_null("Geometry/DataLane/WardenGate/GateStatus") as Label3D
+	if label == null:
+		return
+	label.text = "ACCESS OPEN" if open else "ACCESS LOCKED"
+	label.modulate = Color(0.28, 1.0, 0.58) if open else Color(1.0, 0.26, 0.34)
 
 
 func _reset_visual_gate(path: String) -> void:
@@ -982,6 +994,18 @@ func _build_data_lane() -> void:
 	_add_face_box(gate, "GateRight", down, 4.5, 14.0, 0.0, Vector3(0.45, 4.6, 0.55), WALL, VIOLET, true)
 	_add_face_box(gate, "GateHeader", down, 0.0, 14.0, 4.25, Vector3(9.4, 0.35, 0.55), WALL, MAGENTA, true)
 	_add_face_label(gate, "GateLabel", down, 0.0, 13.7, 3.3, "NULL WARDEN ACCESS", MAGENTA)
+	if DisplayServer.get_name() != "headless":
+		var gate_status := Label3D.new()
+		gate_status.name = "GateStatus"
+		gate_status.text = "ACCESS LOCKED"
+		gate_status.font_size = 26
+		gate_status.outline_size = 6
+		gate_status.modulate = Color(1.0, 0.26, 0.34)
+		gate_status.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
+		gate_status.position = _face_point(down, 0.0, 13.55, 2.55)
+		gate_status.basis = CubeGravity.tangent_basis(down)
+		gate_status.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		gate.add_child(gate_status)
 	_add_prop(gate, "WardenAccessDoor", "res://assets/third_party/quaternius_cyberpunk/door.gltf", down, 0.0, 13.8, 0.0, 1.75, 180.0)
 
 
@@ -1356,6 +1380,36 @@ func _add_objective_node(
 		status.position = Vector3(0, 1.55, 0)
 		status.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		node.add_child(status)
+
+		var wreck := Node3D.new()
+		wreck.name = "DestroyedVisual"
+		wreck.visible = false
+		node.add_child(wreck)
+
+		var shard_specs := [
+			[Vector3(-0.34, -0.55, 0.05), Vector3(0.42, 0.72, 0.46), Vector3(0, 0, 18)],
+			[Vector3(0.30, -0.62, -0.10), Vector3(0.38, 0.58, 0.42), Vector3(0, 0, -24)],
+			[Vector3(0.02, -0.86, 0.25), Vector3(0.52, 0.24, 0.34), Vector3(16, 8, 6)],
+		]
+		for spec in shard_specs:
+			var shard := MeshInstance3D.new()
+			var shard_mesh := BoxMesh.new()
+			shard_mesh.size = spec[1]
+			shard.mesh = shard_mesh
+			shard.position = spec[0]
+			shard.rotation_degrees = spec[2]
+			shard.material_override = _material(Color(0.055, 0.045, 0.055), Color(0.55, 0.06, 0.08), 0.18)
+			wreck.add_child(shard)
+
+		var dead_core := MeshInstance3D.new()
+		dead_core.name = "OfflineCore"
+		var dead_mesh := SphereMesh.new()
+		dead_mesh.radius = 0.16
+		dead_mesh.height = 0.32
+		dead_core.mesh = dead_mesh
+		dead_core.position = Vector3(0, -0.42, -0.34)
+		dead_core.material_override = _material(Color(0.08, 0.01, 0.015), Color(1.0, 0.08, 0.08), 2.2)
+		wreck.add_child(dead_core)
 
 	node.configure(encounter_id, objective_id, health)
 	node.destroyed.connect(_on_objective_node_destroyed)
