@@ -28,6 +28,25 @@ func _run() -> void:
 	_check(level.get_node_or_null("Geometry/DataLane/RelayStreet") != null, "data lane combat space exists")
 	_check(level.get_node_or_null("Geometry/DataLane/MaintenanceBridge/BridgeDeck") != null, "Data Lane maintenance bridge exists")
 	_check(level.get_node_or_null("Geometry/VoidDocks/BossArena/ServiceGantries") != null, "Boss Arena service gantries exist")
+
+	var boss_left_deck := level.get_node_or_null("Geometry/VoidDocks/BossArena/ServiceGantries/GantryDeck_L") as StaticBody3D
+	var boss_left_step_02 := level.get_node_or_null("Geometry/VoidDocks/BossArena/ServiceGantries/GantryStep_L_02") as StaticBody3D
+	var boss_left_step_03 := level.get_node_or_null("Geometry/VoidDocks/BossArena/ServiceGantries/GantryStep_L_03") as StaticBody3D
+	if boss_left_deck != null and boss_left_step_02 != null and boss_left_step_03 != null:
+		var deck_collision := boss_left_deck.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		var step_02_collision := boss_left_step_02.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		var step_03_collision := boss_left_step_03.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		_check(deck_collision != null and step_02_collision != null and step_03_collision != null, "Boss gantry deck and upper stairs expose collision shapes")
+		if deck_collision != null and step_02_collision != null and step_03_collision != null:
+			var forward := -CubeGravity.tangent_basis(Vector3.BACK).z.normalized()
+			var deck_shape := deck_collision.shape as BoxShape3D
+			var step_02_shape := step_02_collision.shape as BoxShape3D
+			var step_03_shape := step_03_collision.shape as BoxShape3D
+			var deck_near := boss_left_deck.global_position.dot(forward) - deck_shape.size.z * 0.5
+			var step_02_far := boss_left_step_02.global_position.dot(forward) + step_02_shape.size.z * 0.5
+			var step_03_far := boss_left_step_03.global_position.dot(forward) + step_03_shape.size.z * 0.5
+			_check(deck_near - step_02_far >= 0.35, "Boss gantry deck leaves headroom above third stair")
+			_check(absf(deck_near - step_03_far) <= 0.12, "Boss gantry final stair meets deck without a large gap")
 	_check(level.get_node_or_null("Geometry/Extraction/ExtractionDock/DockDeck") != null, "Extraction dock platform exists")
 
 	var dock_deck := level.get_node_or_null("Geometry/Extraction/ExtractionDock/DockDeck") as StaticBody3D
