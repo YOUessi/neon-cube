@@ -34,6 +34,7 @@ var _kills := 0
 var _wave_transitioning := false
 var _waiting_for_extraction := false
 var _waiting_for_encounter_entry := false
+var _last_boss_phase := 1
 
 var hud_layer: CanvasLayer
 var hud_panel: Control
@@ -126,6 +127,7 @@ func start_game() -> void:
 	_wave_transitioning = false
 	_waiting_for_extraction = false
 	_waiting_for_encounter_entry = false
+	_last_boss_phase = 1
 	_set_extraction_armed(false)
 	_set_encounter_zone_armed(&"", false)
 	_set_encounter_lockdown(&"", false)
@@ -212,7 +214,10 @@ func _finish_wave() -> void:
 		var encounter := mission_runtime.current_encounter()
 		if encounter != null:
 			_set_encounter_lockdown(encounter.encounter_id, false)
+			if encounter.encounter_id == &"null_warden":
+				_set_boss_arena_phase(1)
 		if encounter != null and encounter.encounter_id == &"extraction":
+			_set_navigation_target(&"")
 			_waiting_for_extraction = true
 			_wave_transitioning = true
 			_set_extraction_armed(true)
@@ -248,6 +253,7 @@ func _advance_wave() -> void:
 		_waiting_for_encounter_entry = true
 		_wave_transitioning = true
 		_set_encounter_zone_armed(encounter.encounter_id, true)
+		_set_navigation_target(encounter.encounter_id)
 		_update_score()
 		_update_objective()
 		_show_message("ADVANCE // %s" % encounter.title, 2.0)
@@ -468,6 +474,7 @@ func _resume_story_from_save() -> void:
 	_set_extraction_armed(false)
 	_set_encounter_lockdown(&"", false)
 	_set_encounter_zone_armed(mission_runtime.current_encounter().encounter_id, true)
+	_set_navigation_target(mission_runtime.current_encounter().encounter_id)
 	game_state = GameState.PLAYING
 	menu_panel.visible = false
 	pause_panel.visible = false
@@ -751,6 +758,13 @@ func _sync_session_fields() -> void:
 
 
 func _on_boss_health_changed(current: float, maximum: float, phase: int) -> void:
+	_set_boss_arena_phase(phase)
+	if phase > _last_boss_phase:
+		_last_boss_phase = phase
+		if phase == 2:
+			_show_message("NULL WARDEN // PHASE 2 // TWIN HAZARDS ONLINE", 2.0)
+		elif phase >= 3:
+			_show_message("NULL WARDEN // PHASE 3 // ARENA OVERLOAD", 2.0)
 	if boss_bar == null or boss_label == null:
 		return
 	boss_bar.visible = true
@@ -786,6 +800,16 @@ func _set_encounter_lockdown(encounter_id: StringName, active: bool) -> void:
 		mission_level.call("set_encounter_lockdown", encounter_id, active)
 
 
+func _set_navigation_target(encounter_id: StringName) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_navigation_target"):
+		mission_level.call("set_navigation_target", encounter_id)
+
+
+func _set_boss_arena_phase(phase: int) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_boss_phase"):
+		mission_level.call("set_boss_phase", phase)
+
+
 func _on_encounter_zone_entered(encounter_id: StringName) -> void:
 	if not story_mode or not _waiting_for_encounter_entry:
 		return
@@ -793,6 +817,7 @@ func _on_encounter_zone_entered(encounter_id: StringName) -> void:
 	if encounter == null or encounter.encounter_id != encounter_id:
 		return
 	_waiting_for_encounter_entry = false
+	_set_navigation_target(&"")
 	_set_encounter_lockdown(encounter_id, true)
 	_spawn_current_wave()
 	_wave_transitioning = false
