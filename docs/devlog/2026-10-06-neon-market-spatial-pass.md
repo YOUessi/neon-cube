@@ -410,3 +410,83 @@ Mission spatial flow 现在验证：
 - Market Crossfire 5 个敌人都收到 6 个 authored route waypoints。
 - 每个敌人都知道 slot_count = 5。
 - 5 个敌人的 slot_index 唯一，不会重复占同一个战术槽。
+
+
+## 2026-10-06 追加：Enemy Attack Telegraphs
+
+### 问题
+
+此前敌人攻击只要满足：
+
+```text
+距离 <= attack_range
+AND LOS = true
+AND cooldown = 0
+```
+
+就会直接调用 `player.take_damage()`。
+
+这导致玩家看不到攻击来源，也没有真正的躲避窗口。
+
+### 数据化攻击前摇
+
+`EnemyDefinition` 新增：
+
+- `attack_windup`
+- `attack_fx_color`
+
+当前数据：
+
+- grunt：0.08s，青色。
+- runner：0.06s，粉色。
+- sniper：0.55s，蓝色。
+- tank：0.22s，橙色。
+- Null Warden：0.14s，紫色。
+
+### Attack Runtime
+
+新增：
+
+`scripts/ai/enemy_attack_runtime.gd`
+
+状态：
+
+```text
+IDLE
+→ begin(windup)
+→ PENDING
+→ tick(delta)
+→ windup expires
+→ FIRE once
+→ IDLE
+```
+
+支持 cancel，避免死亡/中断后残留攻击。
+
+### 实际攻击流程
+
+```text
+满足射程 + LOS
+→ 开始 attack windup
+→ 显示低能量 telegraph beam
+→ windup 结束
+→ 再次检查 cube face / range / LOS
+→ 如果玩家仍暴露：结算伤害 + 高能量 tracer
+→ 如果玩家已经躲到掩体后：本次攻击 miss
+```
+
+因此 sniper 的 0.55s 前摇现在是真正可利用的躲避窗口。
+
+### 测试
+
+新增 `tests/test_enemy_attack_runtime.gd`：
+
+- runtime 初始 idle。
+- begin 后进入 pending。
+- partial tick 不会提前 fire。
+- windup 到期只 fire 一次。
+- cancel 清除 pending。
+- sniper windup 长于 grunt/tank。
+- 各 archetype 的 attack cadence / FX 数据保持区分。
+
+视觉 beam 在 scripted capture 没有 `current_scene` 时会回退挂载到 SceneTree root，避免 CI screenshot 场景出现空引用。
