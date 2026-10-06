@@ -66,11 +66,25 @@ func _run() -> void:
 	_check(int(phase_three.get("phase", 0)) == 3 and int(phase_three.get("active_count", -1)) == 4, "boss phase three overloads all hazard pads")
 	level.call("set_boss_phase", 1)
 
+	var market_entry_gate := level.get_node_or_null("Geometry/CombatLockdownGates/MarketEntryLockdown")
+	var market_exit_gate := level.get_node_or_null("Geometry/CombatLockdownGates/MarketExitLockdown")
+	_check(market_entry_gate != null and market_exit_gate != null, "Market Hall exposes both physical lockdown barriers")
+	var market_entry_collision := market_entry_gate.get_node_or_null("CollisionShape3D") as CollisionShape3D if market_entry_gate != null else null
+	var market_exit_collision := market_exit_gate.get_node_or_null("CollisionShape3D") as CollisionShape3D if market_exit_gate != null else null
+	_check(market_entry_collision != null and market_exit_collision != null, "both Market lockdown barriers own collision shapes")
 	_check(not bool(level.call("is_encounter_locked", &"market_crossfire")), "market lockdown starts open")
+	if market_entry_collision != null and market_exit_collision != null:
+		_check(market_entry_collision.disabled and market_exit_collision.disabled, "both Market barrier collisions start disabled")
 	level.call("set_encounter_lockdown", &"market_crossfire", true)
+	await process_frame
 	_check(bool(level.call("is_encounter_locked", &"market_crossfire")), "market lockdown can close")
+	if market_entry_collision != null and market_exit_collision != null:
+		_check(not market_entry_collision.disabled and not market_exit_collision.disabled, "Market entry and exit collisions activate together")
 	level.call("set_encounter_lockdown", &"market_crossfire", false)
+	await process_frame
 	_check(not bool(level.call("is_encounter_locked", &"market_crossfire")), "market lockdown reopens")
+	if market_entry_collision != null and market_exit_collision != null:
+		_check(market_entry_collision.disabled and market_exit_collision.disabled, "Market entry and exit collisions reopen together")
 
 	var market_zone := level.get_node_or_null("Geometry/EncounterActivationZones/MarketCrossfireActivation") as Area3D
 	var breach_zone := level.get_node_or_null("Geometry/EncounterActivationZones/GravityBreachActivation") as Area3D
