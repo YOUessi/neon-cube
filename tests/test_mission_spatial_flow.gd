@@ -47,27 +47,51 @@ func _run() -> void:
 	_check(not game._waiting_for_encounter_entry, "entering the arena releases the encounter gate")
 	_check(StringName(game.mission_level.call("current_navigation_target")) == &"", "entering arena clears navigation beacon")
 	_check(bool(game.mission_level.call("is_encounter_locked", &"market_crossfire")), "arena closes its combat lockdown on activation")
-	_check(game.session.alive_enemies == 5, "Market Crossfire spawns five hostiles on entry")
+	_check(game.current_story_batch_number() == 1 and game.current_story_batch_count() == 2, "Market Crossfire starts on batch one of two")
+	_check(game.session.alive_enemies == 3, "Market Crossfire opens with three hostiles")
 	var enemies := get_nodes_in_group("enemies")
-	_check(enemies.size() == 5, "five enemy bodies exist after activation")
+	_check(enemies.size() == 3, "three enemy bodies exist in the opening batch")
 	var slot_ids := {}
 	for enemy in enemies:
 		var typed_enemy := enemy as NeonEnemy
+		typed_enemy.set_physics_process(false)
 		var down := CubeGravity.nearest_down(typed_enemy.global_position, game.cube_size * 0.5)
 		_check(down.is_equal_approx(Vector3.DOWN), "Market Crossfire hostile uses authored Neon Market spawn face")
 		_check(typed_enemy.get_route_point_count() == 6, "Market Crossfire hostile receives authored route network")
-		_check(typed_enemy.get_tactical_slot_count() == 5, "Market Crossfire hostile knows encounter slot count")
+		_check(typed_enemy.get_tactical_slot_count() == 5, "Market Crossfire hostile knows total encounter slot count")
 		slot_ids[typed_enemy.get_tactical_slot_index()] = true
-	_check(slot_ids.size() == 5, "Market Crossfire assigns five unique tactical slots")
+	_check(slot_ids.size() == 3, "opening batch uses three unique tactical slots")
 
-	for enemy in enemies:
-		enemy.queue_free()
+	for i in range(2):
+		var defeated := enemies[i] as NeonEnemy
+		game._on_enemy_killed(defeated)
+		defeated.queue_free()
 	await process_frame
-	game.session.alive_enemies = 0
-	game._sync_session_fields()
+	_check(game.session.alive_enemies == 1, "reinforcement threshold is reached with one hostile remaining")
+	_check(game._reinforcement_scheduled, "second Market Crossfire batch is scheduled instead of ending encounter")
+	_check(bool(game.mission_level.call("is_encounter_locked", &"market_crossfire")), "combat lockdown stays closed while reinforcements are inbound")
+
+	await create_timer(0.85).timeout
+	await process_frame
+	_check(not game._reinforcement_scheduled, "reinforcement timer completes")
+	_check(game.current_story_batch_number() == 2, "second Market Crossfire batch becomes active")
+	_check(game.session.alive_enemies == 3, "two reinforcements join the surviving hostile")
+	var reinforced_enemies := get_nodes_in_group("enemies")
+	_check(reinforced_enemies.size() == 3, "three hostile bodies remain after reinforcement arrival")
+	var reinforced_slots := {}
+	for enemy in reinforced_enemies:
+		var typed_enemy := enemy as NeonEnemy
+		typed_enemy.set_physics_process(false)
+		reinforced_slots[typed_enemy.get_tactical_slot_index()] = true
+	_check(reinforced_slots.has(3) and reinforced_slots.has(4), "reinforcement batch occupies the remaining authored tactical slots")
+
+	for enemy in reinforced_enemies:
+		var typed_enemy := enemy as NeonEnemy
+		game._on_enemy_killed(typed_enemy)
+		typed_enemy.queue_free()
 	game._finish_wave()
 	await process_frame
-	_check(not bool(game.mission_level.call("is_encounter_locked", &"market_crossfire")), "clearing encounter reopens combat lockdown")
+	_check(not bool(game.mission_level.call("is_encounter_locked", &"market_crossfire")), "only final batch clear reopens combat lockdown")
 
 	game.queue_free()
 	await process_frame
