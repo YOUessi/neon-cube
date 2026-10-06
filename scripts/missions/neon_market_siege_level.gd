@@ -21,6 +21,12 @@ var _extraction_armed := false
 var _encounter_zones: Dictionary = {}
 var _combat_gates: Dictionary = {}
 var _lockdown_state: Dictionary = {}
+var _navigation_beacons: Dictionary = {}
+var _navigation_target: StringName = &""
+var _boss_hazards: Array[Area3D] = []
+var _boss_hazard_active: Array[bool] = []
+var _boss_phase := 1
+var _boss_hazard_tick_remaining := 0.0
 
 
 func _ready() -> void:
@@ -34,6 +40,7 @@ func _ready() -> void:
 	_build_trans_face_transit()
 	_build_data_lane()
 	_build_boss_arena()
+	_build_boss_hazards()
 	_build_extraction()
 	_build_combat_lockdown_gates()
 	_build_encounter_activation_zones()
@@ -65,6 +72,62 @@ func set_encounter_lockdown(encounter_id: StringName, active: bool) -> void:
 
 func is_encounter_locked(encounter_id: StringName) -> bool:
 	return bool(_lockdown_state.get(encounter_id, false))
+
+
+func set_navigation_target(encounter_id: StringName) -> void:
+	_navigation_target = encounter_id
+	for key in _navigation_beacons:
+		var beacon: Node3D = _navigation_beacons[key]
+		beacon.visible = encounter_id != &"" and StringName(key) == encounter_id
+
+
+func current_navigation_target() -> StringName:
+	return _navigation_target
+
+
+func set_boss_phase(phase: int) -> void:
+	_boss_phase = clampi(phase, 1, 3)
+	_boss_hazard_tick_remaining = 0.0
+	for i in range(_boss_hazards.size()):
+		var active := false
+		if _boss_phase == 2:
+			active = i == 0 or i == 1
+		elif _boss_phase >= 3:
+			active = true
+		_boss_hazard_active[i] = active
+		_boss_hazards[i].set_deferred("monitoring", active)
+		var visual := _boss_hazards[i].get_node_or_null("HazardVisual") as MeshInstance3D
+		if visual != null:
+			visual.visible = active
+
+
+func boss_hazard_state() -> Dictionary:
+	var active_count := 0
+	for active in _boss_hazard_active:
+		if active:
+			active_count += 1
+	return {
+		"phase": _boss_phase,
+		"active_count": active_count,
+		"damage": 10.0 if _boss_phase >= 3 else 6.0 if _boss_phase == 2 else 0.0,
+	}
+
+
+func _physics_process(delta: float) -> void:
+	if _boss_phase < 2 or _boss_hazards.is_empty():
+		return
+	_boss_hazard_tick_remaining -= delta
+	if _boss_hazard_tick_remaining > 0.0:
+		return
+	_boss_hazard_tick_remaining = 0.75
+	var damage := 10.0 if _boss_phase >= 3 else 6.0
+	for i in range(_boss_hazards.size()):
+		if not _boss_hazard_active[i]:
+			continue
+		for body in _boss_hazards[i].get_overlapping_bodies():
+			if body is NeonPlayer:
+				(body as NeonPlayer).take_damage(damage)
+				return
 
 
 func _apply_gate_state(encounter_id: StringName, active: bool) -> void:
@@ -152,6 +215,8 @@ func spatial_summary() -> Dictionary:
 		"extraction_zone": get_tree().get_nodes_in_group("extraction_zone").size(),
 		"encounter_activation_zone": get_tree().get_nodes_in_group("encounter_activation_zone").size(),
 		"combat_lockdown_gate": get_tree().get_nodes_in_group("combat_lockdown_gate").size(),
+		"navigation_beacon": get_tree().get_nodes_in_group("navigation_beacon").size(),
+		"boss_hazard": get_tree().get_nodes_in_group("boss_hazard").size(),
 	}
 
 
@@ -436,6 +501,56 @@ func _build_boss_arena() -> void:
 	_add_prop(arena, "BossRelayB", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 8.8, -1.5, 0.0, 1.6, -15.0)
 
 
+func _build_boss_hazards() -> void:
+	var root := _section(_geometry_root, "BossHazards")
+	var down := Vector3.BACK
+	var specs := [
+		[-6.4, -4.0, VIOLET],
+		[6.4, -4.0, MAGENTA],
+		[0.0, -10.2, CYAN],
+		[0.0, 2.2, AMBER],
+	]
+	for i in range(specs.size()):
+		var spec: Array = specs[i]
+		var area := Area3D.new()
+		area.name = "BossHazard_%02d" % i
+		area.position = _face_point(down, float(spec[0]), float(spec[1]), 0.04)
+		area.basis = CubeGravity.tangent_basis(down)
+		area.monitoring = false
+		area.monitorable = false
+		area.collision_layer = 0
+		area.collision_mask = 1
+		area.add_to_group("boss_hazard")
+
+		var collision := CollisionShape3D.new()
+		collision.position = Vector3(0, 1.2, 0)
+		var shape := CylinderShape3D.new()
+		shape.radius = 2.25
+		shape.height = 2.4
+		collision.shape = shape
+		area.add_child(collision)
+
+		if DisplayServer.get_name() != "headless":
+			var visual := MeshInstance3D.new()
+			visual.name = "HazardVisual"
+			var mesh := CylinderMesh.new()
+			mesh.top_radius = 2.25
+			mesh.bottom_radius = 2.25
+			mesh.height = 0.07
+			mesh.radial_segments = 48
+			visual.mesh = mesh
+			var accent: Color = spec[2]
+			visual.material_override = _material(accent * 0.08, accent, 7.0)
+			visual.visible = false
+			area.add_child(visual)
+
+		root.add_child(area)
+		_boss_hazards.append(area)
+		_boss_hazard_active.append(false)
+
+
+
+
 func _build_extraction() -> void:
 	var root := _region("Extraction")
 	var down := Vector3.DOWN
@@ -566,6 +681,37 @@ func _build_encounter_activation_zones() -> void:
 		area.body_entered.connect(_on_encounter_zone_body_entered.bind(encounter_id))
 		root.add_child(area)
 		_encounter_zones[encounter_id] = area
+		var beacon := Node3D.new()
+		beacon.name = "%sBeacon" % String(encounter_id).to_pascal_case()
+		beacon.position = _face_point(down, u, v, 0.05)
+		beacon.basis = CubeGravity.tangent_basis(down)
+		beacon.visible = false
+		beacon.add_to_group("navigation_beacon")
+		if DisplayServer.get_name() != "headless":
+			var beam := MeshInstance3D.new()
+			beam.name = "Beam"
+			var beam_mesh := CylinderMesh.new()
+			beam_mesh.top_radius = 0.18
+			beam_mesh.bottom_radius = 0.34
+			beam_mesh.height = 4.2
+			beam_mesh.radial_segments = 24
+			beam.mesh = beam_mesh
+			beam.position = Vector3(0, 2.1, 0)
+			beam.material_override = _material(CYAN * 0.08, CYAN, 8.0)
+			beacon.add_child(beam)
+
+			var label := Label3D.new()
+			label.name = "Label"
+			label.text = "OBJECTIVE // %s" % String(encounter_id).replace("_", " ").to_upper()
+			label.font_size = 28
+			label.outline_size = 6
+			label.modulate = CYAN
+			label.outline_modulate = Color(0.005, 0.01, 0.02, 0.95)
+			label.position = Vector3(0, 4.6, 0)
+			beacon.add_child(label)
+		root.add_child(beacon)
+		_navigation_beacons[encounter_id] = beacon
+
 
 
 func _on_encounter_zone_body_entered(body: Node3D, encounter_id: StringName) -> void:
