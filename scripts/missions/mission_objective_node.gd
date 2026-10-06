@@ -37,6 +37,9 @@ func reset_node() -> void:
 	if visual != null:
 		visual.visible = true
 		visual.scale = Vector3.ONE
+	var destroyed_visual := get_node_or_null("DestroyedVisual") as Node3D
+	if destroyed_visual != null:
+		destroyed_visual.visible = false
 	_set_visual_energy(0.35)
 	_refresh_status_label()
 
@@ -79,6 +82,9 @@ func take_damage(amount: float, _hit_position := Vector3.ZERO, _direction := Vec
 	var visual := get_node_or_null("Visual") as MeshInstance3D
 	if visual != null:
 		visual.visible = false
+	var destroyed_visual := get_node_or_null("DestroyedVisual") as Node3D
+	if destroyed_visual != null:
+		destroyed_visual.visible = true
 	_refresh_status_label()
 	destroyed.emit(self)
 
