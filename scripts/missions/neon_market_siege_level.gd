@@ -224,7 +224,7 @@ func set_hold_zone_progress(encounter_id: StringName, current: float, required: 
 	var label := zone.get_node_or_null("ProgressLabel") as Label3D
 	if label != null:
 		label.visible = zone.monitoring
-		label.text = "UPLINK %03d%%" % int(round(ratio * 100.0))
+		label.text = "UPLINK STABLE" if ratio >= 0.999 else "UPLINK %03d%%" % int(round(ratio * 100.0))
 
 
 func hold_zone_progress_state(encounter_id: StringName) -> float:
