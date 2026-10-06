@@ -1205,7 +1205,7 @@ func _add_hanging_market_panel(
 	label.modulate = accent
 	label.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
 	label.position = Vector3(0, 0, -0.055)
-	label.rotation_degrees = Vector3(0, 180, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	root.add_child(label)
 
 
@@ -1271,7 +1271,7 @@ func _add_market_kiosk(
 	label.modulate = Color(0.94, 0.97, 1.0)
 	label.outline_modulate = Color(0.005, 0.008, 0.02, 0.96)
 	label.position = Vector3(0, 1.40, -0.72)
-	label.rotation_degrees = Vector3(0, 180, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	root.add_child(label)
 
 
@@ -1298,7 +1298,7 @@ func _add_market_signboard(
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(5.8, 0.78, 0.12)
 	backing.mesh = mesh
-	backing.material_override = _material(Color(0.025, 0.03, 0.045), accent, 0.55)
+	backing.material_override = _material(Color(0.025, 0.03, 0.045), accent, 0.08)
 	root.add_child(backing)
 
 	for x in [-2.7, 2.7]:
@@ -1310,6 +1310,15 @@ func _add_market_signboard(
 		edge.material_override = _material(accent * 0.08, accent, 4.2)
 		root.add_child(edge)
 
+	for y in [-0.34, 0.34]:
+		var border := MeshInstance3D.new()
+		var border_mesh := BoxMesh.new()
+		border_mesh.size = Vector3(5.45, 0.055, 0.15)
+		border.mesh = border_mesh
+		border.position = Vector3(0, y, -0.02)
+		border.material_override = _material(accent * 0.08, accent, 4.2)
+		root.add_child(border)
+
 	var label := Label3D.new()
 	label.text = text
 	label.font_size = 28
@@ -1317,7 +1326,7 @@ func _add_market_signboard(
 	label.modulate = accent
 	label.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
 	label.position = Vector3(0, 0, -0.08)
-	label.rotation_degrees = Vector3(0, 180, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	root.add_child(label)
 
 
