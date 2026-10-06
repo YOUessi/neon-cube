@@ -189,6 +189,39 @@ static func _add_building(
 		edge.material_override = _material(neon * 0.07, neon, 3.8, 0.05, 0.68)
 		body.add_child(edge)
 
+	if district.district_id == &"neon_market" and seed % 2 == 0:
+		var storefront_accent := Color(1.0, 0.36, 0.12) if seed % 4 == 0 else neon
+
+		var awning := MeshInstance3D.new()
+		awning.name = "MarketAwning"
+		var awning_mesh := BoxMesh.new()
+		awning_mesh.size = Vector3(maxf(1.2, size.x * 0.62), 0.10, 0.42)
+		awning.mesh = awning_mesh
+		awning.position = Vector3(0, -size.y * 0.28, -size.z * 0.52)
+		awning.material_override = _material(
+			Color(0.055, 0.035, 0.055),
+			storefront_accent,
+			0.55,
+			0.08,
+			0.58
+		)
+		body.add_child(awning)
+
+		var storefront := MeshInstance3D.new()
+		storefront.name = "StorefrontLightbox"
+		var storefront_mesh := BoxMesh.new()
+		storefront_mesh.size = Vector3(maxf(0.9, size.x * 0.44), 0.32, 0.055)
+		storefront.mesh = storefront_mesh
+		storefront.position = Vector3(0, -size.y * 0.20, -size.z * 0.51 - 0.035)
+		storefront.material_override = _material(
+			storefront_accent * 0.08,
+			storefront_accent,
+			2.8,
+			0.06,
+			0.55
+		)
+		body.add_child(storefront)
+
 	if seed % 3 == 0:
 		var sign := Label3D.new()
 		sign.text = "%s // %02d" % [district.sign_prefix, seed % 97]
