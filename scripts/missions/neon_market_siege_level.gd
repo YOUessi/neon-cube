@@ -750,6 +750,8 @@ func perch_radius_for(encounter_id: StringName, enemy_index: int) -> float:
 			return 0.75 if enemy_index == 4 else 0.0
 		&"data_lane":
 			return 0.30 if enemy_index == 3 else 0.0
+		&"null_warden":
+			return 0.55 if enemy_index == 2 else 0.0
 	return 0.0
 
 
@@ -855,7 +857,7 @@ func _authored_spawn_specs(encounter_id: StringName) -> Array:
 			return [
 				[Vector3.BACK, 0.0, -4.0],
 				[Vector3.BACK, -7.2, -8.0],
-				[Vector3.BACK, 7.2, -8.0],
+				[Vector3.BACK, 8.25, 3.8, 2.75],
 				[Vector3.BACK, 0.0, 3.5],
 			]
 		&"extraction":
