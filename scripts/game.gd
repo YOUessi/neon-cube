@@ -423,6 +423,8 @@ func _create_player() -> void:
 	player.cube_half_extent = cube_size * 0.5
 	player.mouse_sensitivity = _mouse_sensitivity_setting
 	add_child(player)
+	if is_instance_valid(mission_level) and mission_level.has_method("set_player"):
+		mission_level.call("set_player", player)
 	if story_mode and mission_anchors.has("player_start"):
 		var start_anchor: MissionAnchor = mission_anchors["player_start"]
 		player.global_position = start_anchor.global_position
