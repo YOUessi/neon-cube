@@ -28,6 +28,10 @@ var _boss_hazard_active: Array[bool] = []
 var _boss_phase := 1
 var _boss_hazard_tick_remaining := 0.0
 var _tracked_player: NeonPlayer
+var _reinforcement_warning_root: Node3D
+var _reinforcement_warning_encounter: StringName = &""
+var _reinforcement_warning_count := 0
+var _reinforcement_warning_serial := 0
 
 
 func _ready() -> void:
@@ -49,6 +53,87 @@ func _ready() -> void:
 
 func set_player(player: NeonPlayer) -> void:
 	_tracked_player = player
+
+
+func show_reinforcement_warning(
+	encounter_id: StringName,
+	positions: Array[Vector3],
+	duration: float
+) -> void:
+	clear_reinforcement_warning()
+	_reinforcement_warning_encounter = encounter_id
+	_reinforcement_warning_count = positions.size()
+	_reinforcement_warning_serial += 1
+	var serial := _reinforcement_warning_serial
+
+	if DisplayServer.get_name() != "headless":
+		_reinforcement_warning_root = Node3D.new()
+		_reinforcement_warning_root.name = "ReinforcementWarning"
+		_geometry_root.add_child(_reinforcement_warning_root)
+		for i in range(positions.size()):
+			_add_reinforcement_warning_visual(
+				_reinforcement_warning_root,
+				"Warning_%02d" % i,
+				positions[i]
+			)
+
+	var timer := get_tree().create_timer(maxf(0.05, duration))
+	timer.timeout.connect(_clear_reinforcement_warning_if.bind(serial))
+
+
+func clear_reinforcement_warning() -> void:
+	_reinforcement_warning_encounter = &""
+	_reinforcement_warning_count = 0
+	if is_instance_valid(_reinforcement_warning_root):
+		_reinforcement_warning_root.queue_free()
+	_reinforcement_warning_root = null
+
+
+func reinforcement_warning_state() -> Dictionary:
+	return {
+		"encounter_id": _reinforcement_warning_encounter,
+		"count": _reinforcement_warning_count,
+	}
+
+
+func _clear_reinforcement_warning_if(serial: int) -> void:
+	if serial == _reinforcement_warning_serial:
+		clear_reinforcement_warning()
+
+
+func _add_reinforcement_warning_visual(parent: Node3D, name: String, spawn_position: Vector3) -> void:
+	var down := CubeGravity.nearest_down(spawn_position, cube_half_extent)
+	var inward := -down
+	var ground_position := spawn_position + down * 1.0
+
+	var root := Node3D.new()
+	root.name = name
+	root.position = ground_position + inward * 1.45
+	root.basis = CubeGravity.tangent_basis(down)
+	parent.add_child(root)
+
+	var beam := MeshInstance3D.new()
+	beam.name = "IngressBeam"
+	var beam_mesh := CylinderMesh.new()
+	beam_mesh.top_radius = 0.14
+	beam_mesh.bottom_radius = 0.38
+	beam_mesh.height = 2.9
+	beam_mesh.radial_segments = 24
+	beam.mesh = beam_mesh
+	beam.material_override = _material(AMBER * 0.06, AMBER, 8.5)
+	root.add_child(beam)
+
+	var ring := MeshInstance3D.new()
+	ring.name = "LandingRing"
+	var ring_mesh := CylinderMesh.new()
+	ring_mesh.top_radius = 0.9
+	ring_mesh.bottom_radius = 0.9
+	ring_mesh.height = 0.05
+	ring_mesh.radial_segments = 40
+	ring.mesh = ring_mesh
+	ring.position = Vector3(0, -1.42, 0)
+	ring.material_override = _material(MAGENTA * 0.05, MAGENTA, 7.0)
+	root.add_child(ring)
 
 
 func arm_extraction(active: bool = true) -> void:
