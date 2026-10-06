@@ -44,6 +44,10 @@ func _run() -> void:
 	game._wave_transitioning = false
 
 	_check(not game._story_objectives_complete(), "Data Lane cannot complete while relay objectives remain")
+	var relay_b_before := relay_b.health_ratio()
+	relay_b.take_damage(30.0)
+	_check(relay_b.health_ratio() < relay_b_before and relay_b.health_ratio() > 0.0, "active relay exposes partial health state before destruction")
+	_check(not relay_b.is_destroyed(), "partial relay damage does not destroy objective")
 	relay_a.take_damage(999.0)
 	await process_frame
 	_check(relay_a.is_destroyed(), "active relay can be destroyed by weapon-compatible damage")
@@ -57,6 +61,7 @@ func _run() -> void:
 	relay_b.take_damage(999.0)
 	await process_frame
 	_check(relay_b.is_destroyed(), "second relay can be destroyed")
+	_check(is_equal_approx(relay_b.health_ratio(), 0.0), "destroyed relay reports zero health ratio for world status")
 	_check(game.mission_level.call("objective_nodes_remaining", &"data_lane") == 0, "all Data Lane relay objectives are cleared")
 	_check(game.mission_runtime.encounter_index == 4, "final relay destruction advances mission to Null Warden")
 	_check(not bool(game.mission_level.call("is_encounter_locked", &"data_lane")), "Data Lane unlocks after enemies and objectives are cleared")
