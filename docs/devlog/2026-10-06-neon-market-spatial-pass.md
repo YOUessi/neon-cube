@@ -1637,3 +1637,72 @@ Geometry test 现在验证：
 - 初始两个 collision 都 disabled。
 - Lockdown active 后两个 collision 同时 enabled。
 - Lockdown clear 后两个 collision 同时 disabled。
+
+
+## 2026-10-07 追加：Latched Objective Completion States
+
+### Gravity Breach Stable State
+
+Uplink 达到 100% 后不再只是 Game 变量完成：
+
+- `hold_zone_stable_state = true`
+- Area3D monitoring 立即关闭
+- occupied 清零
+- ProgressCore 保持 100%
+- HoldVisual / ProgressCore 从青色切换为绿色
+- Label 显示 `UPLINK STABLE`
+- 玩家离开后稳定状态不会回退
+- 剩余敌人清空后才推进 Encounter
+
+重新 arm / 新 Run 时：
+
+- stable=false
+- progress=0
+- 材质恢复青色充能态
+
+### Extraction Complete State
+
+旧行为：
+
+```text
+Extraction 100%
+→ arm_extraction(false)
+→ Beacon 立即熄灭
+→ Victory UI
+```
+
+新行为：
+
+```text
+Extraction 100%
+→ complete_extraction()
+→ trigger monitoring off
+→ Ring / Core 保持 100%
+→ 颜色切换绿色
+→ Label = EXTRACTION COMPLETE
+→ Victory UI
+```
+
+因此暂停在 Victory UI 时，背景世界仍明确显示任务已完成。
+
+新 Run / re-arm：
+
+- complete=false
+- progress=0
+- Ring/Core 恢复 AMBER
+- trigger 恢复 monitoring
+
+### 回归
+
+Gravity Breach：
+
+- stable 完成后 monitoring=false
+- 离开不会回退
+- 重新 arm 会清除 stable 和 progress
+
+Extraction：
+
+- Victory 后 `extraction_complete_state = true`
+- world progress = 1.0
+- trigger monitoring=false
+- re-arm 后 complete=false、progress=0、trigger active
