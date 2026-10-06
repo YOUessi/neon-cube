@@ -66,6 +66,18 @@ func _run() -> void:
 	game._process(0.016)
 	_check(game._reinforcement_scheduled, "Data Lane schedules second batch")
 	game._on_reinforcement_ready(&"data_lane")
+	var elevated_data_sniper: NeonEnemy = null
+	var ground_data_tank: NeonEnemy = null
+	for enemy in get_nodes_in_group("enemies"):
+		var typed_enemy := enemy as NeonEnemy
+		if typed_enemy.get_tactical_slot_index() == 3 and typed_enemy.archetype == "sniper":
+			elevated_data_sniper = typed_enemy
+		elif typed_enemy.get_tactical_slot_index() == 4 and typed_enemy.archetype == "tank":
+			ground_data_tank = typed_enemy
+	_check(elevated_data_sniper != null, "Data Lane reinforcement includes slot-three sniper")
+	_check(ground_data_tank != null, "Data Lane reinforcement includes slot-four tank")
+	if elevated_data_sniper != null and ground_data_tank != null:
+		_check(elevated_data_sniper.global_position.x > ground_data_tank.global_position.x + 1.2, "Data Lane sniper enters above ground-level tank")
 	await _kill_all_enemies(game)
 	game._process(0.016)
 	_check(game.mission_runtime.current_encounter().encounter_id == &"data_lane", "Data Lane hostile clear waits for relay destruction")
