@@ -149,7 +149,7 @@ func _run() -> void:
 		_check(data_routes[8].x > data_routes[0].x + 1.5, "Data route includes elevated Maintenance Bridge waypoint")
 	if boss_routes.size() == 12:
 		var boss_up := -Vector3.BACK
-		var ground_height := boss_routes[0].dot(boss_up)
+		var ground_height: float = boss_routes[0].dot(boss_up)
 		_check(boss_routes[8].dot(boss_up) > ground_height + 1.2, "Boss route includes elevated left gantry waypoint")
 		_check(boss_routes[11].dot(boss_up) > ground_height + 1.2, "Boss route includes elevated right gantry waypoint")
 
