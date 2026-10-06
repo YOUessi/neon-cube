@@ -140,18 +140,18 @@ func _run() -> void:
 	_check(market_routes.size() == 6, "market arena exposes six authored route waypoints")
 	_check(breach_routes.size() == 5, "breach arena exposes five authored route waypoints")
 	_check(data_routes.size() == 9, "data lane exposes ground plus Maintenance Bridge route waypoints")
-	_check(boss_routes.size() == 12, "boss arena exposes ground plus dual-gantry route waypoints")
+	_check(boss_routes.size() == 18, "boss arena exposes ground plus dual six-point gantry ascent routes")
 	if not market_routes.is_empty():
 		_check(CubeGravity.nearest_down(market_routes[0], 30.0).is_equal_approx(Vector3.DOWN), "market route stays on Neon Market face")
 	if not boss_routes.is_empty():
 		_check(CubeGravity.nearest_down(boss_routes[0], 30.0).is_equal_approx(Vector3.BACK), "boss route stays on Void Docks face")
 	if data_routes.size() == 9:
 		_check(data_routes[8].x > data_routes[0].x + 1.5, "Data route includes elevated Maintenance Bridge waypoint")
-	if boss_routes.size() == 12:
+	if boss_routes.size() == 18:
 		var boss_up := -Vector3.BACK
 		var ground_height: float = boss_routes[0].dot(boss_up)
-		_check(boss_routes[8].dot(boss_up) > ground_height + 1.2, "Boss route includes elevated left gantry waypoint")
-		_check(boss_routes[11].dot(boss_up) > ground_height + 1.2, "Boss route includes elevated right gantry waypoint")
+		_check(boss_routes[11].dot(boss_up) > ground_height + 1.2, "Boss route includes elevated left gantry deck waypoint")
+		_check(boss_routes[17].dot(boss_up) > ground_height + 1.2, "Boss route includes elevated right gantry deck waypoint")
 
 	var market_spawns: Array = level.call("spawn_points_for", &"market_crossfire", 5, 0)
 	var data_spawns: Array = level.call("spawn_points_for", &"data_lane", 5, 0)
