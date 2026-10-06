@@ -157,13 +157,13 @@ func _test_data_bridge_authored_route_pursuit() -> void:
 	world.add_child(level)
 	await process_frame
 	var routes: Array = level.route_points_for(&"data_lane")
-	_check(routes.size() == 9, "Data pursuit fixture receives elevated authored route chain")
-	if routes.size() != 9:
+	_check(routes.size() == 13, "Data pursuit fixture receives tread-by-tread authored route chain")
+	if routes.size() != 13:
 		world.queue_free()
 		await process_frame
 		return
 
-	var target := _make_stair_target(world, routes[8])
+	var target := _make_stair_target(world, routes[12])
 	var pursuer := _make_stair_enemy(world, target, routes[6])
 	pursuer.set_route_points(routes)
 	await _settle_stair_enemy(pursuer)
