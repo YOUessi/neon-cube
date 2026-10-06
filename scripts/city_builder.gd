@@ -164,16 +164,21 @@ static func _add_building(
 	mesh.size = size
 	visual.mesh = mesh
 	var base := Color(0.045, 0.052, 0.078)
-	visual.material_override = _material(base, neon * 0.05, 0.28, 0.82, 0.22)
+	if district.district_id == &"neon_market":
+		base = Color(0.062, 0.052, 0.068)
+	visual.material_override = _material(base, neon * 0.05, 0.22, 0.80, 0.28)
 	body.add_child(visual)
 
 	var floors := clampi(int(size.y / 1.4), 2, 6)
 	for row in range(floors):
 		var y: float = -size.y * 0.34 + float(row) * size.y * 0.68 / float(maxi(1, floors - 1))
-		_add_window_strip(body, Vector3(0, y, -size.z * 0.505), Vector3(size.x * 0.68, 0.10, 0.04), neon)
-		_add_window_strip(body, Vector3(0, y, size.z * 0.505), Vector3(size.x * 0.68, 0.10, 0.04), neon)
-		_add_window_strip(body, Vector3(size.x * 0.505, y, 0), Vector3(0.04, 0.10, size.z * 0.68), neon)
-		_add_window_strip(body, Vector3(-size.x * 0.505, y, 0), Vector3(0.04, 0.10, size.z * 0.68), neon)
+		var window_neon := neon
+		if district.district_id == &"neon_market" and row % 3 == 1:
+			window_neon = Color(1.0, 0.38, 0.12)
+		_add_window_strip(body, Vector3(0, y, -size.z * 0.505), Vector3(size.x * 0.68, 0.10, 0.04), window_neon)
+		_add_window_strip(body, Vector3(0, y, size.z * 0.505), Vector3(size.x * 0.68, 0.10, 0.04), window_neon)
+		_add_window_strip(body, Vector3(size.x * 0.505, y, 0), Vector3(0.04, 0.10, size.z * 0.68), window_neon)
+		_add_window_strip(body, Vector3(-size.x * 0.505, y, 0), Vector3(0.04, 0.10, size.z * 0.68), window_neon)
 
 	for side in [-1.0, 1.0]:
 		var edge := MeshInstance3D.new()
