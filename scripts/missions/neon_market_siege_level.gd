@@ -217,6 +217,11 @@ func arm_hold_zone(encounter_id: StringName, active: bool) -> void:
 			var outline := zone.get_node_or_null("HoldOutline") as MeshInstance3D
 			if outline != null:
 				outline.visible = enabled
+				var outline_material := outline.material_override as StandardMaterial3D
+				if outline_material != null:
+					outline_material.albedo_color = CYAN * 0.08
+					outline_material.emission = CYAN
+					outline_material.emission_energy_multiplier = 3.6
 				var visual_material := visual.material_override as StandardMaterial3D
 				if visual_material != null:
 					visual_material.albedo_color = CYAN * 0.045
@@ -290,6 +295,15 @@ func set_hold_zone_progress(encounter_id: StringName, current: float, required: 
 			material.albedo_color = (stable_color if stable else active_color) * 0.08
 			material.emission = stable_color if stable else active_color
 			material.emission_energy_multiplier = 7.2 if stable else 2.8 + ratio * 4.2
+
+	var outline := zone.get_node_or_null("HoldOutline") as MeshInstance3D
+	if outline != null:
+		outline.visible = zone.monitoring or stable
+		var outline_material := outline.material_override as StandardMaterial3D
+		if outline_material != null:
+			outline_material.albedo_color = (stable_color if stable else active_color) * 0.08
+			outline_material.emission = stable_color if stable else active_color
+			outline_material.emission_energy_multiplier = 6.2 if stable else 3.6
 
 	var label := zone.get_node_or_null("ProgressLabel") as Label3D
 	if label != null:
@@ -1086,7 +1100,6 @@ func _build_hold_zones() -> void:
 		outline_mesh.rings = 48
 		outline_mesh.ring_segments = 12
 		outline.mesh = outline_mesh
-		outline.rotation_degrees = Vector3(90, 0, 0)
 		outline.material_override = _material(CYAN * 0.08, CYAN, 3.6)
 		outline.visible = false
 		area.add_child(outline)
@@ -2273,7 +2286,6 @@ func _add_ring_outline(
 	ring.mesh = mesh
 	ring.position = _face_point(down, u, v, height)
 	ring.basis = CubeGravity.tangent_basis(down)
-	ring.rotate_object_local(Vector3.RIGHT, deg_to_rad(90.0))
 	ring.material_override = _material(accent * 0.08, accent, energy)
 	parent.add_child(ring)
 
