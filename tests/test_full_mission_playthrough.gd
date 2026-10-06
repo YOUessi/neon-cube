@@ -93,7 +93,7 @@ func _run() -> void:
 	_check(elevated_data_sniper != null, "Data Lane reinforcement includes slot-three sniper")
 	_check(ground_data_tank != null, "Data Lane reinforcement includes slot-four tank")
 	if elevated_data_sniper != null:
-		_check(elevated_data_sniper.get_route_point_count() == 9, "Data Lane runtime enemies receive Maintenance Bridge route waypoints")
+		_check(elevated_data_sniper.get_route_point_count() == 13, "Data Lane runtime enemies receive tread-by-tread Maintenance Bridge routes")
 	if elevated_data_sniper != null:
 		_check(is_equal_approx(elevated_data_sniper.get_tactical_leash_radius(), 0.30), "Data Lane elevated sniper receives server-rack leash")
 		var data_authored_spawns: Array = game.mission_level.call("spawn_points_for", &"data_lane", 5, 0)
