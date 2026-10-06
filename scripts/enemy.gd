@@ -176,6 +176,8 @@ func _physics_process(delta: float) -> void:
 		_begin_attack()
 
 func _try_auto_step(wish: Vector3) -> bool:
+	if _tactical_leash_radius > 0.0:
+		return false
 	if max_step_height <= 0.0 or step_probe_distance <= 0.0:
 		return false
 	if not is_on_floor() or wish.length_squared() <= 0.001:
