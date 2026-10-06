@@ -44,6 +44,7 @@ func _run() -> void:
 	game._wave_transitioning = false
 
 	_check(not game._story_objectives_complete(), "Data Lane cannot complete while relay objectives remain")
+	_check(not bool(game.mission_level.call("progression_gate_open", &"data_lane")), "Warden access door starts closed during Data Lane")
 	var relay_b_before := relay_b.health_ratio()
 	relay_b.take_damage(30.0)
 	_check(relay_b.health_ratio() < relay_b_before and relay_b.health_ratio() > 0.0, "active relay exposes partial health state before destruction")
@@ -53,6 +54,7 @@ func _run() -> void:
 	_check(relay_a.is_destroyed(), "active relay can be destroyed by weapon-compatible damage")
 	_check(game.mission_level.call("objective_nodes_remaining", &"data_lane") == 1, "destroying one relay leaves one objective")
 	_check(game.mission_runtime.encounter_index == 3, "destroying first relay does not advance encounter")
+	_check(not bool(game.mission_level.call("progression_gate_open", &"data_lane")), "first relay destruction does not open Warden access")
 
 	game._process(0.016)
 	_check(game.mission_runtime.encounter_index == 3, "zero hostiles alone cannot finish Data Lane")
@@ -65,6 +67,7 @@ func _run() -> void:
 	_check(game.mission_level.call("objective_nodes_remaining", &"data_lane") == 0, "all Data Lane relay objectives are cleared")
 	_check(game.mission_runtime.encounter_index == 4, "final relay destruction advances mission to Null Warden")
 	_check(not bool(game.mission_level.call("is_encounter_locked", &"data_lane")), "Data Lane unlocks after enemies and objectives are cleared")
+	_check(bool(game.mission_level.call("progression_gate_open", &"data_lane")), "Data Lane completion opens Warden access door")
 
 	game.queue_free()
 	await process_frame
