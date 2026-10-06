@@ -250,15 +250,18 @@ func _spawn_tracer(from: Vector3, to: Vector3, color: Color) -> void:
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(0.018, 0.018, length)
 	tracer.mesh = mesh
-	tracer.global_position = (from + to) * 0.5
-	tracer.look_at(to, Vector3.UP)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.emission_enabled = true
 	mat.emission = color
 	mat.emission_energy_multiplier = 8.0
 	tracer.material_override = mat
-	get_tree().current_scene.add_child(tracer)
+	var host: Node = get_tree().current_scene
+	if host == null:
+		host = get_tree().root
+	host.add_child(tracer)
+	tracer.global_position = (from + to) * 0.5
+	tracer.look_at(to, Vector3.UP)
 	var tween := create_tween()
 	tween.tween_property(tracer, "scale", Vector3(1.0, 1.0, 0.15), 0.055)
 	tween.tween_callback(tracer.queue_free)
