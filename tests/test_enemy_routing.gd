@@ -145,9 +145,10 @@ func _test_data_bridge_authored_route_pursuit() -> void:
 	# Supply the physical cube-face floor that CyberCityBuilder normally owns.
 	_add_test_box(
 		world,
-		# Data Lane authored u spans roughly 1..15, which maps to world -Z
-		# on the LEFT face. Center the fixture under the actual route/stairs.
-		Vector3(-30.0, 8.0, -8.0),
+		# Data Lane authored surface is x=-29.55 on the LEFT face. With a
+		# 0.20m test slab, center at -29.65 so its top matches the real floor;
+		# otherwise the authored 0.46m first step becomes an artificial 0.81m.
+		Vector3(-29.65, 8.0, -8.0),
 		Vector3(0.20, 30.0, 30.0)
 	)
 
