@@ -76,6 +76,33 @@ func _run() -> void:
 		4.0,
 		1.5
 	)
+
+	_set_group_visible("city_authored_prop", false)
+	await _capture_anchor(
+		game,
+		camera,
+		"gravity_breach_center",
+		Vector3.RIGHT,
+		"gravity_breach_no_city_props.png",
+		13.0,
+		4.0,
+		1.5
+	)
+	_set_group_visible("city_authored_prop", true)
+
+	_set_group_visible("city_building", false)
+	await _capture_anchor(
+		game,
+		camera,
+		"gravity_breach_center",
+		Vector3.RIGHT,
+		"gravity_breach_no_city_buildings.png",
+		13.0,
+		4.0,
+		1.5
+	)
+	_set_group_visible("city_building", true)
+
 	game.mission_level.call("set_encounter_lockdown", &"gravity_breach", false)
 	game.mission_level.call("reset_hold_zones")
 
@@ -129,6 +156,12 @@ func _run() -> void:
 	await process_frame
 	print("level gallery capture: PASS")
 	quit(0)
+
+
+func _set_group_visible(group_name: StringName, visible: bool) -> void:
+	for node in get_nodes_in_group(group_name):
+		if node is Node3D:
+			(node as Node3D).visible = visible
 
 
 func _capture_anchor(
