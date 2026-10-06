@@ -77,6 +77,8 @@ func _run() -> void:
 
 	game._process(4.1)
 	_check(game._hold_completed, "four-second continuous hold latches uplink completion")
+	_check(bool(game.mission_level.call("hold_zone_stable_state", &"gravity_breach")), "world uplink enters stable state at full charge")
+	_check(not hold_zone.monitoring, "stable uplink stops accepting further hold-zone input")
 	_check(game.mission_runtime.encounter_index == 2, "completed uplink waits for remaining hostile clear")
 	_check(bool(game.mission_level.call("is_encounter_locked", &"gravity_breach")), "Arena remains locked while hostile remains")
 
@@ -88,12 +90,17 @@ func _run() -> void:
 	_check(game._hold_completed, "leaving zone after completion does not revoke stable uplink")
 	_check(game._hold_progress >= 4.0, "completed uplink keeps full progress after leaving zone")
 	_check(float(game.mission_level.call("hold_zone_progress_state", &"gravity_breach")) >= 0.999, "world uplink indicator remains at one hundred percent after completion")
+	_check(bool(game.mission_level.call("hold_zone_stable_state", &"gravity_breach")), "stable uplink remains latched after player leaves zone")
 
 	game.session.alive_enemies = 0
 	game._sync_session_fields()
 	game._process(0.016)
 	_check(game.mission_runtime.encounter_index == 3, "final hostile clear advances completed uplink encounter to Data Lane")
 	_check(not bool(game.mission_level.call("is_encounter_locked", &"gravity_breach")), "Gravity Breach unlocks after uplink and hostile clear")
+	game._reset_hold_zones()
+	game._arm_hold_zone(&"gravity_breach", true)
+	_check(not bool(game.mission_level.call("hold_zone_stable_state", &"gravity_breach")), "re-arming Gravity Breach clears prior stable state")
+	_check(is_equal_approx(float(game.mission_level.call("hold_zone_progress_state", &"gravity_breach")), 0.0), "re-armed uplink restarts from zero progress")
 
 	game.queue_free()
 	await process_frame
