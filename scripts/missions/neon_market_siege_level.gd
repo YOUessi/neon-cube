@@ -1395,6 +1395,7 @@ func _build_combat_lockdown_gates() -> void:
 		body.add_to_group("combat_lockdown_gate")
 
 		var collision := CollisionShape3D.new()
+		collision.name = "CollisionShape3D"
 		var shape := BoxShape3D.new()
 		shape.size = size
 		collision.shape = shape
