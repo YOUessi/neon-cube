@@ -15,6 +15,7 @@ TESTS=(
   "tests/test_mission_blockout.gd"
   "tests/test_mission_level_geometry.gd"
   "tests/test_mission_spatial_flow.gd"
+  "tests/test_pause_safe_mission_timers.gd"
   "tests/test_data_lane_objectives.gd"
   "tests/test_gravity_breach_hold_objective.gd"
   "tests/test_extraction_hold.gd"
