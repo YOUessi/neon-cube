@@ -15,11 +15,13 @@ const WARM := Color(1.0, 0.36, 0.12)
 const DARK := Color(0.025, 0.035, 0.065)
 const WALL := Color(0.055, 0.065, 0.10)
 const COVER := Color(0.07, 0.085, 0.12)
+const EXTRACTION_DOCK_SURFACE_HEIGHT := 0.42
 
 var _geometry_root: Node3D
 var _extraction_zone: Area3D
 var _extraction_label: Label3D
 var _extraction_progress_core: MeshInstance3D
+var _extraction_progress_base_position := Vector3.ZERO
 var _extraction_progress_ratio := 0.0
 var _extraction_complete := false
 var _extraction_armed := false
@@ -329,14 +331,25 @@ func hold_zone_stable_state(encounter_id: StringName) -> bool:
 	return bool(_hold_zone_stable.get(encounter_id, false))
 
 
+func _set_extraction_core_ratio(ratio: float) -> void:
+	if _extraction_progress_core == null:
+		return
+	var visible_ratio := maxf(0.03, clampf(ratio, 0.0, 1.0))
+	_extraction_progress_core.scale.y = visible_ratio
+	var inward := _extraction_progress_core.basis.y.normalized()
+	_extraction_progress_core.position = (
+		_extraction_progress_base_position
+		+ inward * (1.35 * visible_ratio)
+	)
+
+
 func set_extraction_progress(current: float, required: float) -> void:
 	_extraction_progress_ratio = 0.0
 	if required > 0.0:
 		_extraction_progress_ratio = clampf(current / required, 0.0, 1.0)
 	if _extraction_progress_core != null:
 		_extraction_progress_core.visible = _extraction_armed
-		_extraction_progress_core.scale.y = maxf(0.03, _extraction_progress_ratio)
-		_extraction_progress_core.position.y = 1.35 * _extraction_progress_ratio
+		_set_extraction_core_ratio(_extraction_progress_ratio)
 		var material := _extraction_progress_core.material_override as StandardMaterial3D
 		if material != null:
 			material.emission_energy_multiplier = 3.0 + _extraction_progress_ratio * 5.0
@@ -395,8 +408,7 @@ func arm_extraction(active: bool = true) -> void:
 
 	if _extraction_progress_core != null:
 		_extraction_progress_core.visible = active
-		_extraction_progress_core.scale.y = 0.03
-		_extraction_progress_core.position.y = 0.0
+		_set_extraction_core_ratio(0.0)
 		var core_material := _extraction_progress_core.material_override as StandardMaterial3D
 		if core_material != null:
 			core_material.albedo_color = active_color * 0.08
@@ -430,8 +442,7 @@ func complete_extraction() -> void:
 
 	if _extraction_progress_core != null:
 		_extraction_progress_core.visible = true
-		_extraction_progress_core.scale.y = 1.0
-		_extraction_progress_core.position.y = 1.35
+		_set_extraction_core_ratio(1.0)
 		var core_material := _extraction_progress_core.material_override as StandardMaterial3D
 		if core_material != null:
 			core_material.albedo_color = complete_color * 0.08
@@ -1611,7 +1622,7 @@ func _build_extraction() -> void:
 		down,
 		0.0,
 		-25.0,
-		0.12,
+		EXTRACTION_DOCK_SURFACE_HEIGHT - 0.18,
 		Vector3(8.4, 0.18, 7.2),
 		Color(0.035, 0.038, 0.045),
 		AMBER,
@@ -1641,7 +1652,7 @@ func _build_extraction() -> void:
 		down,
 		0.0,
 		-28.55,
-		0.22,
+		EXTRACTION_DOCK_SURFACE_HEIGHT,
 		Vector3(8.1, 0.72, 0.14),
 		WALL,
 		AMBER,
@@ -1654,7 +1665,7 @@ func _build_extraction() -> void:
 		down,
 		4.12,
 		-25.0,
-		0.22,
+		EXTRACTION_DOCK_SURFACE_HEIGHT,
 		Vector3(0.14, 0.72, 6.8),
 		WALL,
 		CYAN,
@@ -1666,7 +1677,7 @@ func _build_extraction() -> void:
 	_add_face_box(dock, "DockPillarR", down, 3.4, -27.4, 0.0, Vector3(0.30, 3.4, 0.30), WALL, CYAN, true)
 	_add_face_box(dock, "DockHeader", down, 0.0, -27.4, 3.25, Vector3(7.0, 0.24, 0.34), WALL, AMBER, true)
 	_add_face_label(dock, "DockLabel", down, 0.0, -27.2, 2.75, "EXTRACTION PAD // E-07", AMBER)
-	_add_face_trim(dock, "DockCenterGuide", down, 0.0, -25.0, 0.34, Vector3(0.08, 0.035, 6.0), AMBER)
+	_add_face_trim(dock, "DockCenterGuide", down, 0.0, -25.0, EXTRACTION_DOCK_SURFACE_HEIGHT + 0.03, Vector3(0.08, 0.035, 6.0), AMBER)
 
 	var zone_container := _section(root, "ExtractionBeacon")
 	_add_disc_visual(
@@ -1675,7 +1686,7 @@ func _build_extraction() -> void:
 		down,
 		0.0,
 		-25.0,
-		0.035,
+		EXTRACTION_DOCK_SURFACE_HEIGHT + 0.015,
 		3.4,
 		Color(0.035, 0.035, 0.022),
 		AMBER,
@@ -1687,7 +1698,7 @@ func _build_extraction() -> void:
 		down,
 		0.0,
 		-25.0,
-		0.075,
+		EXTRACTION_DOCK_SURFACE_HEIGHT + 0.045,
 		3.4,
 		0.18,
 		AMBER,
@@ -1702,13 +1713,19 @@ func _build_extraction() -> void:
 		progress_mesh.height = 2.7
 		progress_mesh.radial_segments = 36
 		_extraction_progress_core.mesh = progress_mesh
-		_extraction_progress_core.position = _face_point(down, 0.0, -25.0, 0.0)
+		_extraction_progress_base_position = _face_point(
+			down,
+			0.0,
+			-25.0,
+			EXTRACTION_DOCK_SURFACE_HEIGHT + 0.045
+		)
+		_extraction_progress_core.position = _extraction_progress_base_position
 		_extraction_progress_core.basis = CubeGravity.tangent_basis(down)
-		_extraction_progress_core.scale.y = 0.03
+		_set_extraction_core_ratio(0.0)
 		_extraction_progress_core.material_override = _material(AMBER * 0.08, AMBER, 3.0)
 		_extraction_progress_core.visible = false
 		zone_container.add_child(_extraction_progress_core)
-	_add_prop(zone_container, "ExtractionBeaconAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 2.7, -25.0, 0.0, 1.75, 0.0)
+	_add_prop(zone_container, "ExtractionBeaconAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 2.7, -25.0, EXTRACTION_DOCK_SURFACE_HEIGHT, 1.75, 0.0)
 	_extraction_zone = Area3D.new()
 	_extraction_zone.name = "ExtractionZone"
 	_extraction_zone.position = _face_point(down, 0.0, -25.0, 1.6)
