@@ -290,9 +290,9 @@ static func _build_authored_props(
 		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 - forward * 6.0, 0.72],
 		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 - forward * 6.0, 0.72],
 		["res://assets/third_party/quaternius_cyberpunk/computer.gltf", center + right * 7.5 + forward * 1.5, 0.55],
-		["res://assets/third_party/quaternius_cyberpunk/door.gltf", center - right * 8.0 - forward * 2.0, 1.7],
-		["res://assets/third_party/quaternius_cyberpunk/antenna.gltf", center + right * 10.5 - forward * 9.0, 1.65],
-		["res://assets/third_party/quaternius_cyberpunk/fence.gltf", center - right * 10.0 + forward * 9.0, 1.8],
+		["res://assets/third_party/quaternius_cyberpunk/door.gltf", center - right * 8.0 - forward * 2.0, 1.0],
+		["res://assets/third_party/quaternius_cyberpunk/antenna.gltf", center + right * 10.5 - forward * 9.0, 1.0],
+		["res://assets/third_party/quaternius_cyberpunk/fence.gltf", center - right * 10.0 + forward * 9.0, 1.15],
 	]
 	var rotation_offset := district.prop_seed % placements.size()
 	for i in range(placements.size()):
@@ -306,9 +306,13 @@ static func _build_authored_props(
 		var prop: Node3D = packed.instantiate() as Node3D
 		if prop == null:
 			continue
+		var prop_kind := path.get_file().get_basename()
+		prop.name = "CityProp_%s_%02d" % [prop_kind.to_pascal_case(), i]
 		prop.position = placement[1]
 		prop.basis = basis
 		prop.scale = Vector3.ONE * float(placement[2])
+		prop.add_to_group("city_authored_prop")
+		prop.add_to_group("city_prop_%s" % prop_kind)
 		parent.add_child(prop)
 
 	for light_offset in [-8.0, 8.0]:
