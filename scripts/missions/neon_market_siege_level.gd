@@ -32,6 +32,9 @@ var _boss_hazards: Array[Area3D] = []
 var _boss_hazard_active: Array[bool] = []
 var _boss_phase := 1
 var _boss_hazard_tick_remaining := 0.0
+var _boss_hazard_damage_armed := false
+var _boss_hazard_phase_serial := 0
+const BOSS_HAZARD_TELEGRAPH_SECONDS := 0.9
 var _tracked_player: NeonPlayer
 var _reinforcement_warning_root: Node3D
 var _reinforcement_warning_encounter: StringName = &""
@@ -331,6 +334,10 @@ func current_navigation_target() -> StringName:
 func set_boss_phase(phase: int) -> void:
 	_boss_phase = clampi(phase, 1, 3)
 	_boss_hazard_tick_remaining = 0.0
+	_boss_hazard_damage_armed = false
+	_boss_hazard_phase_serial += 1
+	var serial := _boss_hazard_phase_serial
+
 	for i in range(_boss_hazards.size()):
 		var active := false
 		if _boss_phase == 2:
@@ -342,6 +349,30 @@ func set_boss_phase(phase: int) -> void:
 		var visual := _boss_hazards[i].get_node_or_null("HazardVisual") as MeshInstance3D
 		if visual != null:
 			visual.visible = active
+			var material := visual.material_override as StandardMaterial3D
+			if material != null and active:
+				material.emission_energy_multiplier = 3.6
+
+	if _boss_phase <= 1:
+		return
+	var timer := get_tree().create_timer(BOSS_HAZARD_TELEGRAPH_SECONDS)
+	timer.timeout.connect(_arm_boss_hazard_damage_if.bind(serial, _boss_phase))
+
+
+func _arm_boss_hazard_damage_if(serial: int, phase: int) -> void:
+	if serial != _boss_hazard_phase_serial or phase != _boss_phase or _boss_phase <= 1:
+		return
+	_boss_hazard_damage_armed = true
+	_boss_hazard_tick_remaining = 0.0
+	for i in range(_boss_hazards.size()):
+		if not _boss_hazard_active[i]:
+			continue
+		var visual := _boss_hazards[i].get_node_or_null("HazardVisual") as MeshInstance3D
+		if visual == null:
+			continue
+		var material := visual.material_override as StandardMaterial3D
+		if material != null:
+			material.emission_energy_multiplier = 7.0
 
 
 func boss_hazard_state() -> Dictionary:
@@ -353,11 +384,18 @@ func boss_hazard_state() -> Dictionary:
 		"phase": _boss_phase,
 		"active_count": active_count,
 		"damage": 10.0 if _boss_phase >= 3 else 6.0 if _boss_phase == 2 else 0.0,
+		"damage_armed": _boss_hazard_damage_armed,
+		"telegraph_seconds": BOSS_HAZARD_TELEGRAPH_SECONDS,
 	}
 
 
 func _physics_process(delta: float) -> void:
-	if _boss_phase < 2 or _boss_hazards.is_empty() or not is_instance_valid(_tracked_player):
+	if (
+		_boss_phase < 2
+		or not _boss_hazard_damage_armed
+		or _boss_hazards.is_empty()
+		or not is_instance_valid(_tracked_player)
+	):
 		return
 	_boss_hazard_tick_remaining -= delta
 	if _boss_hazard_tick_remaining > 0.0:
