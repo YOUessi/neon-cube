@@ -50,12 +50,130 @@ func _run() -> void:
 	var unrestricted_velocity := perched._clamp_tactical_leash_velocity(outward_velocity)
 	_check(unrestricted_velocity.is_equal_approx(outward_velocity), "zero-radius leash leaves ordinary enemy momentum unchanged")
 
+	await _test_enemy_auto_step_bottom_face()
+	await _test_enemy_auto_step_side_face()
+	await _test_perch_leash_blocks_stair_step()
+
 	enemy.queue_free()
 	boss.queue_free()
 	perched.queue_free()
 	player.queue_free()
 	await process_frame
 	_finish()
+
+func _test_enemy_auto_step_bottom_face() -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	_add_test_box(world, Vector3(0, -29.60, 0), Vector3(12.0, 0.20, 12.0))
+	var low_step := _add_test_box(
+		world,
+		Vector3(0, -29.29, -0.75),
+		Vector3(3.0, 0.42, 0.70)
+	)
+	var target := _make_stair_target(world, Vector3(0, -28.35, 0.20))
+	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, -28.35, 0))
+	await _settle_stair_enemy(stair_enemy)
+
+	_check(stair_enemy.is_on_floor(), "enemy stair test settles on authored floor")
+	stair_enemy.set_physics_process(false)
+	var before := stair_enemy.global_position
+	_check(stair_enemy._try_auto_step(Vector3.FORWARD), "ordinary enemy auto-steps a 0.42m stair")
+	_check(stair_enemy.global_position.y > before.y + 0.35, "enemy bottom-face stair lift follows local up")
+
+	low_step.queue_free()
+	await physics_frame
+	stair_enemy.global_position = Vector3(0, -28.55, 0)
+	stair_enemy.velocity = Vector3.ZERO
+	stair_enemy.set_physics_process(true)
+	await _settle_stair_enemy(stair_enemy)
+	stair_enemy.set_physics_process(false)
+	_add_test_box(world, Vector3(0, -28.95, -0.75), Vector3(3.0, 1.10, 0.70))
+	await physics_frame
+	var wall_before := stair_enemy.global_position
+	_check(not stair_enemy._try_auto_step(Vector3.FORWARD), "ordinary enemy cannot auto-step a 1.10m wall")
+	_check(stair_enemy.global_position.distance_to(wall_before) < 0.02, "failed enemy wall step keeps position unchanged")
+
+	world.queue_free()
+	await process_frame
+
+
+func _test_enemy_auto_step_side_face() -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	_add_test_box(world, Vector3(-29.60, 0, 0), Vector3(0.20, 12.0, 12.0))
+	_add_test_box(world, Vector3(-29.29, 0, -0.75), Vector3(0.42, 3.0, 0.70))
+	var target := _make_stair_target(world, Vector3(-28.35, 0, 0.20))
+	var stair_enemy := _make_stair_enemy(world, target, Vector3(-28.35, 0, 0))
+	await _settle_stair_enemy(stair_enemy)
+
+	_check(stair_enemy.gravity_down.is_equal_approx(Vector3.LEFT), "enemy stair solver acquires Data Quarter gravity")
+	stair_enemy.set_physics_process(false)
+	var before := stair_enemy.global_position
+	_check(stair_enemy._try_auto_step(Vector3.FORWARD), "enemy auto-steps on non-horizontal cube face")
+	_check(stair_enemy.global_position.x > before.x + 0.35, "enemy side-face stair lift follows local +X up")
+
+	world.queue_free()
+	await process_frame
+
+
+func _test_perch_leash_blocks_stair_step() -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	_add_test_box(world, Vector3(0, -29.60, 0), Vector3(12.0, 0.20, 12.0))
+	_add_test_box(world, Vector3(0, -29.29, -0.75), Vector3(3.0, 0.42, 0.70))
+	var target := _make_stair_target(world, Vector3(0, -28.35, 0.20))
+	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, -28.35, 0))
+	await _settle_stair_enemy(stair_enemy)
+	stair_enemy.set_physics_process(false)
+	stair_enemy.set_tactical_leash(stair_enemy.global_position, 0.55)
+
+	var before := stair_enemy.global_position
+	_check(not stair_enemy._try_auto_step(Vector3.FORWARD), "perch-leashed enemy ignores stair traversal")
+	_check(stair_enemy.global_position.distance_to(before) < 0.02, "perch-leashed enemy stays on authored perch")
+
+	world.queue_free()
+	await process_frame
+
+
+func _make_stair_enemy(parent: Node3D, target: NeonPlayer, position: Vector3) -> NeonEnemy:
+	var enemy := ENEMY_SCENE.instantiate() as NeonEnemy
+	enemy.cube_half_extent = 30.0
+	enemy.configure("grunt", 1)
+	enemy.target = target
+	enemy.position = position
+	parent.add_child(enemy)
+	return enemy
+
+
+func _make_stair_target(parent: Node3D, position: Vector3) -> NeonPlayer:
+	var target := PLAYER_SCENE.instantiate() as NeonPlayer
+	target.cube_half_extent = 30.0
+	target.position = position
+	parent.add_child(target)
+	target.set_physics_process(false)
+	return target
+
+
+func _settle_stair_enemy(enemy: NeonEnemy, frames: int = 60) -> void:
+	enemy.set_physics_process(true)
+	for i in range(frames):
+		await physics_frame
+		await process_frame
+		if enemy.is_on_floor():
+			return
+
+
+func _add_test_box(parent: Node3D, position: Vector3, size: Vector3) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.position = position
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	parent.add_child(body)
+	return body
+
 
 func _check(condition: bool, label: String) -> void:
 	if condition:
