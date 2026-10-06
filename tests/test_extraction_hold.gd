@@ -57,6 +57,8 @@ func _run() -> void:
 	_check(bool(game.mission_level.call("is_extraction_occupied")), "player occupancy is detected inside extraction beacon")
 	game._process(1.5)
 	_check(game._extraction_progress > 1.4 and game._extraction_progress < 1.6, "extraction hold accumulates while player remains inside")
+	var world_extract_ratio := float(game.mission_level.call("extraction_progress_state"))
+	_check(world_extract_ratio > 0.49 and world_extract_ratio < 0.51, "world extraction core mirrors fifty-percent countdown progress")
 	_check(game.game_state == NeonGame.GameState.PLAYING, "partial extraction hold does not finish mission")
 
 	game.player.global_position = zone.to_global(Vector3(7.0, 1.0, 0))
@@ -66,6 +68,7 @@ func _run() -> void:
 	game._process(0.1)
 	_check(not bool(game.mission_level.call("is_extraction_occupied")), "leaving beacon clears extraction occupancy")
 	_check(is_equal_approx(game._extraction_progress, 0.0), "leaving beacon resets extraction countdown")
+	_check(is_equal_approx(float(game.mission_level.call("extraction_progress_state")), 0.0), "world extraction core resets when player leaves beacon")
 
 	game.player.global_position = zone.to_global(Vector3(0, 1.0, 0))
 	for i in range(3):
