@@ -2048,3 +2048,116 @@ Full Mission Playthrough 额外验证：
 - leash center 精确对应 authored Boss gantry spawn socket。
 - Sniper 初始位置位于 leash radius 内。
 - ground Tank 不受 leash 限制。
+
+
+## 2026-10-07 追加：Authored Tactical Pickups + Persistent Consumption
+
+### 目标
+
+新加入的高位/侧翼空间不能只是“可以走上去”，需要给玩家真正的争夺理由。
+
+Mission 01 新增 3 个作者固定资源点：
+
+### Data Maintenance Bridge
+
+`data_bridge_ammo`
+
+- Ammo Cache。
+- 40 ammo。
+- 位于 Maintenance Bridge 高位平台。
+- 奖励玩家主动登桥，在 Data Lane 双 Relay + 3+2 战斗中争夺弹药。
+
+### Boss Left Gantry
+
+`boss_left_gantry_shield`
+
+- Shield Cache。
+- 36 shield。
+- 位于 Boss Arena 左 Gantry。
+- 右 Gantry 由 Sniper 驻守，因此玩家抢左侧资源会自然形成高位对抗和横向走位。
+
+### Extraction Final Yard
+
+稳定 ID 仍使用：
+
+`extraction_dock_health`
+
+但实际位置已前移至最后战斗 Yard：
+
+- 42 health。
+- 位于最终 2+2 Encounter 的掩体区。
+- 不再放在 Beacon/Dock 后段。
+- 玩家可以在最后一战中主动换位获取治疗。
+
+保留旧 pickup ID 是为了避免 checkpoint/schema 的无意义改名 churn。
+
+### 世界识别
+
+作者资源点与普通随机掉落视觉不同：
+
+- 地面 Cache Ring。
+- Billboard 标签：
+  - AMMO CACHE
+  - SHIELD CACHE
+  - MED CACHE
+- 按资源类型着色。
+
+随机敌人掉落保持原视觉，不混淆。
+
+### 持久化
+
+`MissionRuntime` 新增：
+
+- `consumed_pickups: Array[StringName]`
+- `mark_pickup_consumed(id)`
+- `is_pickup_consumed(id)`
+
+并写入 / 恢复 Mission snapshot。
+
+作者 pickup 收集时：
+
+```text
+player enters pickup
+→ pickup emits collected(pickup_id)
+→ MissionRuntime marks ID consumed
+→ MissionProgressStore immediately saves
+→ pickup queue_free
+```
+
+因此当前 Encounter 中拿到资源后即使死亡并 Restart Checkpoint：
+
+- 已拿资源不会重新生成。
+- 未拿资源仍然存在。
+
+### Checkpoint 过滤
+
+恢复 checkpoint 时还会跳过：
+
+- 已 consumed 的 authored pickup。
+- 属于已 completed Encounter 的 authored pickup。
+
+例如恢复到 `cp_warden_gate`：
+
+- Data Bridge Ammo 不再生成。
+- Boss Gantry Shield 仍可获得。
+- Extraction Health 仍可获得。
+
+### 回归
+
+`test_authored_level_pickups.gd`
+
+验证：
+
+- Fresh Run 恰好生成 3 个 authored pickup。
+- 类型 / 数量 / cube face 正确。
+- 收集 Boss Shield 后 runtime 立即记录 consumed。
+- Reload 后 Boss Shield 不再生成。
+- 未消费 Ammo / Health 仍存在。
+
+`test_mission_progress_store.gd`
+
+验证 consumed pickup ID 进入 save/load snapshot。
+
+`test_checkpoint_world_restore.gd`
+
+验证 Warden checkpoint 会跳过 completed Data Lane pickup，同时保留未来 Encounter 资源。
