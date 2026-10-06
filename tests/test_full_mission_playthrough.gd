@@ -93,6 +93,8 @@ func _run() -> void:
 	_check(elevated_data_sniper != null, "Data Lane reinforcement includes slot-three sniper")
 	_check(ground_data_tank != null, "Data Lane reinforcement includes slot-four tank")
 	if elevated_data_sniper != null:
+		_check(elevated_data_sniper.get_route_point_count() == 9, "Data Lane runtime enemies receive Maintenance Bridge route waypoints")
+	if elevated_data_sniper != null:
 		_check(is_equal_approx(elevated_data_sniper.get_tactical_leash_radius(), 0.30), "Data Lane elevated sniper receives server-rack leash")
 		var data_authored_spawns: Array = game.mission_level.call("spawn_points_for", &"data_lane", 5, 0)
 		_check(data_authored_spawns.size() == 5, "Data Lane authored spawn list remains complete")
@@ -125,6 +127,8 @@ func _run() -> void:
 			boss_ground_tank = typed_enemy
 	_check(boss_gantry_sniper != null, "Null Warden squad places sniper on authored gantry slot")
 	_check(boss_ground_tank != null, "Null Warden squad keeps tank on ground slot")
+	if boss_gantry_sniper != null:
+		_check(boss_gantry_sniper.get_route_point_count() == 12, "Null Warden runtime enemies receive dual-gantry route waypoints")
 	if boss_gantry_sniper != null:
 		_check(is_equal_approx(boss_gantry_sniper.get_tactical_leash_radius(), 0.55), "Boss gantry sniper receives perch leash")
 		var boss_authored_spawns: Array = game.mission_level.call("spawn_points_for", &"null_warden", 4, 0)
