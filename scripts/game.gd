@@ -355,7 +355,7 @@ func _prepare_story_encounter(encounter: EncounterDefinition) -> void:
 			"spawn_points_for",
 			encounter.encounter_id,
 			encounter.enemy_kinds.size(),
-			_spawn_cursor
+			0
 		)
 		if authored_positions is Array:
 			for authored_position in authored_positions:
