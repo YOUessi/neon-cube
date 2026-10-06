@@ -69,11 +69,16 @@ func _run() -> void:
 	await process_frame
 	_check(game.session.alive_enemies == 1, "reinforcement threshold is reached with one hostile remaining")
 	_check(game._reinforcement_scheduled, "second Market Crossfire batch is scheduled instead of ending encounter")
+	var warning_state: Dictionary = game.mission_level.call("reinforcement_warning_state")
+	_check(StringName(warning_state.get("encounter_id", &"")) == &"market_crossfire", "reinforcement warning belongs to Market Crossfire")
+	_check(int(warning_state.get("count", 0)) == 2, "two upcoming spawn sockets are telegraphed")
 	_check(bool(game.mission_level.call("is_encounter_locked", &"market_crossfire")), "combat lockdown stays closed while reinforcements are inbound")
 
 	await create_timer(0.85).timeout
 	await process_frame
 	_check(not game._reinforcement_scheduled, "reinforcement timer completes")
+	var cleared_warning: Dictionary = game.mission_level.call("reinforcement_warning_state")
+	_check(int(cleared_warning.get("count", -1)) == 0, "reinforcement warning clears when batch arrives")
 	_check(game.current_story_batch_number() == 2, "second Market Crossfire batch becomes active")
 	_check(game.session.alive_enemies == 3, "two reinforcements join the surviving hostile")
 	var reinforced_enemies := get_nodes_in_group("enemies")
