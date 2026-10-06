@@ -163,3 +163,64 @@ Tang 上 Godot 4.3：
 - Mac = Godot 实际运行、视觉检查、试玩和测试环境。
 
 Tang 上本项目本地副本已经删除。
+
+
+## 2026-10-06 追加：Combat Lockdown
+
+### 为什么做
+
+只有 Encounter activation zone 还不够。玩家进入战斗区后如果仍能直接穿过 Arena，空间仍然缺少“进入战斗 → 被锁定 → 清场 → 放行”的节奏。
+
+### 实现
+
+新增 5 个 authored combat lockdown gates：
+
+- Market Crossfire
+- Gravity Breach
+- Data Lane
+- Null Warden
+- Extraction
+
+关卡接口：
+
+- `set_encounter_lockdown(encounter_id, active)`
+- `is_encounter_locked(encounter_id)`
+
+运行逻辑：
+
+```text
+进入 Arena
+→ activation zone 触发
+→ lockdown gate 关闭
+→ authored enemies 生成
+→ 战斗
+→ hostiles = 0
+→ lockdown gate 开启
+→ mission 进入下一段 traversal
+```
+
+Extraction 的 lockdown 解除后才允许继续前往最终 Beacon。
+
+### 测试补充
+
+`test_mission_level_geometry.gd` 新增：
+
+- 5 个 lockdown gate 数量检查。
+- 初始状态为 open。
+- 可以关闭。
+- 可以重新打开。
+
+`test_mission_spatial_flow.gd` 新增：
+
+- Market Crossfire 激活后 lockdown 为 closed。
+- 清场后 lockdown 自动 reopen。
+
+### Mac 测试环境
+
+仓库的 `scripts/bootstrap_godot.sh` 已增加 macOS universal Godot 4.3 bootstrap。
+
+开发原则保持不变：
+
+- GitHub 直接开发。
+- Mac 只拉取提交并做真机 Godot 测试。
+- 不在 Mac 上维护独立开发版本。
