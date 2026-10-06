@@ -36,6 +36,13 @@ func _run() -> void:
 	_check(int(summary.get("boss_arena", 0)) >= 1, "boss arena is tagged")
 	_check(int(summary.get("extraction_zone", 0)) == 1, "exactly one extraction zone exists")
 	_check(int(summary.get("encounter_activation_zone", 0)) == 5, "five traversal-gated encounter zones exist")
+	_check(int(summary.get("combat_lockdown_gate", 0)) == 5, "five authored combat lockdown gates exist")
+
+	_check(not bool(level.call("is_encounter_locked", &"market_crossfire")), "market lockdown starts open")
+	level.call("set_encounter_lockdown", &"market_crossfire", true)
+	_check(bool(level.call("is_encounter_locked", &"market_crossfire")), "market lockdown can close")
+	level.call("set_encounter_lockdown", &"market_crossfire", false)
+	_check(not bool(level.call("is_encounter_locked", &"market_crossfire")), "market lockdown reopens")
 
 	var market_zone := level.get_node_or_null("Geometry/EncounterActivationZones/MarketCrossfireActivation") as Area3D
 	var breach_zone := level.get_node_or_null("Geometry/EncounterActivationZones/GravityBreachActivation") as Area3D
