@@ -301,3 +301,63 @@ Boss Arena 现有 4 个实体危险地面区：
 - Phase 1 不造成 hazard damage。
 
 这一步的目标是让 Boss Phase 真正改变玩家的走位和掩体选择，而不是只改变敌人参数。
+
+
+## 2026-10-06 追加：Authored Arena Routing
+
+### 问题
+
+实际关卡加入墙体、摊位、Server Rack、Boss Pylon 后，原有 Enemy movement 主要依赖：
+
+- `CubeSurfaceNavigator` 的跨面方向。
+- 短距离 ray obstacle avoidance。
+- 直接朝玩家移动。
+
+这对开阔面足够，但在 Market Hall / Data Lane 等密集空间中容易出现：
+
+- 卡墙。
+- 多个敌人扎堆。
+- 只会在障碍边缘左右试探。
+- 无法利用关卡作者预留的通路。
+
+### 实现
+
+每个 Encounter 新增 authored route waypoint network：
+
+- Arrival Ambush：4 点。
+- Market Crossfire：6 点。
+- Gravity Breach：5 点。
+- Data Lane：6 点。
+- Null Warden：6 点。
+- Extraction：5 点。
+
+关卡提供：
+
+- `route_points_for(encounter_id)`
+
+生成 Encounter 时，`game.gd` 会把对应 route network 传给每个 `NeonEnemy`。
+
+### Enemy routing 逻辑
+
+同一 cube face 上：
+
+```text
+如果直接看到玩家
+→ 清除 waypoint
+→ 直接追击 / 攻击
+
+如果看不到玩家，并且存在 authored routes
+→ raycast 筛选当前可直达 waypoint
+→ score = 0.32 × 自身到 waypoint 距离 + waypoint 到玩家距离
+→ 选择最低分 waypoint
+→ 先移动到 waypoint
+→ 到达后重新选点
+```
+
+跨面追击仍使用 `CubeSurfaceNavigator`，因此 authored local routing 不会破坏六面重力导航。
+
+### 回归测试
+
+- 几何测试验证每个主要 Arena 的 route waypoint 数量。
+- 验证 route waypoint 位于正确 cube face。
+- Mission spatial flow 验证实际生成的 Market Crossfire 敌人收到 6 个 authored route points。
