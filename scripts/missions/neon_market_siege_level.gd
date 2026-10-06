@@ -3,6 +3,7 @@ extends Node3D
 
 signal extraction_reached
 signal encounter_zone_entered(encounter_id: StringName)
+signal objective_node_destroyed(encounter_id: StringName, objective_id: StringName, remaining: int)
 
 @export var cube_half_extent := 30.0
 
@@ -32,6 +33,7 @@ var _reinforcement_warning_root: Node3D
 var _reinforcement_warning_encounter: StringName = &""
 var _reinforcement_warning_count := 0
 var _reinforcement_warning_serial := 0
+var _objective_nodes: Dictionary = {}
 
 
 func _ready() -> void:
@@ -134,6 +136,36 @@ func _add_reinforcement_warning_visual(parent: Node3D, name: String, spawn_posit
 	ring.position = Vector3(0, -1.42, 0)
 	ring.material_override = _material(MAGENTA * 0.05, MAGENTA, 7.0)
 	root.add_child(ring)
+
+
+func reset_objective_nodes() -> void:
+	for encounter_id in _objective_nodes:
+		var nodes: Array = _objective_nodes[encounter_id]
+		for node in nodes:
+			var objective := node as MissionObjectiveNode
+			if objective != null:
+				objective.reset_node()
+
+
+func arm_objective_nodes(encounter_id: StringName, active: bool) -> void:
+	for key in _objective_nodes:
+		var nodes: Array = _objective_nodes[key]
+		for node in nodes:
+			var objective := node as MissionObjectiveNode
+			if objective != null:
+				objective.set_active(active and StringName(key) == encounter_id)
+
+
+func objective_nodes_remaining(encounter_id: StringName) -> int:
+	if not _objective_nodes.has(encounter_id):
+		return 0
+	var remaining := 0
+	var nodes: Array = _objective_nodes[encounter_id]
+	for node in nodes:
+		var objective := node as MissionObjectiveNode
+		if objective != null and not objective.is_destroyed():
+			remaining += 1
+	return remaining
 
 
 func arm_extraction(active: bool = true) -> void:
@@ -380,6 +412,7 @@ func spatial_summary() -> Dictionary:
 		"combat_lockdown_gate": get_tree().get_nodes_in_group("combat_lockdown_gate").size(),
 		"navigation_beacon": get_tree().get_nodes_in_group("navigation_beacon").size(),
 		"boss_hazard": get_tree().get_nodes_in_group("boss_hazard").size(),
+		"mission_objective_node": get_tree().get_nodes_in_group("mission_objective_node").size(),
 	}
 
 
@@ -610,6 +643,8 @@ func _build_data_lane() -> void:
 	_add_face_box(lane, "LaneCoverA", down, 13.0, 6.0, 0.0, Vector3(3.0, 1.0, 0.9), COVER, MAGENTA, true, &"combat_cover")
 	_add_face_box(lane, "LaneCoverB", down, 4.0, 13.0, 0.0, Vector3(3.0, 1.0, 0.9), COVER, CYAN, true, &"combat_cover")
 	_add_face_label(lane, "DataLaneSign", down, 8.0, 1.0, 3.0, "DATA QUARTER // RELAY LANE", CYAN)
+	_add_objective_node(lane, "RelayCore_A", &"data_lane", &"relay_a", down, 3.0, 8.0, 90.0, CYAN)
+	_add_objective_node(lane, "RelayCore_B", &"data_lane", &"relay_b", down, 13.0, 9.5, 90.0, MAGENTA)
 	_add_prop(lane, "RelayConsole_A", "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, 1.2, 2.5, 0.0, 1.25, 90.0)
 	_add_prop(lane, "RelayConsole_B", "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, 14.2, 12.5, 0.0, 1.25, -90.0)
 	_add_prop(lane, "RelayAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 13.5, 2.5, 0.0, 1.5, 0.0)
@@ -916,6 +951,57 @@ func _face_point(down: Vector3, u: float, v: float, height: float) -> Vector3:
 	var forward := -basis.z
 	var surface_center := down.normalized() * (cube_half_extent - 0.45)
 	return surface_center + right * u + forward * v + inward * height
+
+
+func _add_objective_node(
+	parent: Node3D,
+	name: String,
+	encounter_id: StringName,
+	objective_id: StringName,
+	down: Vector3,
+	u: float,
+	v: float,
+	health: float,
+	accent: Color
+) -> void:
+	var node := MissionObjectiveNode.new()
+	node.name = name
+	node.position = _face_point(down, u, v, 1.0)
+	node.basis = CubeGravity.tangent_basis(down)
+	node.add_to_group("mission_objective_node")
+
+	var collision := CollisionShape3D.new()
+	collision.name = "CollisionShape3D"
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(1.25, 2.0, 1.25)
+	collision.shape = shape
+	node.add_child(collision)
+
+	if DisplayServer.get_name() != "headless":
+		var visual := MeshInstance3D.new()
+		visual.name = "Visual"
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(1.25, 2.0, 1.25)
+		visual.mesh = mesh
+		visual.material_override = _material(accent * 0.08, accent, 5.5)
+		node.add_child(visual)
+
+	node.configure(encounter_id, objective_id, health)
+	node.destroyed.connect(_on_objective_node_destroyed)
+	parent.add_child(node)
+
+	if not _objective_nodes.has(encounter_id):
+		_objective_nodes[encounter_id] = []
+	var nodes: Array = _objective_nodes[encounter_id]
+	nodes.append(node)
+	_objective_nodes[encounter_id] = nodes
+
+
+func _on_objective_node_destroyed(node: MissionObjectiveNode) -> void:
+	if node == null:
+		return
+	var remaining := objective_nodes_remaining(node.encounter_id)
+	objective_node_destroyed.emit(node.encounter_id, node.objective_id, remaining)
 
 
 func _add_face_box(
