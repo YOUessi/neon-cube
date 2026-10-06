@@ -35,6 +35,18 @@ func _run() -> void:
 	game._on_reinforcement_ready(&"market_crossfire")
 	_check(game.current_story_batch_number() == 2, "Market reinforcement becomes batch two")
 	_check(game.session.alive_enemies == 3, "Market reinforcement joins surviving hostile")
+	var market_high_sniper: NeonEnemy = null
+	var market_ground_runner: NeonEnemy = null
+	for enemy in get_nodes_in_group("enemies"):
+		var typed_enemy := enemy as NeonEnemy
+		if typed_enemy.get_tactical_slot_index() == 4 and typed_enemy.archetype == "sniper":
+			market_high_sniper = typed_enemy
+		elif typed_enemy.get_tactical_slot_index() == 3 and typed_enemy.archetype == "runner":
+			market_ground_runner = typed_enemy
+	_check(market_high_sniper != null, "Market reinforcement contains elevated slot-four sniper")
+	_check(market_ground_runner != null, "Market reinforcement contains ground slot-three runner")
+	if market_high_sniper != null and market_ground_runner != null:
+		_check(market_high_sniper.global_position.y > market_ground_runner.global_position.y + 1.5, "Market sniper spawns on elevated lane above ground runner")
 	await _kill_all_enemies(game)
 	game._process(0.016)
 	_check(game.mission_runtime.current_encounter().encounter_id == &"gravity_breach", "Market clear advances to Gravity Breach")
