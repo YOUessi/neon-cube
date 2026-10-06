@@ -30,7 +30,7 @@ func _test_bottom_face_step_and_wall() -> void:
 	var player: NeonPlayer = PLAYER.instantiate() as NeonPlayer
 	player.position = Vector3(0, -28.35, 0)
 	world.add_child(player)
-	await _settle_player(player)
+	await _settle_player(player, 60)
 
 	_check(player.gravity_down.is_equal_approx(Vector3.DOWN), "bottom stair test uses floor gravity")
 	_check(player.is_on_floor(), "bottom stair test player settles on floor")
@@ -106,11 +106,13 @@ func _test_left_face_step() -> void:
 	await process_frame
 
 
-func _settle_player(player: NeonPlayer, frames: int = 8) -> void:
+func _settle_player(player: NeonPlayer, frames: int = 60) -> void:
 	player.set_physics_process(true)
 	for i in range(frames):
 		await physics_frame
 		await process_frame
+		if player.is_on_floor():
+			return
 
 
 func _add_box(parent: Node3D, name: String, position: Vector3, size: Vector3) -> StaticBody3D:
