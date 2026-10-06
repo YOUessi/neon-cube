@@ -45,8 +45,12 @@ func _run() -> void:
 			market_ground_runner = typed_enemy
 	_check(market_high_sniper != null, "Market reinforcement contains elevated slot-four sniper")
 	_check(market_ground_runner != null, "Market reinforcement contains ground slot-three runner")
-	if market_high_sniper != null and market_ground_runner != null:
-		_check(market_high_sniper.global_position.y > market_ground_runner.global_position.y + 1.5, "Market sniper spawns on elevated lane above ground runner")
+	if market_high_sniper != null:
+		var market_authored_spawns: Array = game.mission_level.call("spawn_points_for", &"market_crossfire", 5, 0)
+		_check(market_authored_spawns.size() == 5, "Market authored spawn list remains complete")
+		if market_authored_spawns.size() == 5:
+			_check(market_high_sniper.get_tactical_leash_center().distance_to(market_authored_spawns[4]) < 0.05, "Market sniper maps exactly to authored elevated socket")
+		_check(market_high_sniper.global_position.distance_to(market_high_sniper.get_tactical_leash_center()) <= 0.80, "Market sniper begins inside catwalk perch leash")
 	await _kill_all_enemies(game)
 	game._process(0.016)
 	_check(game.mission_runtime.current_encounter().encounter_id == &"gravity_breach", "Market clear advances to Gravity Breach")
@@ -90,10 +94,13 @@ func _run() -> void:
 	_check(ground_data_tank != null, "Data Lane reinforcement includes slot-four tank")
 	if elevated_data_sniper != null:
 		_check(is_equal_approx(elevated_data_sniper.get_tactical_leash_radius(), 0.30), "Data Lane elevated sniper receives server-rack leash")
+		var data_authored_spawns: Array = game.mission_level.call("spawn_points_for", &"data_lane", 5, 0)
+		_check(data_authored_spawns.size() == 5, "Data Lane authored spawn list remains complete")
+		if data_authored_spawns.size() == 5:
+			_check(elevated_data_sniper.get_tactical_leash_center().distance_to(data_authored_spawns[3]) < 0.05, "Data Lane sniper maps exactly to authored server-rack socket")
+		_check(elevated_data_sniper.global_position.distance_to(elevated_data_sniper.get_tactical_leash_center()) <= 0.35, "Data Lane sniper begins inside server-rack perch leash")
 	if ground_data_tank != null:
 		_check(is_equal_approx(ground_data_tank.get_tactical_leash_radius(), 0.0), "Data Lane ground tank remains unrestricted")
-	if elevated_data_sniper != null and ground_data_tank != null:
-		_check(elevated_data_sniper.global_position.x > ground_data_tank.global_position.x + 1.2, "Data Lane sniper enters above ground-level tank")
 	await _kill_all_enemies(game)
 	game._process(0.016)
 	_check(game.mission_runtime.current_encounter().encounter_id == &"data_lane", "Data Lane hostile clear waits for relay destruction")
