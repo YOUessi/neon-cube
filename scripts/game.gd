@@ -393,6 +393,7 @@ func _has_pending_reinforcements() -> bool:
 
 func _schedule_reinforcement(encounter: EncounterDefinition) -> void:
 	_reinforcement_scheduled = true
+	_show_reinforcement_warning(encounter)
 	_show_message("REINFORCEMENTS // INBOUND", maxf(0.45, encounter.reinforcement_delay))
 	_update_objective()
 	var timer := get_tree().create_timer(encounter.reinforcement_delay)
@@ -407,12 +408,14 @@ func _on_reinforcement_ready(encounter_id: StringName) -> void:
 	if encounter == null or encounter.encounter_id != encounter_id:
 		_reinforcement_scheduled = false
 		return
+	_clear_reinforcement_warning()
 	_spawn_next_story_batch()
 	_reinforcement_scheduled = false
 	_update_objective()
 
 
 func _clear_encounter_batch_state() -> void:
+	_clear_reinforcement_warning()
 	_encounter_enemy_kinds.clear()
 	_encounter_positions.clear()
 	_encounter_route_points.clear()
@@ -420,6 +423,30 @@ func _clear_encounter_batch_state() -> void:
 	_encounter_batch_index = 0
 	_encounter_spawned_count = 0
 	_reinforcement_scheduled = false
+
+
+func _show_reinforcement_warning(encounter: EncounterDefinition) -> void:
+	if not is_instance_valid(mission_level) or not mission_level.has_method("show_reinforcement_warning"):
+		return
+	if not _has_pending_reinforcements():
+		return
+	var batch_size := _encounter_batch_sizes[_encounter_batch_index]
+	var positions: Array[Vector3] = []
+	for offset in range(batch_size):
+		var index := _encounter_spawned_count + offset
+		if index >= 0 and index < _encounter_positions.size():
+			positions.append(_encounter_positions[index])
+	mission_level.call(
+		"show_reinforcement_warning",
+		encounter.encounter_id,
+		positions,
+		encounter.reinforcement_delay
+	)
+
+
+func _clear_reinforcement_warning() -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("clear_reinforcement_warning"):
+		mission_level.call("clear_reinforcement_warning")
 
 
 func current_story_batch_number() -> int:
