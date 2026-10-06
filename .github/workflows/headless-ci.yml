@@ -2,7 +2,7 @@ name: Godot CI
 
 on:
   push:
-    branches: ["main", "production/**"]
+    branches: ["main", "production/**", "level/**", "gameplay/**", "art/**", "perf/**", "release/**"]
   pull_request:
   workflow_dispatch:
 
