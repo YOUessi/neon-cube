@@ -122,13 +122,26 @@ func _physics_process(delta: float) -> void:
 	var target_down := CubeGravity.nearest_down(target.global_position, cube_half_extent)
 	var same_face := target_down.is_equal_approx(gravity_down)
 	var has_line_of_sight := same_face and _has_line_of_sight()
+	var local_up := -gravity_down.normalized()
+	var elevation_delta := (
+		target.global_position - global_position
+	).dot(local_up)
+	var needs_elevated_route := (
+		same_face
+		and absf(elevation_delta) > max_step_height * 1.25
+		and not _authored_route_points.is_empty()
+	)
 	var route_direction := CubeSurfaceNavigator.route_direction(
 		global_position,
 		gravity_down,
 		target.global_position,
 		cube_half_extent
 	)
-	if same_face and not has_line_of_sight and not _authored_route_points.is_empty():
+	if (
+		same_face
+		and (not has_line_of_sight or needs_elevated_route)
+		and not _authored_route_points.is_empty()
+	):
 		route_direction = _authored_route_direction(route_direction)
 	elif has_line_of_sight:
 		_has_route_waypoint = false
@@ -142,13 +155,24 @@ func _physics_process(delta: float) -> void:
 		gravity_down,
 		_boss_phase
 	)
+	var stepped_up := false
+	if (
+		wish.length_squared() > 0.01
+		and is_on_floor()
+		and _tactical_leash_radius <= 0.0
+	):
+		# Authored stairs are intentional traversal, not obstacles. Give the
+		# stair solver first refusal before steering around the riser.
+		stepped_up = _try_auto_step(wish)
 	if wish.length_squared() > 0.01:
-		wish = _avoid_obstacles(wish)
+		if not stepped_up:
+			wish = _avoid_obstacles(wish)
 		wish = _apply_tactical_leash(wish)
 
 	var fall_speed: float = velocity.dot(gravity_down)
 	var horizontal: Vector3 = velocity - gravity_down * fall_speed
-	if distance > 3.0:
+	var should_advance := distance > 3.0 or needs_elevated_route
+	if should_advance:
 		horizontal = horizontal.move_toward(wish * move_speed, acceleration * delta)
 		_play_animation(["Run", "run", "Walking", "walking"])
 	else:
@@ -159,12 +183,6 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() and fall_speed > 1.0:
 		fall_speed = 1.0
 	velocity = horizontal + gravity_down * fall_speed
-	if (
-		wish.length_squared() > 0.05
-		and is_on_floor()
-		and _tactical_leash_radius <= 0.0
-	):
-		_try_auto_step(wish)
 	if wish.length_squared() > 0.05:
 		_face_tangent_direction(wish, delta)
 	move_and_slide()
@@ -416,13 +434,50 @@ func _select_route_waypoint() -> void:
 	_has_route_waypoint = false
 	if not is_instance_valid(target):
 		return
+
+	var up := -gravity_down.normalized()
+	var target_delta := target.global_position - global_position
+	var target_elevation := target_delta.dot(up)
+	var climbing := target_elevation > max_step_height * 1.25
+	var descending := target_elevation < -max_step_height * 1.25
 	var best_score := INF
+
 	for point in _authored_route_points:
-		if not _route_point_reachable(point):
+		var point_delta := point - global_position
+		var travel_cost := point_delta.length()
+		# Never immediately reselect a waypoint we have already reached.
+		if travel_cost <= 1.35:
 			continue
-		var travel_cost := global_position.distance_to(point)
+
+		var planar_delta := point_delta - up * point_delta.dot(up)
+		var planar_cost := planar_delta.length()
+		var point_elevation := point_delta.dot(up)
+		var direct_reachable := _route_point_reachable(point)
+		var stair_chain_candidate := (
+			climbing
+			and point_elevation >= -0.10
+			and planar_cost <= 4.25
+		)
+		var descent_chain_candidate := (
+			descending
+			and point_elevation <= 0.10
+			and planar_cost <= 4.25
+		)
+		if not direct_reachable and not stair_chain_candidate and not descent_chain_candidate:
+			continue
+
 		var target_cost := point.distance_to(target.global_position)
-		var score := travel_cost * 0.32 + target_cost
+		var target_height_error := absf(
+			(target.global_position - point).dot(up)
+		)
+		var score := (
+			target_cost
+			+ planar_cost * 0.42
+			+ target_height_error * 1.8
+		)
+		# Prefer the next reachable stair-chain point over a distant shortcut.
+		if not direct_reachable:
+			score += planar_cost * 0.35
 		if score < best_score:
 			best_score = score
 			_route_waypoint = point
