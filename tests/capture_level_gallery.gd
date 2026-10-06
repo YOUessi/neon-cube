@@ -81,11 +81,15 @@ func _run() -> void:
 	game.mission_level.call("set_encounter_lockdown", &"gravity_breach", false)
 	game.mission_level.call("reset_hold_zones")
 
-	# Data Lane: both relay objectives active, one partially damaged.
+	# Data Lane: Relay A offline, Relay B online, Warden route still locked.
 	game.mission_level.call("arm_objective_nodes", &"data_lane", true)
 	var relays := get_nodes_in_group("mission_objective_node")
-	if not relays.is_empty():
-		(relays[0] as MissionObjectiveNode).take_damage(28.0)
+	for relay_node in relays:
+		var relay := relay_node as MissionObjectiveNode
+		if relay != null and relay.objective_id == &"relay_a":
+			relay.take_damage(999.0)
+			break
+	await process_frame
 	await _capture_anchor(
 		game,
 		camera,
@@ -96,7 +100,7 @@ func _run() -> void:
 		4.2,
 		-1.5
 	)
-	game.mission_level.call("arm_objective_nodes", &"data_lane", false)
+	game.mission_level.call("reset_objective_nodes")
 
 	# Boss Arena: Phase 2 shows twin hazard telegraphs and phase lighting.
 	game.mission_level.call("set_boss_phase", 2)
