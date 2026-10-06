@@ -32,6 +32,7 @@ var _alive_enemies := 0
 var _spawn_cursor := 0
 var _kills := 0
 var _wave_transitioning := false
+var _waiting_for_extraction := false
 
 var hud_layer: CanvasLayer
 var hud_panel: Control
@@ -70,9 +71,11 @@ func _ready() -> void:
 		total_waves = campaign.wave_count()
 		starting_enemies = campaign.get_wave(0).enemy_kinds.size()
 	CyberCityBuilder.build(self, cube_size)
-	mission_level = MISSION_BLOCKOUT_SCENE.instantiate() as Node3D
+	mission_level = MISSION_LEVEL_SCENE.instantiate() as Node3D
 	add_child(mission_level)
 	mission_anchors = MissionAnchorRegistry.collect(mission_level)
+	if mission_level.has_signal("extraction_reached"):
+		mission_level.connect("extraction_reached", Callable(self, "_on_extraction_reached"))
 	performance_monitor = RuntimePerformanceMonitor.new()
 	performance_monitor.name = "PerformanceMonitor"
 	performance_monitor.budget = DESKTOP_PERFORMANCE_BUDGET
@@ -118,6 +121,8 @@ func start_game() -> void:
 	_sync_session_fields()
 	_spawn_cursor = 0
 	_wave_transitioning = false
+	_waiting_for_extraction = false
+	_set_extraction_armed(false)
 	game_state = GameState.PLAYING
 	menu_panel.visible = false
 	pause_panel.visible = false
@@ -432,6 +437,8 @@ func _resume_story_from_save() -> void:
 	_sync_session_fields()
 	_spawn_cursor = mission_runtime.encounter_index * 8
 	_wave_transitioning = false
+	_waiting_for_extraction = false
+	_set_extraction_armed(false)
 	game_state = GameState.PLAYING
 	menu_panel.visible = false
 	pause_panel.visible = false
