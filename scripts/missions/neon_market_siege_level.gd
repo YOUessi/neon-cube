@@ -971,21 +971,21 @@ func _build_neon_market() -> void:
 			u,
 			v,
 			0.0,
-			Vector3(2.8, 1.25, 1.5),
+			Vector3(2.2, 1.05, 1.15),
 			COVER,
 			CYAN if side < 0.0 else MAGENTA,
 			true,
 			&"combat_cover"
 		)
-		_add_prop(crossfire, "Terminal_%02d" % i, "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, u, v, 1.28, 0.60, 180.0 if side < 0.0 else 0.0)
+		_add_prop(crossfire, "Terminal_%02d" % i, "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, u, v, 1.12, 0.45, 180.0 if side < 0.0 else 0.0)
 		_add_face_box(
 			crossfire,
 			"Canopy_%02d" % i,
 			down,
 			u,
 			v,
-			2.15,
-			Vector3(3.1, 0.12, 1.8),
+			1.88,
+			Vector3(2.5, 0.10, 1.45),
 			Color(0.03, 0.04, 0.07),
 			MAGENTA if side < 0.0 else CYAN,
 			false
@@ -1431,7 +1431,30 @@ func _build_extraction() -> void:
 	_add_face_light(route, "ExtractionRouteLight", down, -5.0, -20.0, 3.6, AMBER, 1.25, 8.0)
 
 	var zone_container := _section(root, "ExtractionBeacon")
-	_add_ring_visual(zone_container, "ExtractionRing", down, 0.0, -25.0, 0.05, 3.4, Color(0.03, 0.06, 0.055), AMBER)
+	_add_disc_visual(
+		zone_container,
+		"ExtractionFloor",
+		down,
+		0.0,
+		-25.0,
+		0.035,
+		3.4,
+		Color(0.035, 0.035, 0.022),
+		AMBER,
+		0.20
+	)
+	_add_ring_outline(
+		zone_container,
+		"ExtractionRing",
+		down,
+		0.0,
+		-25.0,
+		0.075,
+		3.4,
+		0.18,
+		AMBER,
+		4.0
+	)
 	if DisplayServer.get_name() != "headless":
 		_extraction_progress_core = MeshInstance3D.new()
 		_extraction_progress_core.name = "ExtractionProgressCore"
@@ -1679,13 +1702,13 @@ func _add_objective_node(
 		var inner_core := MeshInstance3D.new()
 		inner_core.name = "InnerCore"
 		var inner_mesh := CylinderMesh.new()
-		inner_mesh.top_radius = 0.22
-		inner_mesh.bottom_radius = 0.28
-		inner_mesh.height = 1.18
+		inner_mesh.top_radius = 0.14
+		inner_mesh.bottom_radius = 0.18
+		inner_mesh.height = 1.05
 		inner_mesh.radial_segments = 28
 		inner_core.mesh = inner_mesh
 		inner_core.position = Vector3(0, 0.02, -0.40)
-		inner_core.material_override = _material(accent * 0.10, accent, 4.2)
+		inner_core.material_override = _material(accent * 0.08, accent, 3.6)
 		node.add_child(inner_core)
 
 		for side in [-1.0, 1.0]:
