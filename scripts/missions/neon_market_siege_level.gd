@@ -964,10 +964,14 @@ func _authored_route_specs(encounter_id: StringName) -> Array:
 				[Vector3.LEFT, 13.0, 3.0],
 				[Vector3.LEFT, 12.0, 11.0],
 				[Vector3.LEFT, 5.0, 14.0],
-				# Maintenance Bridge ascent chain: approach -> stair crest -> deck.
+				# Maintenance Bridge ascent follows each physical tread.
 				[Vector3.LEFT, 15.0, 5.0, 1.05],
-				[Vector3.LEFT, 15.0, 8.3, 3.05],
-				[Vector3.LEFT, 12.5, 9.5, 3.25],
+				[Vector3.LEFT, 15.0, 5.82, 1.48],
+				[Vector3.LEFT, 15.0, 6.44, 1.94],
+				[Vector3.LEFT, 15.0, 7.06, 2.40],
+				[Vector3.LEFT, 15.0, 7.68, 2.86],
+				[Vector3.LEFT, 15.0, 8.30, 3.32],
+				[Vector3.LEFT, 12.5, 9.5, 3.45],
 			]
 		&"null_warden":
 			return [
