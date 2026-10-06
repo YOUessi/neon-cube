@@ -34,8 +34,25 @@ func _run() -> void:
 	_check(boss.max_health >= 800.0, "boss health profile applied")
 	_check(boss.get_score_value() >= 2000, "boss score profile applied")
 
+	var perched: NeonEnemy = ENEMY_SCENE.instantiate() as NeonEnemy
+	perched.configure("sniper", 2)
+	perched.position = Vector3(0.70, -29.0, 0.0)
+	root.add_child(perched)
+	await process_frame
+	perched.set_physics_process(false)
+	perched.set_tactical_leash(Vector3(0.0, -29.0, 0.0), 0.75)
+	var outward_velocity := Vector3(4.0, 0.0, 0.0)
+	var clamped_velocity := perched._clamp_tactical_leash_velocity(outward_velocity)
+	_check(clamped_velocity.x < outward_velocity.x, "perch leash suppresses outward horizontal momentum near edge")
+	_check(clamped_velocity.x >= 0.0, "perch leash does not reverse velocity before hard boundary")
+
+	perched.set_tactical_leash(Vector3.ZERO, 0.0)
+	var unrestricted_velocity := perched._clamp_tactical_leash_velocity(outward_velocity)
+	_check(unrestricted_velocity.is_equal_approx(outward_velocity), "zero-radius leash leaves ordinary enemy momentum unchanged")
+
 	enemy.queue_free()
 	boss.queue_free()
+	perched.queue_free()
 	player.queue_free()
 	await process_frame
 	_finish()
