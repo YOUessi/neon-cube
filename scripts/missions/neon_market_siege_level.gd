@@ -50,6 +50,8 @@ var _hold_zone_occupied: Dictionary = {}
 var _hold_zone_progress: Dictionary = {}
 var _hold_zone_stable: Dictionary = {}
 var _progression_gate_state: Dictionary = {&"data_lane": false}
+var _data_relay_online: Dictionary = {&"relay_a": true, &"relay_b": true}
+var _data_exit_ready := false
 
 
 func _ready() -> void:
@@ -367,12 +369,18 @@ func extraction_progress_state() -> float:
 
 
 func reset_objective_nodes() -> void:
+	_data_relay_online[&"relay_a"] = true
+	_data_relay_online[&"relay_b"] = true
+	_data_exit_ready = false
 	for encounter_id in _objective_nodes:
 		var nodes: Array = _objective_nodes[encounter_id]
 		for node in nodes:
 			var objective := node as MissionObjectiveNode
 			if objective != null:
 				objective.reset_node()
+	_set_data_relay_environment(&"relay_a", true)
+	_set_data_relay_environment(&"relay_b", true)
+	_set_data_exit_route(false)
 
 
 func arm_objective_nodes(encounter_id: StringName, active: bool) -> void:
@@ -519,6 +527,65 @@ func progression_gate_open(encounter_id: StringName) -> bool:
 	return bool(_progression_gate_state.get(encounter_id, false))
 
 
+func data_environment_state() -> Dictionary:
+	return {
+		"relay_a_online": bool(_data_relay_online.get(&"relay_a", true)),
+		"relay_b_online": bool(_data_relay_online.get(&"relay_b", true)),
+		"exit_ready": _data_exit_ready,
+	}
+
+
+func _set_data_relay_environment(relay_id: StringName, online: bool) -> void:
+	if relay_id != &"relay_a" and relay_id != &"relay_b":
+		return
+	_data_relay_online[relay_id] = online
+
+	if DisplayServer.get_name() == "headless":
+		return
+
+	var offline_color := Color(1.0, 0.12, 0.08)
+	for node in get_tree().get_nodes_in_group("data_power_device"):
+		if not node is Node3D:
+			continue
+		var device := node as Node3D
+		if StringName(device.get_meta("relay_id", &"")) != relay_id:
+			continue
+		var accent: Color = device.get_meta("online_accent", CYAN)
+		var visual := device.get_node_or_null("Visual") as MeshInstance3D
+		if visual != null:
+			var material := visual.material_override as StandardMaterial3D
+			if material != null:
+				material.albedo_color = Color(0.04, 0.055, 0.09) if online else Color(0.055, 0.02, 0.025)
+				material.emission = accent if online else offline_color
+				material.emission_energy_multiplier = 0.22 if online else 0.55
+
+	var bus_name := "PowerBus_A" if relay_id == &"relay_a" else "PowerBus_B"
+	var bus := get_node_or_null("Geometry/DataLane/RelayStreet/%s" % bus_name) as MeshInstance3D
+	if bus != null:
+		var bus_material := bus.material_override as StandardMaterial3D
+		if bus_material != null:
+			var bus_color := CYAN if relay_id == &"relay_a" else MAGENTA
+			bus_material.albedo_color = (bus_color if online else offline_color) * 0.08
+			bus_material.emission = bus_color if online else offline_color
+			bus_material.emission_energy_multiplier = 4.8 if online else 1.8
+
+
+func _set_data_exit_route(ready: bool) -> void:
+	_data_exit_ready = ready
+	if DisplayServer.get_name() == "headless":
+		return
+	var guide := get_node_or_null("Geometry/DataLane/RelayStreet/WardenRouteGuide") as MeshInstance3D
+	if guide == null:
+		return
+	var material := guide.material_override as StandardMaterial3D
+	if material == null:
+		return
+	var route_color := Color(0.26, 1.0, 0.54) if ready else VIOLET
+	material.albedo_color = route_color * 0.08
+	material.emission = route_color
+	material.emission_energy_multiplier = 6.0 if ready else 2.6
+
+
 func _set_data_lane_gate_status(open: bool) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
@@ -526,6 +593,8 @@ func _set_data_lane_gate_status(open: bool) -> void:
 	if label == null:
 		return
 	var state_color := Color(0.28, 1.0, 0.58) if open else Color(1.0, 0.26, 0.34)
+	_data_exit_ready = open
+	_set_data_exit_route(open)
 	label.text = "ACCESS OPEN" if open else "ACCESS LOCKED"
 	label.modulate = state_color
 	var gate := get_node_or_null("Geometry/DataLane/WardenGate") as Node3D
@@ -1262,7 +1331,8 @@ func _build_data_lane() -> void:
 	for i in range(6):
 		var u := 2.5 + float(i % 3) * 5.0
 		var v := 3.5 + float(i / 3) * 6.0
-		_add_face_box(
+		var rack_accent := CYAN if i % 2 == 0 else VIOLET
+		var rack := _add_face_box(
 			lane,
 			"ServerRack_%02d" % i,
 			down,
@@ -1271,15 +1341,22 @@ func _build_data_lane() -> void:
 			0.0,
 			Vector3(1.6, 2.2, 1.0),
 			Color(0.04, 0.055, 0.09),
-			CYAN if i % 2 == 0 else VIOLET,
+			rack_accent,
 			true,
 			&"combat_cover"
 		)
+		var relay_id := &"relay_a" if i in [0, 1, 3] else &"relay_b"
+		rack.set_meta("relay_id", relay_id)
+		rack.set_meta("online_accent", rack_accent)
+		rack.add_to_group("data_power_device")
 	_add_face_box(lane, "LaneCoverA", down, 13.0, 6.0, 0.0, Vector3(3.0, 1.0, 0.9), COVER, MAGENTA, true, &"combat_cover")
 	_add_face_box(lane, "LaneCoverB", down, 4.0, 13.0, 0.0, Vector3(3.0, 1.0, 0.9), COVER, CYAN, true, &"combat_cover")
 	_add_face_label(lane, "DataLaneSign", down, 8.0, 1.0, 3.0, "DATA QUARTER // RELAY LANE", CYAN)
 	_add_face_trim(lane, "DataSpine", down, 8.0, 8.0, 0.08, Vector3(0.08, 0.035, 13.0), CYAN)
 	_add_face_trim(lane, "RelayDivider", down, 8.0, 8.0, 0.085, Vector3(15.5, 0.035, 0.08), VIOLET)
+	_add_face_trim(lane, "PowerBus_A", down, 3.0, 8.0, 0.115, Vector3(4.6, 0.035, 0.10), CYAN)
+	_add_face_trim(lane, "PowerBus_B", down, 13.0, 9.5, 0.115, Vector3(4.6, 0.035, 0.10), MAGENTA)
+	_add_face_trim(lane, "WardenRouteGuide", down, 8.0, 12.7, 0.12, Vector3(8.2, 0.04, 0.11), VIOLET)
 	_add_face_light(lane, "DataLightA", down, 4.0, 6.0, 4.0, CYAN, 1.15, 7.5)
 	_add_face_light(lane, "DataLightB", down, 12.0, 10.0, 4.0, VIOLET, 1.25, 7.5)
 	_add_objective_node(lane, "RelayCore_A", &"data_lane", &"relay_a", down, 3.0, 8.0, 90.0, CYAN)
@@ -2092,6 +2169,8 @@ func _on_objective_node_destroyed(node: MissionObjectiveNode) -> void:
 	var down := CubeGravity.nearest_down(node.global_position, cube_half_extent)
 	_spawn_event_pulse(node.global_position, down, Color(1.0, 0.20, 0.10), 2.4, 0.42)
 	_spawn_event_sparks(node.global_position, down, Color(1.0, 0.38, 0.12), 8)
+	if node.encounter_id == &"data_lane":
+		_set_data_relay_environment(node.objective_id, false)
 	var remaining := objective_nodes_remaining(node.encounter_id)
 	objective_node_destroyed.emit(node.encounter_id, node.objective_id, remaining)
 
@@ -2517,6 +2596,7 @@ func _add_face_box(
 
 	if DisplayServer.get_name() != "headless":
 		var visual := MeshInstance3D.new()
+		visual.name = "Visual"
 		var mesh := BoxMesh.new()
 		mesh.size = size
 		visual.mesh = mesh
