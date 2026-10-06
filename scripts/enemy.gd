@@ -453,6 +453,21 @@ func _select_route_waypoint() -> void:
 		var planar_cost := planar_delta.length()
 		var point_elevation := point_delta.dot(up)
 		var direct_reachable := _route_point_reachable(point)
+		# Clear line-of-sight to a high platform does not imply walkable access.
+		# During a climb/descent, forbid distant elevation shortcuts so the AI
+		# must consume the authored stair-chain waypoints in local order.
+		if (
+			climbing
+			and point_elevation > max_step_height * 1.25
+			and planar_cost > 4.25
+		):
+			direct_reachable = false
+		elif (
+			descending
+			and point_elevation < -max_step_height * 1.25
+			and planar_cost > 4.25
+		):
+			direct_reachable = false
 		var stair_chain_candidate := (
 			climbing
 			and point_elevation >= -0.10
