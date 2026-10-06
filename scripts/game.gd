@@ -163,6 +163,7 @@ func start_game() -> void:
 	_extraction_progress = 0.0
 	_reset_objective_nodes()
 	_reset_hold_zones()
+	_reset_progression_gates()
 	_set_extraction_armed(false)
 	_set_encounter_zone_armed(&"", false)
 	_set_encounter_lockdown(&"", false)
@@ -253,6 +254,8 @@ func _finish_wave() -> void:
 			_arm_hold_zone(encounter.encounter_id, false)
 			_hold_progress = 0.0
 			_set_encounter_lockdown(encounter.encounter_id, false)
+			if encounter.encounter_id == &"data_lane":
+				_set_progression_gate_open(&"data_lane", true, true)
 			if encounter.encounter_id == &"null_warden":
 				_set_boss_arena_phase(1)
 		if encounter != null and encounter.encounter_id == &"extraction":
@@ -640,6 +643,9 @@ func _resume_story_from_save() -> void:
 	_extraction_progress = 0.0
 	_reset_objective_nodes()
 	_reset_hold_zones()
+	_reset_progression_gates()
+	if mission_runtime.completed_encounters.has(&"data_lane"):
+		_set_progression_gate_open(&"data_lane", true, false)
 	_set_extraction_armed(false)
 	_set_encounter_lockdown(&"", false)
 	_set_encounter_zone_armed(mission_runtime.current_encounter().encounter_id, true)
@@ -1046,6 +1052,20 @@ func _set_encounter_zone_armed(encounter_id: StringName, active: bool) -> void:
 func _set_encounter_lockdown(encounter_id: StringName, active: bool) -> void:
 	if is_instance_valid(mission_level) and mission_level.has_method("set_encounter_lockdown"):
 		mission_level.call("set_encounter_lockdown", encounter_id, active)
+
+
+func _reset_progression_gates() -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("reset_progression_gates"):
+		mission_level.call("reset_progression_gates")
+
+
+func _set_progression_gate_open(
+	encounter_id: StringName,
+	open: bool,
+	animate: bool = true
+) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_progression_gate_open"):
+		mission_level.call("set_progression_gate_open", encounter_id, open, animate)
 
 
 func _set_navigation_target(encounter_id: StringName) -> void:
