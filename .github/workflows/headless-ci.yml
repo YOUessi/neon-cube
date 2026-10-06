@@ -43,8 +43,6 @@ jobs:
           test -s artifacts/neon_cube_ci.png
           test -s artifacts/neon_market_hall.png
           test -s artifacts/gravity_breach.png
-          test -s artifacts/gravity_breach_no_city_props.png
-          test -s artifacts/gravity_breach_no_city_buildings.png
           test -s artifacts/data_lane_relays.png
           test -s artifacts/void_docks_boss.png
           test -s artifacts/extraction_yard.png
@@ -57,8 +55,6 @@ jobs:
             artifacts/neon_cube_ci.png
             artifacts/neon_market_hall.png
             artifacts/gravity_breach.png
-            artifacts/gravity_breach_no_city_props.png
-            artifacts/gravity_breach_no_city_buildings.png
             artifacts/data_lane_relays.png
             artifacts/void_docks_boss.png
             artifacts/extraction_yard.png
