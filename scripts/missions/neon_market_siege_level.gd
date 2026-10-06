@@ -873,7 +873,7 @@ func _add_face_box(
 		var mesh := BoxMesh.new()
 		mesh.size = size
 		visual.mesh = mesh
-		visual.material_override = _material(base_color, emission_color, 2.4 if collidable else 1.6)
+		visual.material_override = _material(base_color, emission_color, 1.35 if collidable else 0.75)
 		node.add_child(visual)
 	return node
 
