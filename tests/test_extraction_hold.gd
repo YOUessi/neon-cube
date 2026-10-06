@@ -37,7 +37,7 @@ func _run() -> void:
 	) as Area3D
 	_check(zone != null and zone.monitoring, "extraction beacon trigger is active")
 	if zone == null:
-		get_tree().paused = false
+		paused = false
 		game.queue_free()
 		await process_frame
 		_finish()
@@ -78,7 +78,7 @@ func _run() -> void:
 	_check(not game._waiting_for_extraction, "extraction waiting state clears on victory")
 	_check(game.mission_runtime.state == MissionRuntime.State.COMPLETED, "MissionRuntime records final completion")
 
-	get_tree().paused = false
+	paused = false
 	game.queue_free()
 	await process_frame
 	_finish()
