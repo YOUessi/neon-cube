@@ -128,6 +128,7 @@ func start_game() -> void:
 	_waiting_for_encounter_entry = false
 	_set_extraction_armed(false)
 	_set_encounter_zone_armed(&"", false)
+	_set_encounter_lockdown(&"", false)
 	game_state = GameState.PLAYING
 	menu_panel.visible = false
 	pause_panel.visible = false
@@ -209,6 +210,8 @@ func _finish_wave() -> void:
 	_wave_transitioning = true
 	if story_mode:
 		var encounter := mission_runtime.current_encounter()
+		if encounter != null:
+			_set_encounter_lockdown(encounter.encounter_id, false)
 		if encounter != null and encounter.encounter_id == &"extraction":
 			_waiting_for_extraction = true
 			_wave_transitioning = true
@@ -463,6 +466,7 @@ func _resume_story_from_save() -> void:
 	_waiting_for_extraction = false
 	_waiting_for_encounter_entry = true
 	_set_extraction_armed(false)
+	_set_encounter_lockdown(&"", false)
 	_set_encounter_zone_armed(mission_runtime.current_encounter().encounter_id, true)
 	game_state = GameState.PLAYING
 	menu_panel.visible = false
@@ -777,6 +781,11 @@ func _set_encounter_zone_armed(encounter_id: StringName, active: bool) -> void:
 		mission_level.call("arm_encounter_zone", encounter_id, active)
 
 
+func _set_encounter_lockdown(encounter_id: StringName, active: bool) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_encounter_lockdown"):
+		mission_level.call("set_encounter_lockdown", encounter_id, active)
+
+
 func _on_encounter_zone_entered(encounter_id: StringName) -> void:
 	if not story_mode or not _waiting_for_encounter_entry:
 		return
@@ -784,6 +793,7 @@ func _on_encounter_zone_entered(encounter_id: StringName) -> void:
 	if encounter == null or encounter.encounter_id != encounter_id:
 		return
 	_waiting_for_encounter_entry = false
+	_set_encounter_lockdown(encounter_id, true)
 	_spawn_current_wave()
 	_wave_transitioning = false
 	_update_score()
