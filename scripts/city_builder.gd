@@ -16,22 +16,22 @@ static func _build_environment(parent: Node3D) -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.003, 0.006, 0.02)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.28, 0.16, 0.48)
-	env.ambient_light_energy = 1.7
+	env.ambient_light_color = Color(0.18, 0.12, 0.32)
+	env.ambient_light_energy = 0.95
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	world.environment = env
 	parent.add_child(world)
 
 	var key := DirectionalLight3D.new()
 	key.light_color = Color(0.28, 0.46, 1.0)
-	key.light_energy = 1.25
+	key.light_energy = 0.92
 	key.rotation_degrees = Vector3(-42, -28, 0)
 	key.shadow_enabled = true
 	parent.add_child(key)
 
 	var fill := DirectionalLight3D.new()
 	fill.light_color = Color(1.0, 0.08, 0.42)
-	fill.light_energy = 0.65
+	fill.light_energy = 0.34
 	fill.rotation_degrees = Vector3(30, 145, 0)
 	parent.add_child(fill)
 
