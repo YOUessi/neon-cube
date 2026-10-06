@@ -98,6 +98,8 @@ static func _build_city_blocks(
 		for v in coords:
 			if absf(u) < 5.0 or absf(v) < 5.0:
 				continue
+			if _reserved_for_mission(district.district_id, u, v):
+				continue
 			if int((absf(u) + absf(v)) / 7.0 + float(district.prop_seed)) % district.density_skip_mod == 0:
 				continue
 			var height := (3.8 + float((idx * 37 + district.prop_seed * 11) % 9) * 0.78) * district.building_height_scale
@@ -106,6 +108,33 @@ static func _build_city_blocks(
 			var center: Vector3 = face_center + right * u + forward * v + inward_up * (height * 0.5)
 			_add_building(parent, center, basis, Vector3(width, height, depth), idx, district)
 			idx += 1
+
+static func _reserved_for_mission(district_id: StringName, u: float, v: float) -> bool:
+	match district_id:
+		&"neon_market":
+			# Arrival boulevard, market hall/seam, and the return extraction route.
+			return (
+				(absf(u) <= 7.0 and v >= -25.0 and v <= -2.0)
+				or (u >= 4.0 and u <= 29.0 and v >= -5.0 and v <= 13.0)
+				or (u >= -20.0 and u <= 6.0 and v >= -28.0 and v <= -6.0)
+			)
+		&"industrial_arc":
+			# Bottom-to-east landing, breach arena, relay approach and east conduit.
+			return (
+				(u >= -14.0 and u <= 4.0 and v >= -29.0 and v <= 1.0)
+				or (u >= -2.0 and u <= 29.0 and v >= -9.0 and v <= 1.0)
+			)
+		&"data_quarter":
+			# West conduit, data-lane combat bowl and Warden access gate.
+			return u >= -29.0 and u <= 16.0 and v >= 1.0 and v <= 20.0
+		&"void_docks":
+			# South-face transit band and Null Warden arena.
+			return (
+				(absf(u) <= 13.0 and v >= -16.0 and v <= 11.0)
+				or (u >= -29.0 and u <= 29.0 and v >= 10.0 and v <= 21.0)
+			)
+	return false
+
 
 static func _add_building(
 	parent: Node3D,
