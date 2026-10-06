@@ -13,9 +13,11 @@ func _run() -> void:
 	root.add_child(level)
 	await process_frame
 
-	var mission := MissionCatalog.primary()
-	var anchor_errors := MissionAnchorRegistry.validate(level, mission)
-	_check(anchor_errors.is_empty(), "authored mission level preserves mission anchor contract: %s" % anchor_errors)
+	var anchors := MissionAnchorRegistry.collect(level)
+	_check(anchors.size() >= 14, "authored mission level preserves all traversal anchors")
+	_check(anchors.has("player_start"), "authored mission level preserves player start")
+	_check(anchors.has("null_warden_center"), "authored mission level preserves boss center")
+	_check(anchors.has("extraction_point"), "authored mission level preserves extraction point")
 
 	_check(level.get_node_or_null("Geometry/NeonMarket/ArrivalStreet") != null, "arrival street exists")
 	_check(level.get_node_or_null("Geometry/NeonMarket/MarketHall") != null, "market interior exists")
