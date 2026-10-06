@@ -92,12 +92,16 @@ func _run() -> void:
 		_check(CubeGravity.nearest_down(boss_routes[0], 30.0).is_equal_approx(Vector3.BACK), "boss route stays on Void Docks face")
 
 	var market_spawns: Array = level.call("spawn_points_for", &"market_crossfire", 5, 0)
+	var data_spawns: Array = level.call("spawn_points_for", &"data_lane", 5, 0)
 	var breach_spawns: Array = level.call("spawn_points_for", &"gravity_breach", 4, 0)
 	var boss_spawns: Array = level.call("spawn_points_for", &"null_warden", 4, 0)
 	_check(market_spawns.size() == 5, "market encounter exposes five authored spawn sockets")
 	if market_spawns.size() == 5:
 		_check(market_spawns[4].y > market_spawns[0].y + 1.5, "Market reinforcement sniper spawn is elevated above ground squad")
 	_check(breach_spawns.size() == 4, "breach encounter exposes four authored spawn sockets")
+	_check(data_spawns.size() == 5, "Data Lane exposes five authored spawn sockets")
+	if data_spawns.size() == 5:
+		_check(data_spawns[3].x > data_spawns[0].x + 1.5, "Data Lane reinforcement sniper spawn is elevated above ground squad")
 	_check(boss_spawns.size() == 4, "boss encounter exposes four authored spawn sockets")
 	if not market_spawns.is_empty():
 		_check(CubeGravity.nearest_down(market_spawns[0], 30.0).is_equal_approx(Vector3.DOWN), "market spawns stay on Neon Market face")
