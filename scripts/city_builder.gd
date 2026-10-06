@@ -285,10 +285,10 @@ static func _build_authored_props(
 	var center: Vector3 = down * (half - 0.48) + inward * 0.04
 
 	var placements := [
-		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 + forward * 6.0, 1.25],
-		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 + forward * 6.0, 1.25],
-		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 - forward * 6.0, 1.25],
-		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 - forward * 6.0, 1.25],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 + forward * 6.0, 0.72],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 + forward * 6.0, 0.72],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 - forward * 6.0, 0.72],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 - forward * 6.0, 0.72],
 		["res://assets/third_party/quaternius_cyberpunk/computer.gltf", center + right * 7.5 + forward * 1.5, 0.55],
 		["res://assets/third_party/quaternius_cyberpunk/door.gltf", center - right * 8.0 - forward * 2.0, 1.7],
 		["res://assets/third_party/quaternius_cyberpunk/antenna.gltf", center + right * 10.5 - forward * 9.0, 1.65],
