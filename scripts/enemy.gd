@@ -35,6 +35,8 @@ var _route_waypoint := Vector3.ZERO
 var _has_route_waypoint := false
 var _tactical_slot_index := -1
 var _tactical_slot_count := 0
+var _tactical_leash_center := Vector3.ZERO
+var _tactical_leash_radius := 0.0
 
 func configure(kind: String, wave_level: int, difficulty_scale: float = 1.0) -> void:
 	archetype = kind
@@ -61,6 +63,19 @@ func get_tactical_slot_index() -> int:
 
 func get_tactical_slot_count() -> int:
 	return _tactical_slot_count
+
+func set_tactical_leash(center: Vector3, radius: float) -> void:
+	_tactical_leash_center = center
+	_tactical_leash_radius = maxf(0.0, radius)
+
+
+func get_tactical_leash_radius() -> float:
+	return _tactical_leash_radius
+
+
+func get_tactical_leash_center() -> Vector3:
+	return _tactical_leash_center
+
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -126,6 +141,7 @@ func _physics_process(delta: float) -> void:
 	)
 	if wish.length_squared() > 0.01:
 		wish = _avoid_obstacles(wish)
+		wish = _apply_tactical_leash(wish)
 
 	var fall_speed: float = velocity.dot(gravity_down)
 	var horizontal: Vector3 = velocity - gravity_down * fall_speed
@@ -217,6 +233,34 @@ func _spawn_attack_beam(telegraph: bool) -> void:
 	host.add_child(beam)
 	var lifetime := maxf(0.06, _definition.attack_windup) if telegraph else 0.09
 	get_tree().create_timer(lifetime).timeout.connect(beam.queue_free)
+
+
+func _apply_tactical_leash(wish: Vector3) -> Vector3:
+	if _tactical_leash_radius <= 0.0 or wish.length_squared() <= 0.001:
+		return wish
+	var offset := global_position - _tactical_leash_center
+	offset -= gravity_down * offset.dot(gravity_down)
+	var distance := offset.length()
+	if distance <= 0.001:
+		return wish
+
+	var inward := -offset.normalized()
+	var soft_radius := _tactical_leash_radius * 0.55
+	if distance >= _tactical_leash_radius:
+		return inward
+
+	var predicted := offset + wish * minf(0.8, _tactical_leash_radius)
+	if predicted.length() > _tactical_leash_radius:
+		return (wish + inward * 2.2).normalized()
+
+	if distance > soft_radius:
+		var blend := clampf(
+			(distance - soft_radius) / maxf(0.05, _tactical_leash_radius - soft_radius),
+			0.0,
+			1.0
+		)
+		return (wish * (1.0 - blend) + inward * blend).normalized()
+	return wish
 
 
 func _tactical_slot_direction(fallback: Vector3) -> Vector3:
