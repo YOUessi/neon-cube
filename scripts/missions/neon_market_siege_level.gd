@@ -34,6 +34,8 @@ var _reinforcement_warning_encounter: StringName = &""
 var _reinforcement_warning_count := 0
 var _reinforcement_warning_serial := 0
 var _objective_nodes: Dictionary = {}
+var _hold_zones: Dictionary = {}
+var _hold_zone_occupied: Dictionary = {}
 
 
 func _ready() -> void:
@@ -44,6 +46,7 @@ func _ready() -> void:
 	add_child(_geometry_root)
 	_build_neon_market()
 	_build_gravity_breach()
+	_build_hold_zones()
 	_build_trans_face_transit()
 	_build_data_lane()
 	_build_boss_arena()
@@ -136,6 +139,41 @@ func _add_reinforcement_warning_visual(parent: Node3D, name: String, spawn_posit
 	ring.position = Vector3(0, -1.42, 0)
 	ring.material_override = _material(MAGENTA * 0.05, MAGENTA, 7.0)
 	root.add_child(ring)
+
+
+func reset_hold_zones() -> void:
+	for key in _hold_zones:
+		var zone := _hold_zones[key] as Area3D
+		_hold_zone_occupied[StringName(key)] = false
+		if zone != null:
+			zone.monitoring = false
+			var visual := zone.get_node_or_null("HoldVisual") as MeshInstance3D
+			if visual != null:
+				visual.visible = false
+
+
+func arm_hold_zone(encounter_id: StringName, active: bool) -> void:
+	for key in _hold_zones:
+		var key_id := StringName(key)
+		var zone := _hold_zones[key] as Area3D
+		var enabled := active and key_id == encounter_id
+		_hold_zone_occupied[key_id] = false
+		if zone != null:
+			zone.monitoring = enabled
+			var visual := zone.get_node_or_null("HoldVisual") as MeshInstance3D
+			if visual != null:
+				visual.visible = enabled
+
+
+func is_hold_zone_occupied(encounter_id: StringName) -> bool:
+	return bool(_hold_zone_occupied.get(encounter_id, false))
+
+
+func hold_zone_world_position(encounter_id: StringName) -> Vector3:
+	if not _hold_zones.has(encounter_id):
+		return Vector3.ZERO
+	var zone := _hold_zones[encounter_id] as Area3D
+	return zone.global_position if zone != null else Vector3.ZERO
 
 
 func reset_objective_nodes() -> void:
@@ -413,6 +451,7 @@ func spatial_summary() -> Dictionary:
 		"navigation_beacon": get_tree().get_nodes_in_group("navigation_beacon").size(),
 		"boss_hazard": get_tree().get_nodes_in_group("boss_hazard").size(),
 		"mission_objective_node": get_tree().get_nodes_in_group("mission_objective_node").size(),
+		"mission_hold_zone": get_tree().get_nodes_in_group("mission_hold_zone").size(),
 	}
 
 
@@ -568,6 +607,58 @@ func _build_gravity_breach() -> void:
 	_add_face_box(relay, "RelayLane", down, -3.0, -6.0, 0.02, Vector3(8.0, 0.05, 13.0), DARK, AMBER, false)
 	_add_face_box(relay, "RelayBarrierA", down, -7.0, -5.0, 0.0, Vector3(2.4, 1.0, 0.8), WALL, AMBER, true, &"combat_cover")
 	_add_face_box(relay, "RelayBarrierB", down, 1.0, -3.0, 0.0, Vector3(2.4, 1.0, 0.8), WALL, MAGENTA, true, &"combat_cover")
+
+
+func _build_hold_zones() -> void:
+	var root := _section(_geometry_root, "HoldZones")
+	var encounter_id := &"gravity_breach"
+	var down := Vector3.RIGHT
+	var area := Area3D.new()
+	area.name = "GravityBreachHold"
+	area.position = _face_point(down, -8.0, -12.0, 0.05)
+	area.basis = CubeGravity.tangent_basis(down)
+	area.monitoring = false
+	area.monitorable = false
+	area.collision_layer = 0
+	area.collision_mask = 1
+	area.add_to_group("mission_hold_zone")
+
+	var collision := CollisionShape3D.new()
+	collision.position = Vector3(0, 1.35, 0)
+	var shape := CylinderShape3D.new()
+	shape.radius = 3.0
+	shape.height = 2.7
+	collision.shape = shape
+	area.add_child(collision)
+
+	if DisplayServer.get_name() != "headless":
+		var visual := MeshInstance3D.new()
+		visual.name = "HoldVisual"
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = 3.0
+		mesh.bottom_radius = 3.0
+		mesh.height = 0.07
+		mesh.radial_segments = 56
+		visual.mesh = mesh
+		visual.material_override = _material(CYAN * 0.045, CYAN, 4.8)
+		visual.visible = false
+		area.add_child(visual)
+
+	area.body_entered.connect(_on_hold_zone_body_entered.bind(encounter_id))
+	area.body_exited.connect(_on_hold_zone_body_exited.bind(encounter_id))
+	root.add_child(area)
+	_hold_zones[encounter_id] = area
+	_hold_zone_occupied[encounter_id] = false
+
+
+func _on_hold_zone_body_entered(body: Node3D, encounter_id: StringName) -> void:
+	if body is NeonPlayer:
+		_hold_zone_occupied[encounter_id] = true
+
+
+func _on_hold_zone_body_exited(body: Node3D, encounter_id: StringName) -> void:
+	if body is NeonPlayer:
+		_hold_zone_occupied[encounter_id] = false
 
 
 func _build_trans_face_transit() -> void:
