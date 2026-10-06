@@ -2,6 +2,7 @@ class_name NeonMarketSiegeLevel
 extends Node3D
 
 signal extraction_reached
+signal encounter_zone_entered(encounter_id: StringName)
 
 @export var cube_half_extent := 30.0
 
@@ -17,6 +18,7 @@ var _geometry_root: Node3D
 var _extraction_zone: Area3D
 var _extraction_label: Label3D
 var _extraction_armed := false
+var _encounter_zones: Dictionary = {}
 
 
 func _ready() -> void:
@@ -31,6 +33,7 @@ func _ready() -> void:
 	_build_data_lane()
 	_build_boss_arena()
 	_build_extraction()
+	_build_encounter_activation_zones()
 
 
 func arm_extraction(active: bool = true) -> void:
@@ -41,6 +44,75 @@ func arm_extraction(active: bool = true) -> void:
 		_extraction_label.visible = active
 
 
+func arm_encounter_zone(encounter_id: StringName, active: bool = true) -> void:
+	for key in _encounter_zones:
+		var zone: Area3D = _encounter_zones[key]
+		zone.monitoring = active and StringName(key) == encounter_id
+
+
+func spawn_points_for(encounter_id: StringName, count: int, sequence_offset: int = 0) -> Array[Vector3]:
+	var authored := _authored_spawn_specs(encounter_id)
+	var result: Array[Vector3] = []
+	if authored.is_empty() or count <= 0:
+		return result
+	for i in range(count):
+		var spec: Array = authored[(i + sequence_offset) % authored.size()]
+		var down: Vector3 = spec[0]
+		var u: float = float(spec[1])
+		var v: float = float(spec[2])
+		result.append(_face_point(down, u, v, 1.05))
+	return result
+
+
+func _authored_spawn_specs(encounter_id: StringName) -> Array:
+	match encounter_id:
+		&"arrival_ambush":
+			return [
+				[Vector3.DOWN, -3.2, -16.8],
+				[Vector3.DOWN, 3.4, -13.2],
+				[Vector3.DOWN, -2.4, -9.0],
+				[Vector3.DOWN, 3.0, -5.8],
+			]
+		&"market_crossfire":
+			return [
+				[Vector3.DOWN, 7.0, 1.5],
+				[Vector3.DOWN, 12.2, 4.0],
+				[Vector3.DOWN, 16.8, 1.0],
+				[Vector3.DOWN, 8.0, 8.3],
+				[Vector3.DOWN, 17.0, 8.0],
+			]
+		&"gravity_breach":
+			return [
+				[Vector3.RIGHT, -10.0, -17.2],
+				[Vector3.RIGHT, -5.0, -13.0],
+				[Vector3.RIGHT, -11.0, -8.0],
+				[Vector3.RIGHT, -3.2, -7.0],
+			]
+		&"data_lane":
+			return [
+				[Vector3.LEFT, 1.0, 13.0],
+				[Vector3.LEFT, 5.5, 6.2],
+				[Vector3.LEFT, 10.3, 13.2],
+				[Vector3.LEFT, 14.5, 6.0],
+				[Vector3.LEFT, 8.0, 15.0],
+			]
+		&"null_warden":
+			return [
+				[Vector3.BACK, 0.0, -4.0],
+				[Vector3.BACK, -7.2, -8.0],
+				[Vector3.BACK, 7.2, -8.0],
+				[Vector3.BACK, 0.0, 3.5],
+			]
+		&"extraction":
+			return [
+				[Vector3.DOWN, -17.5, -9.0],
+				[Vector3.DOWN, -13.0, -16.8],
+				[Vector3.DOWN, -7.0, -11.0],
+				[Vector3.DOWN, -10.0, -7.5],
+			]
+	return []
+
+
 func spatial_summary() -> Dictionary:
 	return {
 		"mission_geometry": get_tree().get_nodes_in_group("mission_geometry").size(),
@@ -48,6 +120,7 @@ func spatial_summary() -> Dictionary:
 		"cross_face_passage": get_tree().get_nodes_in_group("cross_face_passage").size(),
 		"boss_arena": get_tree().get_nodes_in_group("boss_arena").size(),
 		"extraction_zone": get_tree().get_nodes_in_group("extraction_zone").size(),
+		"encounter_activation_zone": get_tree().get_nodes_in_group("encounter_activation_zone").size(),
 	}
 
 
@@ -377,6 +450,46 @@ func _build_extraction() -> void:
 		_extraction_label.basis = CubeGravity.tangent_basis(down)
 		_extraction_label.visible = false
 		zone_container.add_child(_extraction_label)
+
+
+func _build_encounter_activation_zones() -> void:
+	var root := _section(_geometry_root, "EncounterActivationZones")
+	var specs := [
+		[&"market_crossfire", Vector3.DOWN, 12.0, 4.0, Vector3(7.0, 3.0, 7.0)],
+		[&"gravity_breach", Vector3.RIGHT, -8.0, -12.0, Vector3(8.0, 3.0, 8.0)],
+		[&"data_lane", Vector3.LEFT, 8.0, 8.0, Vector3(8.0, 3.0, 8.0)],
+		[&"null_warden", Vector3.BACK, 0.0, -4.0, Vector3(9.0, 3.0, 9.0)],
+		[&"extraction", Vector3.DOWN, -12.0, -12.0, Vector3(8.0, 3.0, 8.0)],
+	]
+	for spec in specs:
+		var encounter_id: StringName = spec[0]
+		var down: Vector3 = spec[1]
+		var u: float = float(spec[2])
+		var v: float = float(spec[3])
+		var size: Vector3 = spec[4]
+		var area := Area3D.new()
+		area.name = "%sActivation" % String(encounter_id).to_pascal_case()
+		area.position = _face_point(down, u, v, size.y * 0.5)
+		area.basis = CubeGravity.tangent_basis(down)
+		area.monitoring = false
+		area.monitorable = false
+		area.collision_layer = 0
+		area.collision_mask = 1
+		area.add_to_group("encounter_activation_zone")
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = size
+		collision.shape = shape
+		area.add_child(collision)
+		area.body_entered.connect(_on_encounter_zone_body_entered.bind(encounter_id))
+		root.add_child(area)
+		_encounter_zones[encounter_id] = area
+
+
+func _on_encounter_zone_body_entered(body: Node3D, encounter_id: StringName) -> void:
+	if body is NeonPlayer:
+		arm_encounter_zone(encounter_id, false)
+		encounter_zone_entered.emit(encounter_id)
 
 
 func _on_extraction_body_entered(body: Node3D) -> void:
