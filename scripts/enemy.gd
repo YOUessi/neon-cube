@@ -262,24 +262,34 @@ func _try_auto_step(wish: Vector3) -> bool:
 		return false
 
 	var lift := up * (step_height + 0.025)
-	if not test_move(global_transform, lift):
-		global_position += lift
-		return true
+	var base_transform := global_transform
+	var base_offset := Vector3.ZERO
 
-	# Enemy capsules are slightly wider than the player capsule. When they stop
-	# flush against a riser, a pure vertical sweep can still touch the riser
-	# side even though the tread above is valid. Back off a few centimeters,
-	# then retry the same validated lift. This does not relax the high-ray or
-	# max-step-height checks, so normal cover/walls remain unclimbable.
-	var backoff := -direction * 0.08
-	if test_move(global_transform, backoff):
-		return false
-	var backed_transform := global_transform
-	backed_transform.origin += backoff
-	if test_move(backed_transform, lift):
-		return false
+	if test_move(base_transform, lift):
+		# Enemy capsules are slightly wider than the player capsule. When they
+		# stop flush against a riser, a pure vertical sweep can still touch the
+		# riser side even though the tread above is valid. Back off a few
+		# centimeters, then retry the same validated lift. This does not relax
+		# the high-ray or max-step-height checks, so normal cover/walls remain
+		# unclimbable.
+		var backoff := -direction * 0.08
+		if test_move(base_transform, backoff):
+			return false
+		base_transform.origin += backoff
+		base_offset = backoff
+		if test_move(base_transform, lift):
+			return false
 
-	global_position += backoff + lift
+	# A vertical lift alone can leave a slow-moving enemy suspended just before
+	# the riser. Seat the capsule onto the validated tread so the next gravity
+	# frame sees the new floor instead of dropping it back down.
+	var lifted_transform := base_transform
+	lifted_transform.origin += lift
+	var forward_seat := direction * minf(0.52, step_probe_distance * 0.72)
+	if not test_move(lifted_transform, forward_seat):
+		global_position += base_offset + lift + forward_seat
+	else:
+		global_position += base_offset + lift
 	return true
 
 
