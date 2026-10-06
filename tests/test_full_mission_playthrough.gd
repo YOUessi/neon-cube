@@ -115,6 +115,25 @@ func _run() -> void:
 	await _enter_encounter_zone(game, "NullWardenActivation")
 	_check(game.session.alive_enemies == 4, "Null Warden encounter spawns boss squad")
 	_check(get_nodes_in_group("enemies").any(func(enemy): return (enemy as NeonEnemy).archetype == "boss"), "boss squad contains Null Warden")
+	var boss_gantry_sniper: NeonEnemy = null
+	var boss_ground_tank: NeonEnemy = null
+	for enemy in get_nodes_in_group("enemies"):
+		var typed_enemy := enemy as NeonEnemy
+		if typed_enemy.get_tactical_slot_index() == 2 and typed_enemy.archetype == "sniper":
+			boss_gantry_sniper = typed_enemy
+		elif typed_enemy.get_tactical_slot_index() == 3 and typed_enemy.archetype == "tank":
+			boss_ground_tank = typed_enemy
+	_check(boss_gantry_sniper != null, "Null Warden squad places sniper on authored gantry slot")
+	_check(boss_ground_tank != null, "Null Warden squad keeps tank on ground slot")
+	if boss_gantry_sniper != null:
+		_check(is_equal_approx(boss_gantry_sniper.get_tactical_leash_radius(), 0.55), "Boss gantry sniper receives perch leash")
+		var boss_authored_spawns: Array = game.mission_level.call("spawn_points_for", &"null_warden", 4, 0)
+		_check(boss_authored_spawns.size() == 4, "Null Warden authored spawn list remains complete")
+		if boss_authored_spawns.size() == 4:
+			_check(boss_gantry_sniper.get_tactical_leash_center().distance_to(boss_authored_spawns[2]) < 0.05, "Boss sniper maps exactly to authored gantry socket")
+		_check(boss_gantry_sniper.global_position.distance_to(boss_gantry_sniper.get_tactical_leash_center()) <= 0.60, "Boss sniper begins inside gantry perch leash")
+	if boss_ground_tank != null:
+		_check(is_equal_approx(boss_ground_tank.get_tactical_leash_radius(), 0.0), "Boss ground tank remains unrestricted")
 	await _kill_all_enemies(game)
 	game._process(0.016)
 	_check(game.mission_runtime.current_encounter().encounter_id == &"extraction", "boss clear advances to Extraction")
