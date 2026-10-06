@@ -599,16 +599,23 @@ func _player_inside_boss_hazard(hazard: Area3D) -> bool:
 
 
 func _apply_gate_state(encounter_id: StringName, active: bool) -> void:
-	var gate_data: Dictionary = _combat_gates.get(encounter_id, {})
-	if gate_data.is_empty():
+	var gates: Array = _combat_gates.get(encounter_id, [])
+	if gates.is_empty():
 		return
 	_lockdown_state[encounter_id] = active
-	var collision := gate_data.get("collision") as CollisionShape3D
-	if collision != null:
-		collision.set_deferred("disabled", not active)
-	var visual := gate_data.get("visual") as MeshInstance3D
-	if visual != null:
-		visual.visible = active
+	for gate_variant in gates:
+		var gate_data: Dictionary = gate_variant
+		var collision := gate_data.get("collision") as CollisionShape3D
+		if collision != null:
+			collision.set_deferred("disabled", not active)
+		var visual := gate_data.get("visual") as MeshInstance3D
+		if visual != null:
+			visual.visible = active
+
+
+func combat_gate_count(encounter_id: StringName) -> int:
+	var gates: Array = _combat_gates.get(encounter_id, [])
+	return gates.size()
 
 
 func spawn_points_for(encounter_id: StringName, count: int, sequence_offset: int = 0) -> Array[Vector3]:
@@ -1310,22 +1317,25 @@ func _build_extraction() -> void:
 func _build_combat_lockdown_gates() -> void:
 	var root := _section(_geometry_root, "CombatLockdownGates")
 	var specs := [
-		[&"market_crossfire", Vector3.DOWN, 21.0, 8.0, Vector3(5.4, 3.6, 0.34), MAGENTA],
-		[&"gravity_breach", Vector3.RIGHT, 3.0, -4.0, Vector3(5.4, 3.6, 0.34), AMBER],
-		[&"data_lane", Vector3.LEFT, 0.0, 14.0, Vector3(8.0, 4.2, 0.34), VIOLET],
-		[&"null_warden", Vector3.BACK, 0.0, 8.3, Vector3(11.0, 4.6, 0.34), MAGENTA],
-		[&"extraction", Vector3.DOWN, -4.5, -20.0, Vector3(8.0, 3.6, 0.34), AMBER],
+		[&"market_crossfire", "MarketEntry", Vector3.DOWN, 11.8, -3.05, Vector3(6.4, 3.6, 0.34), CYAN],
+		[&"market_crossfire", "MarketExit", Vector3.DOWN, 21.0, 8.0, Vector3(5.4, 3.6, 0.34), MAGENTA],
+		[&"gravity_breach", "BreachExit", Vector3.RIGHT, 3.0, -4.0, Vector3(5.4, 3.6, 0.34), AMBER],
+		[&"data_lane", "DataExit", Vector3.LEFT, 0.0, 14.0, Vector3(8.0, 4.2, 0.34), VIOLET],
+		[&"null_warden", "WardenEntry", Vector3.BACK, 0.0, 8.3, Vector3(11.0, 4.6, 0.34), MAGENTA],
+		[&"extraction", "ExtractionRear", Vector3.DOWN, -4.5, -20.0, Vector3(8.0, 3.6, 0.34), AMBER],
 	]
+
 	for spec in specs:
 		var encounter_id: StringName = spec[0]
-		var down: Vector3 = spec[1]
-		var u: float = float(spec[2])
-		var v: float = float(spec[3])
-		var size: Vector3 = spec[4]
-		var accent: Color = spec[5]
+		var gate_id: String = spec[1]
+		var down: Vector3 = spec[2]
+		var u: float = float(spec[3])
+		var v: float = float(spec[4])
+		var size: Vector3 = spec[5]
+		var accent: Color = spec[6]
 
 		var body := StaticBody3D.new()
-		body.name = "%sLockdown" % String(encounter_id).to_pascal_case()
+		body.name = "%sLockdown" % gate_id
 		body.position = _face_point(down, u, v, size.y * 0.5)
 		body.basis = CubeGravity.tangent_basis(down)
 		body.add_to_group("mission_geometry")
@@ -1350,11 +1360,17 @@ func _build_combat_lockdown_gates() -> void:
 			body.add_child(visual)
 
 		root.add_child(body)
-		_combat_gates[encounter_id] = {
+
+		if not _combat_gates.has(encounter_id):
+			_combat_gates[encounter_id] = []
+		var gates: Array = _combat_gates[encounter_id]
+		gates.append({
 			"body": body,
 			"collision": collision,
 			"visual": visual,
-		}
+			"gate_id": gate_id,
+		})
+		_combat_gates[encounter_id] = gates
 		_lockdown_state[encounter_id] = false
 
 
