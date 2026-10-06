@@ -488,7 +488,9 @@ func _build_encounter_activation_zones() -> void:
 
 func _on_encounter_zone_body_entered(body: Node3D, encounter_id: StringName) -> void:
 	if body is NeonPlayer:
-		arm_encounter_zone(encounter_id, false)
+		for key in _encounter_zones:
+			var zone: Area3D = _encounter_zones[key]
+			zone.set_deferred("monitoring", false)
 		encounter_zone_entered.emit(encounter_id)
 
 
