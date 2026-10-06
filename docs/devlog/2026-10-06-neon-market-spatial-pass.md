@@ -490,3 +490,48 @@ IDLE
 - 各 archetype 的 attack cadence / FX 数据保持区分。
 
 视觉 beam 在 scripted capture 没有 `current_scene` 时会回退挂载到 SceneTree root，避免 CI screenshot 场景出现空引用。
+
+
+## 2026-10-06 追加：CI Screenshot Readability Pass
+
+### 依据
+
+通过 GitHub Actions 的 `neon-cube-visual-smoke` artifact 检查实际渲染帧后，发现：
+
+- 常驻城市 neon grid / window strip 过曝。
+- 大面积路面和边缘被青/黄/粉高亮吞没，空间层次不足。
+- Mission authored blockout 也过于发光。
+- 顶部 Mission message 宽度过大，与右侧 Score / Objective 区域产生视觉冲突。
+- Objective 单行文字过长，容易跑出安全区。
+
+### 世界视觉调整
+
+降低“常驻背景信息”的 emission：
+
+- 建筑 neon edge：8.0 → 3.8。
+- 天线：8.5 → 4.0。
+- window strip：6.2 → 2.8。
+- city grid / road grid：6.4 → 2.6。
+- Mission 常驻碰撞块体：2.4 → 1.35。
+- Mission 非碰撞视觉块：1.6 → 0.75。
+
+保持高亮，不降低：
+
+- Combat Lockdown。
+- Navigation Beacon。
+- Boss Hazard。
+- Attack Telegraph / Tracer。
+
+原则：**环境负责读空间，玩法信号负责发光。**
+
+### HUD Safe Zone 调整
+
+- 右上新增独立半透明信息板。
+- Score 右对齐。
+- Objective 改为 2 行显示。
+- `ADVANCE TO` / `REACH EXTRACTION` 改为两行信息结构。
+- Mission message 从 30px 降到 22px。
+- 中央提示宽度 600 → 420，避免与左右 HUD 重叠。
+- 增加 outline，提高深色/霓虹背景下的文字可读性。
+
+下一次 GitHub visual smoke artifact 用于确认这轮改动是否真的改善画面，而不是只根据代码猜测。
