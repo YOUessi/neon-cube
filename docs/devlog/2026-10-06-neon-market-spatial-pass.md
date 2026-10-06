@@ -1422,3 +1422,83 @@ ground heavy pressure
 ```
 
 Geometry 和真实 runtime 都验证高位 Sniper 的世界高度明显高于地面单位。
+
+
+## 2026-10-07 追加：Authored Spawn Mapping + High-ground Perch Leash
+
+### 发现的真实 Spawn Mapping Bug
+
+正式 Story encounter 原本调用：
+
+`spawn_points_for(encounter_id, count, _spawn_cursor)`
+
+而 `_spawn_cursor` 是跨 Encounter 全局递增的。
+
+结果：
+
+```text
+Arrival 生成 4 人
+→ _spawn_cursor = 4
+
+进入 Market
+→ authored spawn socket 被整体循环偏移 4 位
+→ enemy_index 4 的 Sniper
+→ 不再拿到 authored socket[4]
+→ 高位 socket / tactical slot / perch leash 发生错位
+```
+
+Data Lane 同样会因为之前 Encounter 已累计的 cursor 发生偏移。
+
+### 修复原则
+
+Story authored spawn sockets 现在：
+
+```text
+enemy_kinds[i]
+↔ authored_spawn[i]
+↔ tactical_slot[i]
+↔ perch_leash[i]
+```
+
+严格 1:1。
+
+`_spawn_cursor` 只继续用于：
+
+- fallback `EncounterSpawnPlanner`
+- 非 authored / procedural spawn 扰动
+
+不再扰动作者明确设计的 Mission socket。
+
+### Tactical Perch Leash
+
+高位 Sniper 现在有 authored leash：
+
+- Market Crossfire slot 4 / sniper：radius = 0.75m。
+- Data Lane slot 3 / sniper：radius = 0.30m。
+- leash center = 该敌人的 authored spawn socket。
+- 普通地面单位 radius = 0，不受限制。
+
+运行时行为：
+
+```text
+Sniper 在 perch 半径内
+→ 正常 sniper brain / LOS / attack
+
+即将离开 perch
+→ movement direction 被逐渐向中心混合
+
+超过 leash radius
+→ 强制向 perch center 回拉
+```
+
+因此高位 Sniper 不会“高位出生一帧后自己走下平台”。
+
+### 回归
+
+测试不再用绝对 world x/y 判断高低，而是验证更强的 authored contract：
+
+- Market Sniper leash center == authored spawn socket[4]。
+- Data Lane Sniper leash center == authored spawn socket[3]。
+- Sniper spawn 后位于对应 leash radius 内。
+- 地面 Runner / Tank leash radius = 0。
+- timed reinforcement 下 Market Sniper 仍保持在 authored perch 附近。
