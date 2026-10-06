@@ -157,6 +157,72 @@ func spawn_points_for(encounter_id: StringName, count: int, sequence_offset: int
 	return result
 
 
+func route_points_for(encounter_id: StringName) -> Array[Vector3]:
+	var authored := _authored_route_specs(encounter_id)
+	var result: Array[Vector3] = []
+	for spec in authored:
+		var down: Vector3 = spec[0]
+		var u: float = float(spec[1])
+		var v: float = float(spec[2])
+		result.append(_face_point(down, u, v, 1.05))
+	return result
+
+
+func _authored_route_specs(encounter_id: StringName) -> Array:
+	match encounter_id:
+		&"arrival_ambush":
+			return [
+				[Vector3.DOWN, -3.5, -20.0],
+				[Vector3.DOWN, 3.5, -15.0],
+				[Vector3.DOWN, -3.5, -10.0],
+				[Vector3.DOWN, 3.5, -5.5],
+			]
+		&"market_crossfire":
+			return [
+				[Vector3.DOWN, 6.5, -1.0],
+				[Vector3.DOWN, 10.0, 0.8],
+				[Vector3.DOWN, 14.2, 2.2],
+				[Vector3.DOWN, 16.8, 5.4],
+				[Vector3.DOWN, 11.2, 8.8],
+				[Vector3.DOWN, 18.2, 8.4],
+			]
+		&"gravity_breach":
+			return [
+				[Vector3.RIGHT, -12.2, -18.0],
+				[Vector3.RIGHT, -6.0, -16.5],
+				[Vector3.RIGHT, -12.0, -11.5],
+				[Vector3.RIGHT, -5.0, -9.0],
+				[Vector3.RIGHT, -1.5, -5.0],
+			]
+		&"data_lane":
+			return [
+				[Vector3.LEFT, 1.0, 4.0],
+				[Vector3.LEFT, 5.0, 2.5],
+				[Vector3.LEFT, 8.0, 6.0],
+				[Vector3.LEFT, 13.0, 3.0],
+				[Vector3.LEFT, 12.0, 11.0],
+				[Vector3.LEFT, 5.0, 14.0],
+			]
+		&"null_warden":
+			return [
+				[Vector3.BACK, -9.0, -10.5],
+				[Vector3.BACK, 9.0, -10.5],
+				[Vector3.BACK, -9.0, 3.5],
+				[Vector3.BACK, 9.0, 3.5],
+				[Vector3.BACK, 0.0, -14.0],
+				[Vector3.BACK, 0.0, 6.0],
+			]
+		&"extraction":
+			return [
+				[Vector3.DOWN, -18.0, -15.0],
+				[Vector3.DOWN, -14.0, -10.0],
+				[Vector3.DOWN, -9.0, -16.5],
+				[Vector3.DOWN, -6.0, -10.0],
+				[Vector3.DOWN, -4.0, -19.0],
+			]
+	return []
+
+
 func _authored_spawn_specs(encounter_id: StringName) -> Array:
 	match encounter_id:
 		&"arrival_ambush":
