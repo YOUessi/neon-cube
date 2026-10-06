@@ -38,11 +38,13 @@ func reset_node() -> void:
 		visual.visible = true
 		visual.scale = Vector3.ONE
 	_set_visual_energy(0.35)
+	_refresh_status_label()
 
 
 func set_active(active: bool) -> void:
 	_active = active and not _destroyed
 	_set_visual_energy(4.0 if _active else 0.35)
+	_refresh_status_label()
 
 
 func is_active() -> bool:
@@ -66,6 +68,7 @@ func take_damage(amount: float, _hit_position := Vector3.ZERO, _direction := Vec
 		return
 	_health = maxf(0.0, _health - amount)
 	_damage_flash = 1.0
+	_refresh_status_label()
 	if _health > 0.0:
 		return
 	_destroyed = true
@@ -76,6 +79,7 @@ func take_damage(amount: float, _hit_position := Vector3.ZERO, _direction := Vec
 	var visual := get_node_or_null("Visual") as MeshInstance3D
 	if visual != null:
 		visual.visible = false
+	_refresh_status_label()
 	destroyed.emit(self)
 
 
@@ -100,6 +104,28 @@ func _process(delta: float) -> void:
 		0.88 + ratio * 0.12 + pulse * 0.018,
 		1.0 + pulse * 0.018
 	)
+
+
+func _refresh_status_label() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var label := get_node_or_null("StatusLabel") as Label3D
+	if label == null:
+		return
+	var display_id := String(objective_id).replace("_", " ").to_upper()
+	if _destroyed:
+		label.text = "%s // OFFLINE" % display_id
+		label.modulate = Color(1.0, 0.22, 0.18)
+		label.visible = true
+		return
+	if not _active:
+		label.text = "%s // LOCKED" % display_id
+		label.modulate = Color(0.45, 0.55, 0.70)
+		label.visible = true
+		return
+	label.text = "%s // %03d%%" % [display_id, int(round(health_ratio() * 100.0))]
+	label.modulate = Color(0.92, 0.97, 1.0)
+	label.visible = true
 
 
 func _set_visual_energy(energy: float) -> void:
