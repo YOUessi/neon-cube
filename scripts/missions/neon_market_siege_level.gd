@@ -977,14 +977,20 @@ func _authored_route_specs(encounter_id: StringName) -> Array:
 				[Vector3.BACK, 9.0, 3.5],
 				[Vector3.BACK, 0.0, -14.0],
 				[Vector3.BACK, 0.0, 6.0],
-				# Left service gantry ascent.
-				[Vector3.BACK, -8.25, 0.3, 1.05],
-				[Vector3.BACK, -8.25, 3.0, 2.35],
-				[Vector3.BACK, -8.25, 3.8, 2.65],
-				# Right service gantry ascent.
-				[Vector3.BACK, 8.25, 0.3, 1.05],
-				[Vector3.BACK, 8.25, 3.0, 2.35],
-				[Vector3.BACK, 8.25, 3.8, 2.65],
+				# Left service gantry ascent follows each real stair tread.
+				[Vector3.BACK, -8.25, 0.25, 1.05],
+				[Vector3.BACK, -8.25, 0.95, 1.42],
+				[Vector3.BACK, -8.25, 1.55, 1.82],
+				[Vector3.BACK, -8.25, 2.18, 2.22],
+				[Vector3.BACK, -8.25, 2.82, 2.62],
+				[Vector3.BACK, -8.25, 3.8, 2.72],
+				# Right service gantry ascent follows each real stair tread.
+				[Vector3.BACK, 8.25, 0.25, 1.05],
+				[Vector3.BACK, 8.25, 0.95, 1.42],
+				[Vector3.BACK, 8.25, 1.55, 1.82],
+				[Vector3.BACK, 8.25, 2.18, 2.22],
+				[Vector3.BACK, 8.25, 2.82, 2.62],
+				[Vector3.BACK, 8.25, 3.8, 2.72],
 			]
 		&"extraction":
 			return [
