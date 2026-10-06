@@ -56,3 +56,36 @@ func _build_visual() -> void:
 	mat.emission_energy_multiplier = 5.0
 	mesh_instance.material_override = mat
 	add_child(mesh_instance)
+
+	if pickup_id != &"":
+		var ring := MeshInstance3D.new()
+		ring.name = "AuthoredPickupRing"
+		var ring_mesh := CylinderMesh.new()
+		ring_mesh.top_radius = 0.52
+		ring_mesh.bottom_radius = 0.52
+		ring_mesh.height = 0.045
+		ring_mesh.radial_segments = 32
+		ring.mesh = ring_mesh
+		ring.position = Vector3(0, -0.30, 0)
+		var ring_mat := StandardMaterial3D.new()
+		ring_mat.albedo_color = color * 0.10
+		ring_mat.emission_enabled = true
+		ring_mat.emission = color
+		ring_mat.emission_energy_multiplier = 3.2
+		ring.material_override = ring_mat
+		add_child(ring)
+
+		var label := Label3D.new()
+		label.name = "AuthoredPickupLabel"
+		label.text = "MED CACHE"
+		if pickup_type == "ammo":
+			label.text = "AMMO CACHE"
+		elif pickup_type == "shield":
+			label.text = "SHIELD CACHE"
+		label.font_size = 24
+		label.outline_size = 5
+		label.modulate = color
+		label.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
+		label.position = Vector3(0, 0.78, 0)
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		add_child(label)
