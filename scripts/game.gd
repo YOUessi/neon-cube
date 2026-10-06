@@ -35,6 +35,13 @@ var _wave_transitioning := false
 var _waiting_for_extraction := false
 var _waiting_for_encounter_entry := false
 var _last_boss_phase := 1
+var _encounter_enemy_kinds: Array[StringName] = []
+var _encounter_positions: Array[Vector3] = []
+var _encounter_route_points: Array[Vector3] = []
+var _encounter_batch_sizes: Array[int] = []
+var _encounter_batch_index := 0
+var _encounter_spawned_count := 0
+var _reinforcement_scheduled := false
 
 var hud_layer: CanvasLayer
 var hud_panel: Control
@@ -100,6 +107,16 @@ func _process(_delta: float) -> void:
 	if is_instance_valid(player) and dash_label != null:
 		var dash_remaining: float = player.get_dash_remaining()
 		dash_label.text = "DASH READY" if dash_remaining <= 0.0 else "DASH %.1fs" % dash_remaining
+	if story_mode and _has_pending_reinforcements():
+		var encounter := mission_runtime.current_encounter()
+		if (
+			encounter != null
+			and _alive_enemies <= encounter.reinforcement_trigger_remaining
+			and not _reinforcement_scheduled
+			and not _wave_transitioning
+		):
+			_schedule_reinforcement(encounter)
+		return
 	if _alive_enemies <= 0 and not _wave_transitioning:
 		_finish_wave()
 
@@ -128,6 +145,7 @@ func start_game() -> void:
 	_waiting_for_extraction = false
 	_waiting_for_encounter_entry = false
 	_last_boss_phase = 1
+	_clear_encounter_batch_state()
 	_set_extraction_armed(false)
 	_set_encounter_zone_armed(&"", false)
 	_set_encounter_lockdown(&"", false)
@@ -212,6 +230,7 @@ func _finish_wave() -> void:
 	_wave_transitioning = true
 	if story_mode:
 		var encounter := mission_runtime.current_encounter()
+		_clear_encounter_batch_state()
 		if encounter != null:
 			_set_encounter_lockdown(encounter.encounter_id, false)
 			if encounter.encounter_id == &"null_warden":
@@ -285,61 +304,130 @@ func _spawn_current_wave() -> void:
 		var encounter := mission_runtime.current_encounter()
 		if encounter == null:
 			return
-		var center_anchor := MissionAnchorRegistry.find_for_encounter(
-			mission_anchors,
-			encounter.encounter_id,
-			MissionAnchor.Kind.ENCOUNTER_CENTER
-		)
-		var positions: Array[Vector3] = []
-		if is_instance_valid(mission_level) and mission_level.has_method("spawn_points_for"):
-			var authored_positions: Variant = mission_level.call(
-				"spawn_points_for",
-				encounter.encounter_id,
-				encounter.enemy_kinds.size(),
-				_spawn_cursor
-			)
-			if authored_positions is Array:
-				for authored_position in authored_positions:
-					if authored_position is Vector3:
-						positions.append(authored_position)
-		if positions.size() != encounter.enemy_kinds.size():
-			positions.clear()
-			if center_anchor != null:
-				positions = EncounterSpawnPlanner.spawn_positions_around(
-					encounter,
-					encounter.enemy_kinds.size(),
-					cube_size,
-					center_anchor.global_position,
-					_spawn_cursor
-				)
-			else:
-				positions = EncounterSpawnPlanner.spawn_positions(
-					encounter,
-					encounter.enemy_kinds.size(),
-					cube_size,
-					_spawn_cursor
-				)
-		var route_points: Array[Vector3] = []
-		if is_instance_valid(mission_level) and mission_level.has_method("route_points_for"):
-			var authored_routes: Variant = mission_level.call("route_points_for", encounter.encounter_id)
-			if authored_routes is Array:
-				for route_point in authored_routes:
-					if route_point is Vector3:
-						route_points.append(route_point)
-		for i in range(encounter.enemy_kinds.size()):
-			_spawn_enemy_at(
-				String(encounter.enemy_kinds[i]),
-				positions[i],
-				route_points,
-				i,
-				encounter.enemy_kinds.size()
-			)
+		_prepare_story_encounter(encounter)
+		_spawn_next_story_batch()
 		return
 
 	var plan: Array[String] = wave_plan(session.current_wave_number())
 	for i in range(plan.size()):
 		_spawn_enemy(plan[i], i)
 
+
+func _prepare_story_encounter(encounter: EncounterDefinition) -> void:
+	_clear_encounter_batch_state()
+	_encounter_enemy_kinds = encounter.enemy_kinds.duplicate()
+	_encounter_batch_sizes = encounter.effective_batch_sizes()
+
+	var center_anchor := MissionAnchorRegistry.find_for_encounter(
+		mission_anchors,
+		encounter.encounter_id,
+		MissionAnchor.Kind.ENCOUNTER_CENTER
+	)
+	if is_instance_valid(mission_level) and mission_level.has_method("spawn_points_for"):
+		var authored_positions: Variant = mission_level.call(
+			"spawn_points_for",
+			encounter.encounter_id,
+			encounter.enemy_kinds.size(),
+			_spawn_cursor
+		)
+		if authored_positions is Array:
+			for authored_position in authored_positions:
+				if authored_position is Vector3:
+					_encounter_positions.append(authored_position)
+
+	if _encounter_positions.size() != encounter.enemy_kinds.size():
+		_encounter_positions.clear()
+		if center_anchor != null:
+			_encounter_positions = EncounterSpawnPlanner.spawn_positions_around(
+				encounter,
+				encounter.enemy_kinds.size(),
+				cube_size,
+				center_anchor.global_position,
+				_spawn_cursor
+			)
+		else:
+			_encounter_positions = EncounterSpawnPlanner.spawn_positions(
+				encounter,
+				encounter.enemy_kinds.size(),
+				cube_size,
+				_spawn_cursor
+			)
+
+	if is_instance_valid(mission_level) and mission_level.has_method("route_points_for"):
+		var authored_routes: Variant = mission_level.call("route_points_for", encounter.encounter_id)
+		if authored_routes is Array:
+			for route_point in authored_routes:
+				if route_point is Vector3:
+					_encounter_route_points.append(route_point)
+
+
+func _spawn_next_story_batch() -> void:
+	if not _has_pending_reinforcements():
+		return
+	var batch_size := _encounter_batch_sizes[_encounter_batch_index]
+	var total_count := _encounter_enemy_kinds.size()
+	var batch_number := _encounter_batch_index + 1
+	for _batch_offset in range(batch_size):
+		var enemy_index := _encounter_spawned_count
+		if enemy_index >= total_count:
+			break
+		_spawn_enemy_at(
+			String(_encounter_enemy_kinds[enemy_index]),
+			_encounter_positions[enemy_index],
+			_encounter_route_points,
+			enemy_index,
+			total_count
+		)
+		_encounter_spawned_count += 1
+	_encounter_batch_index += 1
+	if batch_number > 1:
+		_show_message(
+			"REINFORCEMENTS // BATCH %d/%d" % [batch_number, _encounter_batch_sizes.size()],
+			1.35
+		)
+
+
+func _has_pending_reinforcements() -> bool:
+	return _encounter_batch_index < _encounter_batch_sizes.size()
+
+
+func _schedule_reinforcement(encounter: EncounterDefinition) -> void:
+	_reinforcement_scheduled = true
+	_show_message("REINFORCEMENTS // INBOUND", maxf(0.45, encounter.reinforcement_delay))
+	_update_objective()
+	var timer := get_tree().create_timer(encounter.reinforcement_delay)
+	timer.timeout.connect(_on_reinforcement_ready.bind(encounter.encounter_id))
+
+
+func _on_reinforcement_ready(encounter_id: StringName) -> void:
+	if game_state != GameState.PLAYING or not story_mode:
+		_reinforcement_scheduled = false
+		return
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.encounter_id != encounter_id:
+		_reinforcement_scheduled = false
+		return
+	_spawn_next_story_batch()
+	_reinforcement_scheduled = false
+	_update_objective()
+
+
+func _clear_encounter_batch_state() -> void:
+	_encounter_enemy_kinds.clear()
+	_encounter_positions.clear()
+	_encounter_route_points.clear()
+	_encounter_batch_sizes.clear()
+	_encounter_batch_index = 0
+	_encounter_spawned_count = 0
+	_reinforcement_scheduled = false
+
+
+func current_story_batch_number() -> int:
+	return _encounter_batch_index
+
+
+func current_story_batch_count() -> int:
+	return _encounter_batch_sizes.size()
 func _spawn_enemy(kind: String, index: int) -> void:
 	_spawn_enemy_at(kind, _spawn_position(index + _spawn_cursor))
 
@@ -494,6 +582,7 @@ func _resume_story_from_save() -> void:
 	_wave_transitioning = true
 	_waiting_for_extraction = false
 	_waiting_for_encounter_entry = true
+	_clear_encounter_batch_state()
 	_set_extraction_armed(false)
 	_set_encounter_lockdown(&"", false)
 	_set_encounter_zone_armed(mission_runtime.current_encounter().encounter_id, true)
@@ -776,6 +865,21 @@ func _update_objective() -> void:
 			return
 		if _waiting_for_encounter_entry:
 			objective_label.text = "ADVANCE TO\n%s" % encounter.title
+			return
+		if _reinforcement_scheduled:
+			objective_label.text = "%s\nHOSTILES %02d  //  INBOUND" % [
+				encounter.objective_text,
+				session.alive_enemies,
+			]
+			return
+		var batch_count := current_story_batch_count()
+		if batch_count > 1:
+			objective_label.text = "%s\nHOSTILES %02d  //  BATCH %d/%d" % [
+				encounter.objective_text,
+				session.alive_enemies,
+				current_story_batch_number(),
+				batch_count,
+			]
 			return
 		objective_label.text = "%s\nHOSTILES %02d" % [
 			encounter.objective_text,
