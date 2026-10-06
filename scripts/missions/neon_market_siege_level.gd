@@ -1859,12 +1859,12 @@ func _spawn_event_pulse(
 	mesh.height = 0.045
 	mesh.radial_segments = 48
 	pulse.mesh = mesh
-	pulse.global_position = world_position + down.normalized() * 0.92
-	pulse.basis = CubeGravity.tangent_basis(down)
 	pulse.scale = Vector3(0.55, 1.0, 0.55)
 	pulse.material_override = _material(accent * 0.08, accent, 7.5)
 	pulse.add_to_group("mission_event_fx")
 	_geometry_root.add_child(pulse)
+	pulse.global_position = world_position + down.normalized() * 0.92
+	pulse.basis = CubeGravity.tangent_basis(down)
 
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
@@ -1890,10 +1890,10 @@ func _spawn_event_sparks(
 
 	var root := Node3D.new()
 	root.name = "MissionEventSparks"
-	root.global_position = world_position + down.normalized() * 0.45
-	root.basis = CubeGravity.tangent_basis(down)
 	root.add_to_group("mission_event_fx")
 	_geometry_root.add_child(root)
+	root.global_position = world_position + down.normalized() * 0.45
+	root.basis = CubeGravity.tangent_basis(down)
 
 	var spark_count := maxi(1, count)
 	for i in range(spark_count):
