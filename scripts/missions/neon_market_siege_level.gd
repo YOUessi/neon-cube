@@ -514,8 +514,19 @@ func _set_data_lane_gate_status(open: bool) -> void:
 	var label := get_node_or_null("Geometry/DataLane/WardenGate/GateStatus") as Label3D
 	if label == null:
 		return
+	var state_color := Color(0.28, 1.0, 0.58) if open else Color(1.0, 0.26, 0.34)
 	label.text = "ACCESS OPEN" if open else "ACCESS LOCKED"
-	label.modulate = Color(0.28, 1.0, 0.58) if open else Color(1.0, 0.26, 0.34)
+	label.modulate = state_color
+	var gate := get_node_or_null("Geometry/DataLane/WardenGate") as Node3D
+	if gate != null:
+		for child in gate.get_children():
+			if child is MeshInstance3D and child.name == "GateSignalBar":
+				var material := (child as MeshInstance3D).material_override as StandardMaterial3D
+				if material != null:
+					material.emission = state_color
+					material.albedo_color = state_color * 0.08
+			elif child is OmniLight3D and child.name == "GateStatusLight":
+				(child as OmniLight3D).light_color = state_color
 
 
 func _reset_visual_gate(path: String) -> void:
@@ -1250,6 +1261,25 @@ func _build_data_lane() -> void:
 		gate_status.basis = CubeGravity.tangent_basis(down)
 		gate_status.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		gate.add_child(gate_status)
+		for side in [-1.0, 1.0]:
+			var signal_bar := MeshInstance3D.new()
+			signal_bar.name = "GateSignalBar"
+			var signal_mesh := BoxMesh.new()
+			signal_mesh.size = Vector3(0.10, 2.8, 0.12)
+			signal_bar.mesh = signal_mesh
+			signal_bar.position = _face_point(down, 3.75 * side, 13.55, 1.45)
+			signal_bar.basis = CubeGravity.tangent_basis(down)
+			signal_bar.material_override = _material(Color(0.08, 0.01, 0.02), Color(1.0, 0.18, 0.24), 4.5)
+			gate.add_child(signal_bar)
+
+		var gate_light := OmniLight3D.new()
+		gate_light.name = "GateStatusLight"
+		gate_light.position = _face_point(down, 0.0, 13.2, 3.0)
+		gate_light.light_color = Color(1.0, 0.16, 0.24)
+		gate_light.light_energy = 0.9
+		gate_light.omni_range = 5.0
+		gate_light.shadow_enabled = false
+		gate.add_child(gate_light)
 	_add_prop(gate, "WardenAccessDoor", "res://assets/third_party/quaternius_cyberpunk/door.gltf", down, 0.0, 13.8, 0.0, 1.75, 180.0)
 
 
@@ -1644,8 +1674,27 @@ func _add_objective_node(
 		var mesh := BoxMesh.new()
 		mesh.size = Vector3(1.25, 2.0, 1.25)
 		visual.mesh = mesh
-		visual.material_override = _material(accent * 0.08, accent, 5.5)
+		visual.material_override = _material(Color(0.045, 0.055, 0.075), accent, 0.55)
 		node.add_child(visual)
+
+		var inner_core := MeshInstance3D.new()
+		inner_core.name = "InnerCore"
+		var inner_mesh := BoxMesh.new()
+		inner_mesh.size = Vector3(0.52, 1.35, 0.52)
+		inner_core.mesh = inner_mesh
+		inner_core.position = Vector3(0, 0.04, -0.37)
+		inner_core.material_override = _material(accent * 0.10, accent, 4.6)
+		node.add_child(inner_core)
+
+		for side in [-1.0, 1.0]:
+			var edge := MeshInstance3D.new()
+			edge.name = "EdgeStrip"
+			var edge_mesh := BoxMesh.new()
+			edge_mesh.size = Vector3(0.07, 1.72, 0.07)
+			edge.mesh = edge_mesh
+			edge.position = Vector3(0.50 * side, 0.0, -0.54)
+			edge.material_override = _material(accent * 0.08, accent, 3.4)
+			node.add_child(edge)
 
 		var base_ring := MeshInstance3D.new()
 		base_ring.name = "BaseRing"
