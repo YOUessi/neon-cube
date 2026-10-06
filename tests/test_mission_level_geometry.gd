@@ -73,6 +73,19 @@ func _run() -> void:
 		_check(not market_zone.monitoring and breach_zone.monitoring, "arming next arena disarms previous arena")
 		level.call("arm_encounter_zone", &"gravity_breach", false)
 
+	var market_routes: Array = level.call("route_points_for", &"market_crossfire")
+	var breach_routes: Array = level.call("route_points_for", &"gravity_breach")
+	var data_routes: Array = level.call("route_points_for", &"data_lane")
+	var boss_routes: Array = level.call("route_points_for", &"null_warden")
+	_check(market_routes.size() == 6, "market arena exposes six authored route waypoints")
+	_check(breach_routes.size() == 5, "breach arena exposes five authored route waypoints")
+	_check(data_routes.size() == 6, "data lane exposes six authored route waypoints")
+	_check(boss_routes.size() == 6, "boss arena exposes six authored route waypoints")
+	if not market_routes.is_empty():
+		_check(CubeGravity.nearest_down(market_routes[0], 30.0).is_equal_approx(Vector3.DOWN), "market route stays on Neon Market face")
+	if not boss_routes.is_empty():
+		_check(CubeGravity.nearest_down(boss_routes[0], 30.0).is_equal_approx(Vector3.BACK), "boss route stays on Void Docks face")
+
 	var market_spawns: Array = level.call("spawn_points_for", &"market_crossfire", 5, 0)
 	var breach_spawns: Array = level.call("spawn_points_for", &"gravity_breach", 4, 0)
 	var boss_spawns: Array = level.call("spawn_points_for", &"null_warden", 4, 0)
