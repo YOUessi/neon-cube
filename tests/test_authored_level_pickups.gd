@@ -9,6 +9,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	MissionProgressStore.clear()
 	var game: NeonGame = MAIN.instantiate() as NeonGame
 	root.add_child(game)
 	await process_frame
@@ -45,6 +46,24 @@ func _run() -> void:
 		_check(is_equal_approx(pickup.amount, 42.0), "Extraction dock health amount matches authored value")
 		_check(CubeGravity.nearest_down(pickup.global_position, 30.0).is_equal_approx(Vector3.DOWN), "Extraction dock pickup stays on Neon Market face")
 
+	if by_name.has("boss_left_gantry_shield"):
+		var consumed_pickup: NeonPickup = by_name["boss_left_gantry_shield"]
+		consumed_pickup._on_body_entered(game.player)
+		await process_frame
+		_check(game.mission_runtime.is_pickup_consumed(&"boss_left_gantry_shield"), "collecting authored pickup marks runtime consumption immediately")
+
+		game._resume_story_from_save()
+		await process_frame
+		await physics_frame
+		_check(game.mission_runtime.is_pickup_consumed(&"boss_left_gantry_shield"), "checkpoint reload restores consumed pickup state")
+		var restored_names := {}
+		for node in get_nodes_in_group("authored_pickup"):
+			restored_names[node.name] = true
+		_check(not restored_names.has("boss_left_gantry_shield"), "consumed Boss gantry shield does not respawn after checkpoint reload")
+		_check(restored_names.has("data_bridge_ammo"), "unconsumed Data Bridge ammo remains available after checkpoint reload")
+		_check(restored_names.has("extraction_dock_health"), "unconsumed Extraction health remains available after checkpoint reload")
+
+	MissionProgressStore.clear()
 	game.queue_free()
 	await process_frame
 	_finish()
