@@ -151,6 +151,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		horizontal = horizontal.move_toward(Vector3.ZERO, acceleration * delta)
 		_play_animation(["Idle", "idle"])
+	horizontal = _clamp_tactical_leash_velocity(horizontal)
 	fall_speed += gravity_strength * delta
 	if is_on_floor() and fall_speed > 1.0:
 		fall_speed = 1.0
@@ -233,6 +234,30 @@ func _spawn_attack_beam(telegraph: bool) -> void:
 	host.add_child(beam)
 	var lifetime := maxf(0.06, _definition.attack_windup) if telegraph else 0.09
 	get_tree().create_timer(lifetime).timeout.connect(beam.queue_free)
+
+
+func _clamp_tactical_leash_velocity(horizontal: Vector3) -> Vector3:
+	if _tactical_leash_radius <= 0.0 or horizontal.length_squared() <= 0.001:
+		return horizontal
+
+	var offset := global_position - _tactical_leash_center
+	offset -= gravity_down * offset.dot(gravity_down)
+	var distance := offset.length()
+	if distance <= _tactical_leash_radius * 0.72 or distance <= 0.001:
+		return horizontal
+
+	var outward := offset.normalized()
+	var outward_speed := horizontal.dot(outward)
+	if outward_speed <= 0.0:
+		return horizontal
+
+	var edge_blend := clampf(
+		(distance - _tactical_leash_radius * 0.72) /
+		maxf(0.05, _tactical_leash_radius * 0.28),
+		0.0,
+		1.0
+	)
+	return horizontal - outward * outward_speed * edge_blend
 
 
 func _apply_tactical_leash(wish: Vector3) -> Vector3:
