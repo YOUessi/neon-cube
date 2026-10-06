@@ -666,3 +666,88 @@ Market Crossfire 测试新增：
 - 剩 1 人触发 reinforcement 后，warning encounter = market_crossfire。
 - warning count = 2。
 - batch 到达后 warning count = 0。
+
+
+## 2026-10-06 追加：Data Lane Destructible Objectives
+
+### 目标
+
+让 Mission 01 不再是连续六段“清空敌人即可”，开始引入不同 Arena 的局部目标。
+
+### Data Lane
+
+Data Lane 现在拥有两个可摧毁中继核心：
+
+- `relay_a`
+- `relay_b`
+
+Mission 数据：
+
+- `objective_node_count = 2`
+- objective text 改为 `Destroy the data relay locks.`
+
+### MissionObjectiveNode
+
+新增：
+
+`scripts/missions/mission_objective_node.gd`
+
+节点行为：
+
+- 继承 `StaticBody3D`，可被玩家现有 hitscan 武器直接命中。
+- 未激活时伤害无效，避免玩家提前打掉未来目标。
+- 激活后拥有独立 health。
+- health <= 0 后隐藏 visual、关闭 collision，并发出 destroyed signal。
+- 支持 reset，重新开始 Run 时恢复。
+
+### Data Lane 完成条件
+
+旧逻辑：
+
+```text
+alive_enemies = 0
+→ Encounter complete
+```
+
+新逻辑：
+
+```text
+所有 reinforcement batch 已结束
+AND alive_enemies = 0
+AND relay_a destroyed
+AND relay_b destroyed
+→ Encounter complete
+```
+
+如果敌人全部死亡但仍有 Relay：
+
+- Arena lockdown 保持关闭。
+- MissionRuntime 不推进。
+- HUD 显示剩余 Relay 数量。
+
+### HUD
+
+Data Lane 会显示：
+
+`RELAYS XX // HOSTILES XX // BATCH N/M`
+
+增援倒计时则显示：
+
+`RELAYS XX LEFT // INBOUND`
+
+### 回归
+
+新增 `tests/test_data_lane_objectives.gd`：
+
+1. 两个 relay objective 必须存在。
+2. 未激活核心无法提前摧毁。
+3. 激活后可以接受武器兼容 damage。
+4. 敌人 = 0 但仍剩 1 个 Relay 时，不推进 Encounter。
+5. Data Lane lockdown 保持关闭。
+6. 最后一个 Relay 摧毁后，MissionRuntime 才推进到 Null Warden。
+7. Data Lane lockdown 同时解除。
+
+同时：
+
+- Mission runtime 测试断言 `objective_node_count = 2`。
+- Geometry 测试断言实际存在两个 `mission_objective_node`。
