@@ -224,9 +224,9 @@ func arm_hold_zone(encounter_id: StringName, active: bool) -> void:
 					outline_material.emission_energy_multiplier = 3.6
 				var visual_material := visual.material_override as StandardMaterial3D
 				if visual_material != null:
-					visual_material.albedo_color = CYAN * 0.045
+					visual_material.albedo_color = Color(0.02, 0.045, 0.052)
 					visual_material.emission = CYAN
-					visual_material.emission_energy_multiplier = 4.8
+					visual_material.emission_energy_multiplier = 0.65
 			var core := zone.get_node_or_null("ProgressCore") as MeshInstance3D
 			if core != null:
 				core.visible = enabled
@@ -281,9 +281,9 @@ func set_hold_zone_progress(encounter_id: StringName, current: float, required: 
 		visual.visible = zone.monitoring or stable
 		var visual_material := visual.material_override as StandardMaterial3D
 		if visual_material != null:
-			visual_material.albedo_color = (stable_color if stable else active_color) * 0.045
+			visual_material.albedo_color = Color(0.025, 0.055, 0.045) if stable else Color(0.02, 0.045, 0.052)
 			visual_material.emission = stable_color if stable else active_color
-			visual_material.emission_energy_multiplier = 6.5 if stable else 4.8
+			visual_material.emission_energy_multiplier = 0.85 if stable else 0.65
 
 	var core := zone.get_node_or_null("ProgressCore") as MeshInstance3D
 	if core != null:
@@ -602,7 +602,7 @@ func set_boss_phase(phase: int) -> void:
 			visual.visible = active
 			var material := visual.material_override as StandardMaterial3D
 			if material != null and active:
-				material.emission_energy_multiplier = 3.6
+				material.emission_energy_multiplier = 2.4
 
 	if _boss_phase <= 1:
 		return
@@ -629,7 +629,7 @@ func _arm_boss_hazard_damage_if(serial: int, phase: int) -> void:
 			continue
 		var material := visual.material_override as StandardMaterial3D
 		if material != null:
-			material.emission_energy_multiplier = 7.0
+			material.emission_energy_multiplier = 5.2
 
 
 func _update_boss_arena_visual_state() -> void:
@@ -977,7 +977,7 @@ func _build_neon_market() -> void:
 			true,
 			&"combat_cover"
 		)
-		_add_prop(crossfire, "Terminal_%02d" % i, "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, u, v, 1.28, 1.05, 180.0 if side < 0.0 else 0.0)
+		_add_prop(crossfire, "Terminal_%02d" % i, "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, u, v, 1.28, 0.60, 180.0 if side < 0.0 else 0.0)
 		_add_face_box(
 			crossfire,
 			"Canopy_%02d" % i,
@@ -1060,7 +1060,6 @@ func _build_gravity_breach() -> void:
 	_add_face_trim(arena, "BreachAxisB", down, -8.0, -12.0, 0.085, Vector3(13.5, 0.035, 0.08), AMBER)
 	_add_face_light(arena, "BreachLocalLight", down, -8.0, -12.0, 4.4, CYAN, 1.35, 9.0)
 	_add_prop(arena, "BreachAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, -13.0, -18.0, 0.0, 1.65, 25.0)
-	_add_prop(arena, "BreachLight", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -2.5, -17.5, 0.0, 1.30, 180.0)
 
 	var relay := _section(root, "RelayApproach")
 	_add_face_box(relay, "RelayLane", down, -3.0, -6.0, 0.02, Vector3(8.0, 0.05, 13.0), DARK, AMBER, false)
@@ -1253,7 +1252,7 @@ func _build_data_lane() -> void:
 		var gate_status := Label3D.new()
 		gate_status.name = "GateStatus"
 		gate_status.text = "ACCESS LOCKED"
-		gate_status.font_size = 26
+		gate_status.font_size = 34
 		gate_status.outline_size = 6
 		gate_status.modulate = Color(1.0, 0.26, 0.34)
 		gate_status.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
@@ -1679,11 +1678,14 @@ func _add_objective_node(
 
 		var inner_core := MeshInstance3D.new()
 		inner_core.name = "InnerCore"
-		var inner_mesh := BoxMesh.new()
-		inner_mesh.size = Vector3(0.52, 1.35, 0.52)
+		var inner_mesh := CylinderMesh.new()
+		inner_mesh.top_radius = 0.22
+		inner_mesh.bottom_radius = 0.28
+		inner_mesh.height = 1.18
+		inner_mesh.radial_segments = 28
 		inner_core.mesh = inner_mesh
-		inner_core.position = Vector3(0, 0.04, -0.37)
-		inner_core.material_override = _material(accent * 0.10, accent, 4.6)
+		inner_core.position = Vector3(0, 0.02, -0.40)
+		inner_core.material_override = _material(accent * 0.10, accent, 4.2)
 		node.add_child(inner_core)
 
 		for side in [-1.0, 1.0]:
@@ -1711,11 +1713,11 @@ func _add_objective_node(
 		var status := Label3D.new()
 		status.name = "StatusLabel"
 		status.text = "RELAY // LOCKED"
-		status.font_size = 26
+		status.font_size = 32
 		status.outline_size = 6
 		status.modulate = Color(0.45, 0.55, 0.70)
 		status.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
-		status.position = Vector3(0, 1.55, 0)
+		status.position = Vector3(0, 1.72, 0)
 		status.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		node.add_child(status)
 
