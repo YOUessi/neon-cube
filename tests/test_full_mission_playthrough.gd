@@ -128,7 +128,7 @@ func _run() -> void:
 	_check(boss_gantry_sniper != null, "Null Warden squad places sniper on authored gantry slot")
 	_check(boss_ground_tank != null, "Null Warden squad keeps tank on ground slot")
 	if boss_gantry_sniper != null:
-		_check(boss_gantry_sniper.get_route_point_count() == 12, "Null Warden runtime enemies receive dual-gantry route waypoints")
+		_check(boss_gantry_sniper.get_route_point_count() == 18, "Null Warden runtime enemies receive tread-by-tread dual-gantry routes")
 	if boss_gantry_sniper != null:
 		_check(is_equal_approx(boss_gantry_sniper.get_tactical_leash_radius(), 0.55), "Boss gantry sniper receives perch leash")
 		var boss_authored_spawns: Array = game.mission_level.call("spawn_points_for", &"null_warden", 4, 0)
