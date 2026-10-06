@@ -217,8 +217,6 @@ func _spawn_attack_beam(telegraph: bool) -> void:
 		width *= 1.45
 	mesh.size = Vector3(width, width, length)
 	beam.mesh = mesh
-	beam.global_position = (from + to) * 0.5
-	beam.look_at(to, -gravity_down)
 	var mat := StandardMaterial3D.new()
 	var color := _definition.attack_fx_color
 	mat.albedo_color = color * (0.35 if telegraph else 0.9)
@@ -232,6 +230,8 @@ func _spawn_attack_beam(telegraph: bool) -> void:
 	if host == null:
 		host = get_tree().root
 	host.add_child(beam)
+	beam.global_position = (from + to) * 0.5
+	beam.look_at(to, -gravity_down)
 	var lifetime := maxf(0.06, _definition.attack_windup) if telegraph else 0.09
 	get_tree().create_timer(lifetime).timeout.connect(beam.queue_free)
 
