@@ -1030,6 +1030,8 @@ func _show_message(text: String, duration: float) -> void:
 func _set_extraction_armed(active: bool) -> void:
 	if is_instance_valid(mission_level) and mission_level.has_method("arm_extraction"):
 		mission_level.call("arm_extraction", active)
+	if is_instance_valid(mission_level) and mission_level.has_method("set_extraction_progress"):
+		mission_level.call("set_extraction_progress", 0.0, 1.0)
 
 
 func _set_encounter_zone_armed(encounter_id: StringName, active: bool) -> void:
@@ -1070,13 +1072,29 @@ func _update_extraction_hold(delta: float) -> void:
 		return
 	if _extraction_zone_occupied():
 		_extraction_progress = minf(required, _extraction_progress + maxf(0.0, delta))
+		_set_extraction_world_progress(_extraction_progress, required)
 		_update_objective()
 		if _extraction_progress >= required:
 			_on_extraction_reached()
 	else:
 		if _extraction_progress > 0.0:
 			_extraction_progress = 0.0
+			_set_extraction_world_progress(0.0, required)
 			_update_objective()
+
+
+func _set_extraction_world_progress(current: float, required: float) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_extraction_progress"):
+		mission_level.call("set_extraction_progress", current, required)
+
+
+func _set_hold_world_progress(
+	encounter_id: StringName,
+	current: float,
+	required: float
+) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_hold_zone_progress"):
+		mission_level.call("set_hold_zone_progress", encounter_id, current, required)
 
 
 func _reset_hold_zones() -> void:
@@ -1087,6 +1105,8 @@ func _reset_hold_zones() -> void:
 func _arm_hold_zone(encounter_id: StringName, active: bool) -> void:
 	if is_instance_valid(mission_level) and mission_level.has_method("arm_hold_zone"):
 		mission_level.call("arm_hold_zone", encounter_id, active)
+	if is_instance_valid(mission_level) and mission_level.has_method("set_hold_zone_progress"):
+		mission_level.call("set_hold_zone_progress", encounter_id, 0.0, 1.0)
 
 
 func _hold_zone_occupied(encounter_id: StringName) -> bool:
@@ -1102,6 +1122,7 @@ func _update_hold_objective(delta: float) -> void:
 	if _hold_zone_occupied(encounter.encounter_id):
 		var previous := _hold_progress
 		_hold_progress = minf(encounter.hold_zone_seconds, _hold_progress + maxf(0.0, delta))
+		_set_hold_world_progress(encounter.encounter_id, _hold_progress, encounter.hold_zone_seconds)
 		if previous < encounter.hold_zone_seconds and _hold_progress >= encounter.hold_zone_seconds:
 			_audio_call("play_uplink_complete")
 			_show_message("UPLINK STABLE // HOLD COMPLETE", 1.4)
@@ -1110,6 +1131,7 @@ func _update_hold_objective(delta: float) -> void:
 	else:
 		if _hold_progress > 0.0:
 			_hold_progress = 0.0
+			_set_hold_world_progress(encounter.encounter_id, 0.0, encounter.hold_zone_seconds)
 			_update_objective()
 
 
