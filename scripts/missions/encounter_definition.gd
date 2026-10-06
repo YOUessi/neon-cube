@@ -11,6 +11,7 @@ extends Resource
 @export var reinforcement_delay := 0.75
 @export var objective_node_count := 0
 @export var hold_zone_seconds := 0.0
+@export var extraction_hold_seconds := 0.0
 @export var checkpoint_id: StringName
 @export var boss_encounter := false
 @export var reward_health := 0.0
@@ -42,6 +43,8 @@ func validation_errors() -> PackedStringArray:
 		errors.append("objective_node_count must be non-negative")
 	if hold_zone_seconds < 0.0:
 		errors.append("hold_zone_seconds must be non-negative")
+	if extraction_hold_seconds < 0.0:
+		errors.append("extraction_hold_seconds must be non-negative")
 	if not spawn_batch_sizes.is_empty():
 		var total := 0
 		for batch_size in spawn_batch_sizes:
