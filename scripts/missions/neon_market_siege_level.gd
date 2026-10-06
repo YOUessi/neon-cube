@@ -1414,7 +1414,59 @@ func _add_face_box(
 		visual.mesh = mesh
 		visual.material_override = _material(base_color, emission_color, 0.22 if collidable else 0.10)
 		node.add_child(visual)
+		if group_name == &"combat_cover":
+			_decorate_combat_cover(node, size, emission_color)
 	return node
+
+
+func _decorate_combat_cover(node: Node3D, size: Vector3, accent: Color) -> void:
+	if node == null or DisplayServer.get_name() == "headless":
+		return
+
+	var face_plate := MeshInstance3D.new()
+	face_plate.name = "ArmorPlate"
+	var plate_mesh := BoxMesh.new()
+	plate_mesh.size = Vector3(
+		maxf(0.25, size.x * 0.72),
+		maxf(0.16, size.y * 0.42),
+		0.045
+	)
+	face_plate.mesh = plate_mesh
+	face_plate.position = Vector3(0, -size.y * 0.08, -size.z * 0.505)
+	face_plate.material_override = _material(
+		Color(0.085, 0.095, 0.115),
+		accent,
+		0.10
+	)
+	node.add_child(face_plate)
+
+	var band := MeshInstance3D.new()
+	band.name = "CoverBand"
+	var band_mesh := BoxMesh.new()
+	band_mesh.size = Vector3(
+		maxf(0.30, size.x * 0.82),
+		0.055,
+		maxf(0.08, size.z * 1.015)
+	)
+	band.mesh = band_mesh
+	band.position = Vector3(0, size.y * 0.34, 0)
+	band.material_override = _material(accent * 0.08, accent, 3.0)
+	node.add_child(band)
+
+	for side in [-1.0, 1.0]:
+		var bolt := MeshInstance3D.new()
+		bolt.name = "Bolt"
+		var bolt_mesh := SphereMesh.new()
+		bolt_mesh.radius = 0.035
+		bolt_mesh.height = 0.07
+		bolt.mesh = bolt_mesh
+		bolt.position = Vector3(
+			size.x * 0.30 * side,
+			-size.y * 0.08,
+			-size.z * 0.53
+		)
+		bolt.material_override = _material(accent * 0.12, accent, 2.2)
+		node.add_child(bolt)
 
 
 func _add_prop(
