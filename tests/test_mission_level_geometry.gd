@@ -148,8 +148,10 @@ func _run() -> void:
 	if data_routes.size() == 9:
 		_check(data_routes[8].x > data_routes[0].x + 1.5, "Data route includes elevated Maintenance Bridge waypoint")
 	if boss_routes.size() == 12:
-		_check(boss_routes[8].z > boss_routes[0].z + 1.2, "Boss route includes elevated left gantry waypoint")
-		_check(boss_routes[11].z > boss_routes[0].z + 1.2, "Boss route includes elevated right gantry waypoint")
+		var boss_up := -Vector3.BACK
+		var ground_height := boss_routes[0].dot(boss_up)
+		_check(boss_routes[8].dot(boss_up) > ground_height + 1.2, "Boss route includes elevated left gantry waypoint")
+		_check(boss_routes[11].dot(boss_up) > ground_height + 1.2, "Boss route includes elevated right gantry waypoint")
 
 	var market_spawns: Array = level.call("spawn_points_for", &"market_crossfire", 5, 0)
 	var data_spawns: Array = level.call("spawn_points_for", &"data_lane", 5, 0)
