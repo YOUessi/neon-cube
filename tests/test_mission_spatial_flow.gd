@@ -50,11 +50,15 @@ func _run() -> void:
 	_check(game.session.alive_enemies == 5, "Market Crossfire spawns five hostiles on entry")
 	var enemies := get_nodes_in_group("enemies")
 	_check(enemies.size() == 5, "five enemy bodies exist after activation")
+	var slot_ids := {}
 	for enemy in enemies:
-		var down := CubeGravity.nearest_down(enemy.global_position, game.cube_size * 0.5)
+		var typed_enemy := enemy as NeonEnemy
+		var down := CubeGravity.nearest_down(typed_enemy.global_position, game.cube_size * 0.5)
 		_check(down.is_equal_approx(Vector3.DOWN), "Market Crossfire hostile uses authored Neon Market spawn face")
-		_check((enemy as NeonEnemy).get_route_point_count() == 6, "Market Crossfire hostile receives authored route network")
-		break
+		_check(typed_enemy.get_route_point_count() == 6, "Market Crossfire hostile receives authored route network")
+		_check(typed_enemy.get_tactical_slot_count() == 5, "Market Crossfire hostile knows encounter slot count")
+		slot_ids[typed_enemy.get_tactical_slot_index()] = true
+	_check(slot_ids.size() == 5, "Market Crossfire assigns five unique tactical slots")
 
 	for enemy in enemies:
 		enemy.queue_free()
