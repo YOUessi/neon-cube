@@ -24,6 +24,7 @@ func _run() -> void:
 	var player: NeonPlayer = PLAYER.instantiate() as NeonPlayer
 	player.cube_half_extent = 30.0
 	level.add_child(player)
+	level.set_player(player)
 	player.set_physics_process(false)
 	player.global_position = hazard.to_global(Vector3(0, 1.2, 0))
 	await physics_frame
