@@ -432,7 +432,7 @@ func _tactical_slot_direction(fallback: Vector3) -> Vector3:
 func _authored_route_direction(fallback: Vector3) -> Vector3:
 	if not is_instance_valid(target) or _authored_route_points.is_empty():
 		return fallback
-	if _has_route_waypoint and global_position.distance_to(_route_waypoint) <= 1.35:
+	if _has_route_waypoint and global_position.distance_to(_route_waypoint) <= 0.70:
 		_has_route_waypoint = false
 	if not _has_route_waypoint:
 		_select_route_waypoint()
@@ -460,7 +460,7 @@ func _select_route_waypoint() -> void:
 		var point_delta := point - global_position
 		var travel_cost := point_delta.length()
 		# Never immediately reselect a waypoint we have already reached.
-		if travel_cost <= 1.35:
+		if travel_cost <= 0.70:
 			continue
 
 		var planar_delta := point_delta - up * point_delta.dot(up)
@@ -482,15 +482,22 @@ func _select_route_waypoint() -> void:
 			and planar_cost > 4.25
 		):
 			direct_reachable = false
+		var max_chain_step := max_step_height + 0.18
+		if climbing and point_elevation > max_chain_step:
+			direct_reachable = false
+		elif descending and point_elevation < -max_chain_step:
+			direct_reachable = false
 		var stair_chain_candidate := (
 			climbing
 			and point_elevation >= -0.10
-			and planar_cost <= 4.25
+			and point_elevation <= max_chain_step
+			and planar_cost <= 2.25
 		)
 		var descent_chain_candidate := (
 			descending
 			and point_elevation <= 0.10
-			and planar_cost <= 4.25
+			and point_elevation >= -max_chain_step
+			and planar_cost <= 2.25
 		)
 		if not direct_reachable and not stair_chain_candidate and not descent_chain_candidate:
 			continue
