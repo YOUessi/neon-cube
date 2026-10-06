@@ -211,7 +211,10 @@ func _spawn_attack_beam(telegraph: bool) -> void:
 	mat.metallic = 0.25
 	mat.roughness = 0.18
 	beam.material_override = mat
-	get_tree().current_scene.add_child(beam)
+	var host: Node = get_tree().current_scene
+	if host == null:
+		host = get_tree().root
+	host.add_child(beam)
 	var lifetime := maxf(0.06, _definition.attack_windup) if telegraph else 0.09
 	get_tree().create_timer(lifetime).timeout.connect(beam.queue_free)
 
