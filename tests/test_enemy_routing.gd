@@ -57,6 +57,7 @@ func _run() -> void:
 	await _test_perch_leash_blocks_stair_step()
 	await _test_data_bridge_authored_route_pursuit()
 	await _test_boss_gantry_authored_route_pursuit()
+	await _test_route_stall_recovery()
 
 	enemy.queue_free()
 	boss.queue_free()
@@ -272,6 +273,41 @@ func _test_boss_gantry_authored_route_pursuit() -> void:
 	_check(
 		pursuer.global_position.distance_to(target.global_position) < initial_distance,
 		"Boss Arena pursuer closes distance toward player on Service Gantry"
+	)
+
+	world.queue_free()
+	await process_frame
+
+
+func _test_route_stall_recovery() -> void:
+	var world := Node3D.new()
+	world.name = "RouteStallRecoveryWorld"
+	root.add_child(world)
+
+	var target := _make_stair_target(world, Vector3(0, -28.35, -6.0))
+	var pursuer := _make_stair_enemy(world, target, Vector3(0, -28.35, 0))
+	pursuer.set_physics_process(false)
+	pursuer.route_stall_timeout = 0.20
+	pursuer.route_retry_cooldown = 0.80
+
+	var blocked := Vector3(0, -28.35, -2.0)
+	var alternate := Vector3(2.0, -28.35, -2.0)
+	pursuer.set_route_points([blocked, alternate])
+	pursuer._route_waypoint = blocked
+	pursuer._has_route_waypoint = true
+	pursuer._route_progress_waypoint = blocked
+	pursuer._route_best_distance = pursuer.global_position.distance_to(blocked)
+
+	pursuer._update_route_progress(0.11)
+	pursuer._update_route_progress(0.11)
+	_check(not pursuer._has_route_waypoint, "stalled authored waypoint is invalidated after no-progress timeout")
+	_check(pursuer._blocked_route_cooldown > 0.0, "stalled waypoint enters temporary retry cooldown")
+
+	pursuer._select_route_waypoint()
+	_check(pursuer._has_route_waypoint, "route recovery immediately selects another authored waypoint when available")
+	_check(
+		pursuer._route_waypoint.distance_to(alternate) <= 0.05,
+		"route recovery avoids the recently stalled waypoint during cooldown"
 	)
 
 	world.queue_free()

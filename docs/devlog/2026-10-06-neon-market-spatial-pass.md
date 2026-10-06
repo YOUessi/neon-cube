@@ -2161,3 +2161,55 @@ player enters pickup
 `test_checkpoint_world_restore.gd`
 
 验证 Warden checkpoint 会跳过 completed Data Lane pickup，同时保留未来 Encounter 资源。
+
+
+## 2026-10-07 追加：AI Route Stall Recovery
+
+### 问题
+
+Enemy 现在已经能沿 Data Maintenance Bridge / Boss Gantry 的实体楼梯追上高位目标，但 authored waypoint routing 仍有一个运行时风险：
+
+- 局部碰撞、动态身体或复杂掩体可能让 Enemy 长时间无法靠近当前 waypoint。
+- 旧逻辑只在“到达 waypoint”时换点。
+- 如果某个 waypoint 永远到不了，Enemy 会长期重复同一方向，形成真实试玩中的软锁式卡路。
+
+楼梯本身已经由独立回归证明可走，因此这一层不再继续调 stair 参数，而是增加 route 运行时恢复。
+
+### 实现
+
+`NeonEnemy` 新增 authored route progress watchdog：
+
+- `route_stall_timeout = 1.35s`
+- `route_progress_epsilon = 0.10m`
+- `route_retry_cooldown = 1.0s`
+
+运行规则：
+
+```text
+选择 authored waypoint
+→ 记录当前距离
+→ 持续移动时检测是否取得至少 0.10m 的新进展
+→ 有进展：重置 stall timer
+→ 1.35s 无进展：判定该 waypoint 局部不可达
+→ 临时屏蔽该点 1.0s
+→ 重新选择其它 authored waypoint / fallback steering
+→ cooldown 后允许再次尝试原点
+```
+
+这不会永久删除关卡作者的 route，也不会影响 perch-leashed Sniper：
+
+- 高位固定 Sniper 仍不参与 stair traversal。
+- 正常追击 Enemy 只在“确实应该移动且有 active route waypoint”时累计 stall。
+- 攻击站位/主动停步不会被误判为卡死。
+
+### 回归
+
+`tests/test_enemy_routing.gd` 新增 route stall recovery fixture：
+
+- 人工构造一个长期无进展 waypoint。
+- 超时后必须 invalidated。
+- 失败 waypoint 必须进入临时 cooldown。
+- 存在 alternate authored waypoint 时必须立即重选。
+- cooldown 期间不得立刻重新选回刚失败的 waypoint。
+
+这一步把 AI 导航从“能沿正确楼梯走”推进到“局部受阻后也能自恢复”，减少真实关卡继续增加装饰、碰撞和动态对象之后的永久卡敌风险。

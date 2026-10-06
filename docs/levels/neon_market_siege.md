@@ -100,6 +100,7 @@
 - 新增作者指定 Encounter spawn sockets，并保留 SpawnPlanner fallback。
 - 新增 headless 测试：`tests/test_mission_level_geometry.gd`。
 - 新增整局流转测试：`tests/test_mission_spatial_flow.gd`，验证“清场 → 无敌人旅行 → 进入 Arena → 敌人生成”。
+- Authored route 现在带运行时 stall watchdog：敌人持续无进展时会临时屏蔽当前 waypoint 并重选，避免复杂碰撞把 AI 永久卡死。
 
 ## 这一阶段还不是最终美术
 

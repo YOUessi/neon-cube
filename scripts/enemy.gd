@@ -13,6 +13,9 @@ signal health_changed(current: float, maximum: float, phase: int)
 @export var gravity_align_speed := 10.0
 @export var max_step_height := 0.52
 @export var step_probe_distance := 0.72
+@export var route_stall_timeout := 1.35
+@export var route_progress_epsilon := 0.10
+@export var route_retry_cooldown := 1.0
 @export var attack_range := 15.0
 @export var attack_damage := 8.0
 @export var attack_interval := 0.8
@@ -35,6 +38,11 @@ var _visual_time := 0.0
 var _authored_route_points: Array[Vector3] = []
 var _route_waypoint := Vector3.ZERO
 var _has_route_waypoint := false
+var _route_progress_waypoint := Vector3.ZERO
+var _route_best_distance := INF
+var _route_stall_elapsed := 0.0
+var _blocked_route_waypoint := Vector3.ZERO
+var _blocked_route_cooldown := 0.0
 var _tactical_slot_index := -1
 var _tactical_slot_count := 0
 var _tactical_leash_center := Vector3.ZERO
@@ -52,6 +60,8 @@ func set_route_points(points: Array[Vector3]) -> void:
 	for point in points:
 		_authored_route_points.append(point)
 	_has_route_waypoint = false
+	_blocked_route_cooldown = 0.0
+	_reset_route_progress()
 
 func get_route_point_count() -> int:
 	return _authored_route_points.size()
@@ -114,6 +124,7 @@ func _physics_process(delta: float) -> void:
 	if _dead or not is_instance_valid(target):
 		return
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
+	_blocked_route_cooldown = maxf(0.0, _blocked_route_cooldown - delta)
 	gravity_down = CubeGravity.nearest_down(global_position, cube_half_extent, gravity_down, 0.24)
 	up_direction = -gravity_down
 	global_transform.basis = CubeGravity.aligned_basis(global_transform.basis, gravity_down, delta, gravity_align_speed)
@@ -172,6 +183,12 @@ func _physics_process(delta: float) -> void:
 	var fall_speed: float = velocity.dot(gravity_down)
 	var horizontal: Vector3 = velocity - gravity_down * fall_speed
 	var should_advance := distance > 3.0 or needs_elevated_route
+	var tracking_route_progress := (
+		_has_route_waypoint
+		and should_advance
+		and wish.length_squared() > 0.01
+		and _tactical_leash_radius <= 0.0
+	)
 	if should_advance:
 		horizontal = horizontal.move_toward(wish * move_speed, acceleration * delta)
 		_play_animation(["Run", "run", "Walking", "walking"])
@@ -186,6 +203,10 @@ func _physics_process(delta: float) -> void:
 	if wish.length_squared() > 0.05:
 		_face_tangent_direction(wish, delta)
 	move_and_slide()
+	if tracking_route_progress:
+		_update_route_progress(delta)
+	else:
+		_route_stall_elapsed = 0.0
 
 	if _attack_runtime.is_pending():
 		if _attack_runtime.tick(delta):
@@ -444,6 +465,7 @@ func _authored_route_direction(fallback: Vector3) -> Vector3:
 		return fallback
 	if _has_route_waypoint and _route_waypoint_reached(_route_waypoint):
 		_has_route_waypoint = false
+		_reset_route_progress()
 	if not _has_route_waypoint:
 		_select_route_waypoint()
 	if not _has_route_waypoint:
@@ -462,6 +484,46 @@ func _route_waypoint_reached(point: Vector3) -> bool:
 	return planar_delta.length() <= 0.55 and elevation_error <= 0.30
 
 
+func _reset_route_progress() -> void:
+	_route_progress_waypoint = Vector3.ZERO
+	_route_best_distance = INF
+	_route_stall_elapsed = 0.0
+
+
+func _update_route_progress(delta: float) -> void:
+	if not _has_route_waypoint:
+		_reset_route_progress()
+		return
+
+	var current_distance := global_position.distance_to(_route_waypoint)
+	if (
+		_route_best_distance == INF
+		or _route_progress_waypoint.distance_to(_route_waypoint) > 0.05
+	):
+		_route_progress_waypoint = _route_waypoint
+		_route_best_distance = current_distance
+		_route_stall_elapsed = 0.0
+		return
+
+	if current_distance + route_progress_epsilon < _route_best_distance:
+		_route_best_distance = current_distance
+		_route_stall_elapsed = 0.0
+		return
+
+	_route_stall_elapsed += maxf(0.0, delta)
+	if route_stall_timeout <= 0.0 or _route_stall_elapsed < route_stall_timeout:
+		return
+
+	# A waypoint that makes no measurable progress is treated as locally blocked,
+	# not as a reason to abandon the whole authored route. Skip it briefly so the
+	# next selection can use an alternate point or obstacle-avoidance fallback,
+	# then allow the authored point to be retried after the cooldown.
+	_blocked_route_waypoint = _route_waypoint
+	_blocked_route_cooldown = maxf(0.0, route_retry_cooldown)
+	_has_route_waypoint = false
+	_reset_route_progress()
+
+
 func _select_route_waypoint() -> void:
 	_has_route_waypoint = false
 	if not is_instance_valid(target):
@@ -475,6 +537,11 @@ func _select_route_waypoint() -> void:
 	var best_score := INF
 
 	for point in _authored_route_points:
+		if (
+			_blocked_route_cooldown > 0.0
+			and point.distance_to(_blocked_route_waypoint) <= 0.08
+		):
+			continue
 		var point_delta := point - global_position
 		var travel_cost := point_delta.length()
 		# Never immediately reselect a waypoint we have physically reached.
@@ -536,6 +603,11 @@ func _select_route_waypoint() -> void:
 			best_score = score
 			_route_waypoint = point
 			_has_route_waypoint = true
+
+	if _has_route_waypoint:
+		_route_progress_waypoint = _route_waypoint
+		_route_best_distance = global_position.distance_to(_route_waypoint)
+		_route_stall_elapsed = 0.0
 
 func _route_point_reachable(point: Vector3) -> bool:
 	if not is_instance_valid(target):
