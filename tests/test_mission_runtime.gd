@@ -20,6 +20,7 @@ func _run() -> void:
 	_check(mission.get_encounter(4).batch_count() == 1, "Null Warden remains a single opening batch")
 	_check(mission.get_encounter(3).objective_node_count == 2, "Data Lane requires two relay objectives")
 	_check(is_equal_approx(mission.get_encounter(2).hold_zone_seconds, 4.0), "Gravity Breach requires a four-second hold objective")
+	_check(is_equal_approx(mission.get_encounter(5).extraction_hold_seconds, 3.0), "Extraction requires a three-second hold before victory")
 	var extraction_batches := mission.get_encounter(5).effective_batch_sizes()
 	_check(extraction_batches.size() == 2 and extraction_batches[0] == 2 and extraction_batches[1] == 2, "extraction uses 2+2 final pressure")
 
