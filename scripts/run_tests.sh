@@ -17,6 +17,7 @@ TESTS=(
   "tests/test_mission_spatial_flow.gd"
   "tests/test_data_lane_objectives.gd"
   "tests/test_gravity_breach_hold_objective.gd"
+  "tests/test_extraction_hold.gd"
   "tests/test_boss_arena_hazards.gd"
   "tests/test_encounter_spawn_planner.gd"
   "tests/test_mission_progress_store.gd"
