@@ -80,8 +80,16 @@ func _run() -> void:
 	_check(game.game_state == NeonGame.GameState.VICTORY, "three-second continuous extraction hold completes mission")
 	_check(not game._waiting_for_extraction, "extraction waiting state clears on victory")
 	_check(game.mission_runtime.state == MissionRuntime.State.COMPLETED, "MissionRuntime records final completion")
+	_check(bool(game.mission_level.call("extraction_complete_state")), "world extraction beacon remains in completed state behind Victory UI")
+	_check(float(game.mission_level.call("extraction_progress_state")) >= 0.999, "completed extraction beacon remains visually full")
+	_check(not zone.monitoring, "completed extraction trigger stops accepting further occupancy")
 
 	paused = false
+	game._set_extraction_armed(true)
+	_check(not bool(game.mission_level.call("extraction_complete_state")), "re-arming extraction clears prior completed state")
+	_check(is_equal_approx(float(game.mission_level.call("extraction_progress_state")), 0.0), "re-armed extraction restarts from zero progress")
+	_check(zone.monitoring, "re-armed extraction trigger becomes active again")
+	game._set_extraction_armed(false)
 	game.queue_free()
 	await process_frame
 	_finish()
