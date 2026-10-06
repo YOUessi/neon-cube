@@ -784,7 +784,6 @@ func _on_encounter_zone_entered(encounter_id: StringName) -> void:
 	if encounter == null or encounter.encounter_id != encounter_id:
 		return
 	_waiting_for_encounter_entry = false
-	_set_encounter_zone_armed(encounter_id, false)
 	_spawn_current_wave()
 	_wave_transitioning = false
 	_update_score()
