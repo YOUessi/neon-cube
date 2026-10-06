@@ -621,3 +621,48 @@ Story encounter 现在维护：
 5. 0.7s 后生成 2 个 reinforcement。
 6. reinforcement 使用剩余 tactical slot 3 / 4。
 7. 最后一批全部清空后才 reopen Arena。
+
+
+## 2026-10-06 追加：Reinforcement Spawn Telegraph
+
+### 问题
+
+分批增援已经解决了 Encounter 的节奏，但第二批敌人如果直接在 spawn socket 上出现，仍然会产生明显“刷怪感”。
+
+### 实现
+
+`NeonMarketSiegeLevel` 新增 world-space reinforcement warning：
+
+- 每个 pending spawn socket 显示 Landing Ring。
+- 同时显示竖直 Ingress Beam。
+- 预警持续时间与该 Encounter 的 `reinforcement_delay` 一致。
+- 到点后 warning 自动清理，随后敌人生成。
+
+Headless 环境不创建 Mesh，但仍记录：
+
+- `encounter_id`
+- `warning count`
+
+因此测试与真实渲染使用同一套运行状态。
+
+### 绑定真实 spawn 位置
+
+预警不是重新随机计算位置，而是直接读取 Game 已准备好的 `_encounter_positions`：
+
+```text
+当前已生成数量 = N
+下一 batch size = K
+→ warning positions = encounter_positions[N : N + K]
+→ delay
+→ 同一组 positions 实际生成敌人
+```
+
+所以玩家看到的预警点就是下一批真正的入场位置。
+
+### 回归
+
+Market Crossfire 测试新增：
+
+- 剩 1 人触发 reinforcement 后，warning encounter = market_crossfire。
+- warning count = 2。
+- batch 到达后 warning count = 0。
