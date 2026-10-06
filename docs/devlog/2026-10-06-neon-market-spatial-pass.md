@@ -1563,3 +1563,77 @@ dark tower mass
 ```
 
 让开场街道从“赛博黑盒建筑”进一步接近真正的夜间市场街区。
+
+
+## 2026-10-07 追加：Multi-gate Arena Lockdown
+
+### 问题
+
+此前每个 Encounter 只有一个 combat lockdown barrier。
+
+对 Market Crossfire 来说，这意味着：
+
+- 前方出口被封锁。
+- 但玩家理论上仍可从 Market Hall 入口退回 Arrival Street。
+
+因此 Market Hall 还不是真正意义上的封闭 Arena。
+
+### 数据结构升级
+
+`_combat_gates` 从：
+
+```text
+encounter_id -> single gate dictionary
+```
+
+改为：
+
+```text
+encounter_id -> Array[gate dictionary]
+```
+
+`set_encounter_lockdown(encounter_id, active)` 会同步更新该 Encounter 下的所有 barrier。
+
+### Market Crossfire 双门
+
+新增：
+
+- `MarketEntryLockdown`
+  - 位于 Market Hall 南侧入口开口。
+  - 战斗开始时封住退回 Arrival Street 的路线。
+
+- `MarketExitLockdown`
+  - 保留原有前向出口 barrier。
+
+因此：
+
+```text
+进入 Market Arena
+→ Entry + Exit 同时关闭
+→ 3+2 Encounter 进行
+→ 最终 batch 清空
+→ Entry + Exit 同时重新打开
+```
+
+### 其它 Encounter
+
+当前保持：
+
+- Gravity Breach：1 barrier。
+- Data Lane：1 barrier。
+- Null Warden：1 barrier。
+- Extraction：1 barrier。
+
+底层已经支持后续按需要增加第二/第三 barrier。
+
+### 回归
+
+Geometry test 现在验证：
+
+- 全关卡 combat lockdown barrier 数量 = 6。
+- Market Crossfire gate count = 2。
+- 其它 4 个后续 Encounter gate count = 1。
+- Market Entry / Exit 都拥有 CollisionShape3D。
+- 初始两个 collision 都 disabled。
+- Lockdown active 后两个 collision 同时 enabled。
+- Lockdown clear 后两个 collision 同时 disabled。
