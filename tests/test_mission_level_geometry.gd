@@ -26,6 +26,9 @@ func _run() -> void:
 	_check(level.get_node_or_null("Geometry/GravityBreach/BreachArena") != null, "gravity breach arena exists")
 	_check(level.get_node_or_null("Geometry/TransFaceTransit/SouthConduit") != null, "cross-face transit corridor exists")
 	_check(level.get_node_or_null("Geometry/DataLane/RelayStreet") != null, "data lane combat space exists")
+	_check(level.get_node_or_null("Geometry/DataLane/MaintenanceBridge/BridgeDeck") != null, "Data Lane maintenance bridge exists")
+	_check(level.get_node_or_null("Geometry/VoidDocks/BossArena/ServiceGantries") != null, "Boss Arena service gantries exist")
+	_check(level.get_node_or_null("Geometry/Extraction/ExtractionDock/DockDeck") != null, "Extraction dock platform exists")
 	_check(level.get_node_or_null("Geometry/VoidDocks/BossArena") != null, "boss arena exists")
 	_check(level.get_node_or_null("Geometry/Extraction/ExtractionYard") != null, "extraction yard exists")
 
@@ -47,8 +50,19 @@ func _run() -> void:
 	_check(int(summary.get("mission_objective_node", 0)) == 2, "Data Lane exposes two mission objective nodes")
 	_check(int(summary.get("mission_hold_zone", 0)) == 1, "Gravity Breach exposes one mission hold zone")
 	_check(int(summary.get("market_kiosk_collision", 0)) == 6, "Arrival Street exposes six physical market kiosks")
+	_check(int(summary.get("elevated_gameplay_space", 0)) >= 3, "Data and Boss spaces expose three elevated gameplay decks")
+	_check(int(summary.get("data_maintenance_bridge", 0)) >= 6, "Data Lane bridge includes deck and climbable steps")
+	_check(int(summary.get("boss_service_gantry", 0)) >= 10, "Boss Arena exposes two gantries with climbable steps")
+	_check(int(summary.get("extraction_dock", 0)) >= 4, "Extraction dock includes deck and access steps")
 	for kiosk in get_nodes_in_group("market_kiosk_collision"):
 		_check(CubeGravity.nearest_down(kiosk.global_position, 30.0).is_equal_approx(Vector3.DOWN), "market kiosk collision remains on Neon Market face")
+
+	for node in get_nodes_in_group("data_maintenance_bridge"):
+		_check(CubeGravity.nearest_down(node.global_position, 30.0).is_equal_approx(Vector3.LEFT), "Data maintenance geometry remains on Data Quarter face")
+	for node in get_nodes_in_group("boss_service_gantry"):
+		_check(CubeGravity.nearest_down(node.global_position, 30.0).is_equal_approx(Vector3.BACK), "Boss service gantry remains on Void Docks face")
+	for node in get_nodes_in_group("extraction_dock"):
+		_check(CubeGravity.nearest_down(node.global_position, 30.0).is_equal_approx(Vector3.DOWN), "Extraction dock remains on Neon Market face")
 
 	_check(StringName(level.call("current_navigation_target")) == &"", "navigation target starts clear")
 	level.call("set_navigation_target", &"market_crossfire")
