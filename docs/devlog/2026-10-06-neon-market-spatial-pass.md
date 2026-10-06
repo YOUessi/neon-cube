@@ -224,3 +224,80 @@ Extraction 的 lockdown 解除后才允许继续前往最终 Beacon。
 - GitHub 直接开发。
 - Mac 只拉取提交并做真机 Godot 测试。
 - 不在 Mac 上维护独立开发版本。
+
+
+## 2026-10-06 追加：World Navigation + Null Warden Arena Mechanics
+
+### 世界内导航
+
+为 traversal 阶段增加 5 个 world-space objective beacons，对应：
+
+- Market Crossfire
+- Gravity Breach
+- Data Lane
+- Null Warden
+- Extraction
+
+状态规则：
+
+```text
+当前战斗清场
+→ 下一 Encounter activation zone armed
+→ 对应 world beacon 显示
+→ 玩家沿真实关卡空间移动
+→ 进入 Arena
+→ beacon 清除
+→ lockdown 关闭
+→ Encounter 开始
+```
+
+关卡接口：
+
+- `set_navigation_target(encounter_id)`
+- `current_navigation_target()`
+
+HUD 继续显示文字目标，世界 beacon 负责空间方向感。
+
+### Null Warden Arena Phase Hazards
+
+Boss 不再只有生命比例 → 移速/攻速变化。
+
+Boss Arena 现有 4 个实体危险地面区：
+
+- Phase 1：0 个危险区，玩家熟悉 Arena。
+- Phase 2（Boss HP <= 60%）：左右两块危险区启动。
+- Phase 3（Boss HP <= 30%）：4 块危险区全部启动。
+
+伤害规则：
+
+- Phase 2：每次脉冲 6 HP。
+- Phase 3：每次脉冲 10 HP。
+- 脉冲间隔：0.75s。
+- Boss 战结束后自动恢复 Phase 1 并关闭全部危险区。
+
+`game.gd` 监听现有 Boss `health_changed` 信号，将 phase 同步给关卡，同时给 HUD 中央信息：
+
+- `NULL WARDEN // PHASE 2 // TWIN HAZARDS ONLINE`
+- `NULL WARDEN // PHASE 3 // ARENA OVERLOAD`
+
+### 新增测试
+
+`test_mission_level_geometry.gd`
+
+- 5 个 navigation beacons。
+- 4 个 boss hazard pads。
+- navigation target 生命周期。
+- Phase 1 / 2 / 3 激活数量：0 / 2 / 4。
+
+`test_mission_spatial_flow.gd`
+
+- traversal 时目标 beacon 指向 Market Crossfire。
+- 进入 Arena 后 beacon 被清除。
+
+`test_boss_arena_hazards.gd`
+
+- Phase 2 实际站入危险区会掉 6 HP。
+- Phase 3 实际站入危险区会掉 10 HP。
+- Phase 1 不造成 hazard damage。
+
+这一步的目标是让 Boss Phase 真正改变玩家的走位和掩体选择，而不是只改变敌人参数。
