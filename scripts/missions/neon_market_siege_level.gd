@@ -580,7 +580,10 @@ func spawn_points_for(encounter_id: StringName, count: int, sequence_offset: int
 		var down: Vector3 = spec[0]
 		var u: float = float(spec[1])
 		var v: float = float(spec[2])
-		result.append(_face_point(down, u, v, 1.05))
+		var height := 1.05
+		if spec.size() >= 4:
+			height = float(spec[3])
+		result.append(_face_point(down, u, v, height))
 	return result
 
 
@@ -665,7 +668,7 @@ func _authored_spawn_specs(encounter_id: StringName) -> Array:
 				[Vector3.DOWN, 12.2, 4.0],
 				[Vector3.DOWN, 16.8, 1.0],
 				[Vector3.DOWN, 8.0, 8.3],
-				[Vector3.DOWN, 17.0, 8.0],
+				[Vector3.DOWN, 18.4, 7.4, 3.25],
 			]
 		&"gravity_breach":
 			return [
