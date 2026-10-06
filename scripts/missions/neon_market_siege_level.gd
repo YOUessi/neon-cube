@@ -923,7 +923,10 @@ func route_points_for(encounter_id: StringName) -> Array[Vector3]:
 		var down: Vector3 = spec[0]
 		var u: float = float(spec[1])
 		var v: float = float(spec[2])
-		result.append(_face_point(down, u, v, 1.05))
+		var height := 1.05
+		if spec.size() >= 4:
+			height = float(spec[3])
+		result.append(_face_point(down, u, v, height))
 	return result
 
 
@@ -961,6 +964,10 @@ func _authored_route_specs(encounter_id: StringName) -> Array:
 				[Vector3.LEFT, 13.0, 3.0],
 				[Vector3.LEFT, 12.0, 11.0],
 				[Vector3.LEFT, 5.0, 14.0],
+				# Maintenance Bridge ascent chain: approach -> stair crest -> deck.
+				[Vector3.LEFT, 15.0, 5.0, 1.05],
+				[Vector3.LEFT, 15.0, 8.3, 3.05],
+				[Vector3.LEFT, 12.5, 9.5, 3.25],
 			]
 		&"null_warden":
 			return [
@@ -970,6 +977,14 @@ func _authored_route_specs(encounter_id: StringName) -> Array:
 				[Vector3.BACK, 9.0, 3.5],
 				[Vector3.BACK, 0.0, -14.0],
 				[Vector3.BACK, 0.0, 6.0],
+				# Left service gantry ascent.
+				[Vector3.BACK, -8.25, 0.3, 1.05],
+				[Vector3.BACK, -8.25, 3.0, 2.35],
+				[Vector3.BACK, -8.25, 3.8, 2.65],
+				# Right service gantry ascent.
+				[Vector3.BACK, 8.25, 0.3, 1.05],
+				[Vector3.BACK, 8.25, 3.0, 2.35],
+				[Vector3.BACK, 8.25, 3.8, 2.65],
 			]
 		&"extraction":
 			return [
