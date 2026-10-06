@@ -717,7 +717,7 @@ func _apply_gate_state(encounter_id: StringName, active: bool) -> void:
 		var collision := gate_data.get("collision") as CollisionShape3D
 		if collision != null:
 			collision.set_deferred("disabled", not active)
-		var visual := gate_data.get("visual") as MeshInstance3D
+		var visual := gate_data.get("visual") as Node3D
 		if visual != null:
 			visual.visible = active
 
@@ -1499,6 +1499,56 @@ func _build_extraction() -> void:
 		zone_container.add_child(_extraction_label)
 
 
+func _build_lockdown_visual(size: Vector3, accent: Color) -> Node3D:
+	var root := Node3D.new()
+	root.add_to_group("combat_lockdown_visual")
+
+	var frame_material := _material(accent * 0.06, accent, 4.2)
+	var scan_material := _material(accent * 0.04, accent, 2.8)
+	var depth := maxf(0.06, size.z * 0.55)
+
+	for side in [-1.0, 1.0]:
+		var vertical := MeshInstance3D.new()
+		vertical.name = "FrameVertical"
+		var vertical_mesh := BoxMesh.new()
+		vertical_mesh.size = Vector3(0.085, size.y, depth)
+		vertical.mesh = vertical_mesh
+		vertical.position = Vector3(side * size.x * 0.48, 0.0, 0.0)
+		vertical.material_override = frame_material
+		root.add_child(vertical)
+
+	for side in [-1.0, 1.0]:
+		var horizontal := MeshInstance3D.new()
+		horizontal.name = "FrameHorizontal"
+		var horizontal_mesh := BoxMesh.new()
+		horizontal_mesh.size = Vector3(size.x, 0.07, depth)
+		horizontal.mesh = horizontal_mesh
+		horizontal.position = Vector3(0.0, side * size.y * 0.48, 0.0)
+		horizontal.material_override = frame_material
+		root.add_child(horizontal)
+
+	for i in range(5):
+		var t := float(i + 1) / 6.0
+		var scan := MeshInstance3D.new()
+		scan.name = "ScanLine_%02d" % i
+		var scan_mesh := BoxMesh.new()
+		scan_mesh.size = Vector3(size.x * 0.86, 0.035, depth * 0.55)
+		scan.mesh = scan_mesh
+		scan.position = Vector3(0.0, lerpf(-size.y * 0.38, size.y * 0.38, t), 0.0)
+		scan.material_override = scan_material
+		root.add_child(scan)
+
+	var center_bar := MeshInstance3D.new()
+	center_bar.name = "CenterStatus"
+	var center_mesh := BoxMesh.new()
+	center_mesh.size = Vector3(0.055, size.y * 0.72, depth * 0.45)
+	center_bar.mesh = center_mesh
+	center_bar.material_override = _material(accent * 0.08, accent, 3.4)
+	root.add_child(center_bar)
+
+	return root
+
+
 func _build_combat_lockdown_gates() -> void:
 	var root := _section(_geometry_root, "CombatLockdownGates")
 	var specs := [
@@ -1534,14 +1584,10 @@ func _build_combat_lockdown_gates() -> void:
 		collision.disabled = true
 		body.add_child(collision)
 
-		var visual: MeshInstance3D = null
+		var visual: Node3D = null
 		if DisplayServer.get_name() != "headless":
-			visual = MeshInstance3D.new()
+			visual = _build_lockdown_visual(size, accent)
 			visual.name = "EnergyBarrier"
-			var mesh := BoxMesh.new()
-			mesh.size = size
-			visual.mesh = mesh
-			visual.material_override = _material(accent * 0.08, accent, 7.5)
 			visual.visible = false
 			body.add_child(visual)
 
