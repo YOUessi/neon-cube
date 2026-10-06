@@ -547,7 +547,11 @@ func current_navigation_target() -> StringName:
 
 
 func set_boss_phase(phase: int) -> void:
-	_boss_phase = clampi(phase, 1, 3)
+	var next_phase := clampi(phase, 1, 3)
+	if next_phase == _boss_phase:
+		return
+	var previous_phase := _boss_phase
+	_boss_phase = next_phase
 	_update_boss_arena_visual_state()
 	_boss_hazard_tick_remaining = 0.0
 	_boss_hazard_damage_armed = false
@@ -571,6 +575,12 @@ func set_boss_phase(phase: int) -> void:
 
 	if _boss_phase <= 1:
 		return
+
+	if previous_phase < _boss_phase:
+		var arena_center := _face_point(Vector3.BACK, 0.0, -4.0, 0.08)
+		var phase_color := MAGENTA if _boss_phase == 2 else Color(1.0, 0.18, 0.22)
+		_spawn_event_pulse(arena_center, Vector3.BACK, phase_color, 3.0 + float(_boss_phase), 0.58)
+
 	var timer := get_tree().create_timer(BOSS_HAZARD_TELEGRAPH_SECONDS, false)
 	timer.timeout.connect(_arm_boss_hazard_damage_if.bind(serial, _boss_phase))
 
