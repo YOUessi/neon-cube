@@ -72,7 +72,7 @@ func _test_enemy_auto_step_bottom_face() -> void:
 		Vector3(0, -29.29, -0.75),
 		Vector3(3.0, 0.42, 0.70)
 	)
-	var target := _make_stair_target(world, Vector3(0, -28.35, 0.20))
+	var target := _make_stair_target(world, Vector3(0, -26.35, 0.0))
 	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, -28.35, 0))
 	await _settle_stair_enemy(stair_enemy)
 
@@ -104,7 +104,7 @@ func _test_enemy_auto_step_side_face() -> void:
 	root.add_child(world)
 	_add_test_box(world, Vector3(-29.60, 0, 0), Vector3(0.20, 12.0, 12.0))
 	_add_test_box(world, Vector3(-29.29, 0, -0.75), Vector3(0.42, 3.0, 0.70))
-	var target := _make_stair_target(world, Vector3(-28.35, 0, 0.20))
+	var target := _make_stair_target(world, Vector3(-26.35, 0, 0.0))
 	var stair_enemy := _make_stair_enemy(world, target, Vector3(-28.35, 0, 0))
 	await _settle_stair_enemy(stair_enemy)
 
@@ -123,7 +123,7 @@ func _test_perch_leash_blocks_stair_step() -> void:
 	root.add_child(world)
 	_add_test_box(world, Vector3(0, -29.60, 0), Vector3(12.0, 0.20, 12.0))
 	_add_test_box(world, Vector3(0, -29.29, -0.75), Vector3(3.0, 0.42, 0.70))
-	var target := _make_stair_target(world, Vector3(0, -28.35, 0.20))
+	var target := _make_stair_target(world, Vector3(0, -26.35, 0.0))
 	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, -28.35, 0))
 	await _settle_stair_enemy(stair_enemy)
 	stair_enemy.set_physics_process(false)
