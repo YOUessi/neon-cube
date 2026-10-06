@@ -44,6 +44,15 @@ func _run() -> void:
 	_check(game._waiting_for_encounter_entry, "restored Null Warden still waits for authored arena entry")
 	_check(StringName(game.mission_level.call("current_navigation_target")) == &"null_warden", "restored checkpoint points navigation at Null Warden")
 
+	var restored_pickups := get_nodes_in_group("authored_pickup")
+	_check(restored_pickups.size() == 2, "checkpoint restore skips authored pickups from completed encounters")
+	var restored_pickup_names := {}
+	for node in restored_pickups:
+		restored_pickup_names[node.name] = true
+	_check(not restored_pickup_names.has("data_bridge_ammo"), "completed Data Lane ammo does not respawn at Warden checkpoint")
+	_check(restored_pickup_names.has("boss_left_gantry_shield"), "upcoming Boss gantry shield remains available after checkpoint restore")
+	_check(restored_pickup_names.has("extraction_dock_health"), "upcoming Extraction health remains available after checkpoint restore")
+
 	MissionProgressStore.clear()
 	game.queue_free()
 	await process_frame
