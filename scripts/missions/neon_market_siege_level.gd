@@ -486,6 +486,9 @@ func _build_neon_market() -> void:
 			&"combat_cover"
 		)
 	_add_face_label(arrival, "ArrivalSign", down, 0.0, -22.0, 2.7, "NEON MARKET // NIGHT SHIFT", CYAN)
+	_add_face_trim(arrival, "ArrivalLaneWest", down, -1.85, -13.0, 0.07, Vector3(0.07, 0.035, 21.0), CYAN)
+	_add_face_trim(arrival, "ArrivalLaneEast", down, 1.85, -13.0, 0.07, Vector3(0.07, 0.035, 21.0), MAGENTA)
+	_add_face_trim(arrival, "ArrivalStopLine", down, 0.0, -3.6, 0.075, Vector3(7.0, 0.035, 0.08), AMBER)
 	_add_prop(arrival, "StreetLight_A", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -4.4, -19.5, 0.0, 1.25, 0.0)
 	_add_prop(arrival, "StreetLight_B", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, 4.4, -13.0, 0.0, 1.25, 180.0)
 	_add_prop(arrival, "StreetLight_C", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -4.4, -6.5, 0.0, 1.25, 0.0)
@@ -498,6 +501,8 @@ func _build_neon_market() -> void:
 	_add_face_box(hall, "HallSouthPierB", down, 7.0, -3.2, 0.0, Vector3(2.8, 4.8, 0.45), WALL, CYAN, true)
 	_add_face_box(hall, "HallRoof", down, 13.0, 4.0, 5.6, Vector3(16.2, 0.20, 14.4), Color(0.02, 0.025, 0.05), MAGENTA, true)
 	_add_face_label(hall, "MarketHallSign", down, 10.0, -3.0, 3.4, "SUBLEVEL 07 // NIGHT BAZAAR", MAGENTA)
+	_add_face_trim(hall, "HallCenterGuide", down, 12.7, 4.0, 0.08, Vector3(0.08, 0.035, 13.0), MAGENTA)
+	_add_face_trim(hall, "HallCrossGuide", down, 13.0, 4.1, 0.085, Vector3(14.5, 0.035, 0.07), CYAN)
 	_add_prop(hall, "MarketDoor", "res://assets/third_party/quaternius_cyberpunk/door.gltf", down, 9.0, -3.0, 0.0, 1.55, 180.0)
 	_add_prop(hall, "HallFence", "res://assets/third_party/quaternius_cyberpunk/fence.gltf", down, 16.8, 10.8, 0.0, 1.55, 90.0)
 
@@ -606,6 +611,8 @@ func _build_gravity_breach() -> void:
 			&"combat_cover"
 		)
 	_add_face_label(arena, "BreachSign", down, -8.0, -18.5, 3.0, "INDUSTRIAL ARC // BREACH CONTROL", CYAN)
+	_add_face_trim(arena, "BreachAxisA", down, -8.0, -12.0, 0.08, Vector3(0.08, 0.035, 13.5), CYAN)
+	_add_face_trim(arena, "BreachAxisB", down, -8.0, -12.0, 0.085, Vector3(13.5, 0.035, 0.08), AMBER)
 	_add_prop(arena, "BreachAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, -13.0, -18.0, 0.0, 1.65, 25.0)
 	_add_prop(arena, "BreachLight", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -2.5, -17.5, 0.0, 1.30, 180.0)
 
@@ -740,6 +747,8 @@ func _build_data_lane() -> void:
 	_add_face_box(lane, "LaneCoverA", down, 13.0, 6.0, 0.0, Vector3(3.0, 1.0, 0.9), COVER, MAGENTA, true, &"combat_cover")
 	_add_face_box(lane, "LaneCoverB", down, 4.0, 13.0, 0.0, Vector3(3.0, 1.0, 0.9), COVER, CYAN, true, &"combat_cover")
 	_add_face_label(lane, "DataLaneSign", down, 8.0, 1.0, 3.0, "DATA QUARTER // RELAY LANE", CYAN)
+	_add_face_trim(lane, "DataSpine", down, 8.0, 8.0, 0.08, Vector3(0.08, 0.035, 13.0), CYAN)
+	_add_face_trim(lane, "RelayDivider", down, 8.0, 8.0, 0.085, Vector3(15.5, 0.035, 0.08), VIOLET)
 	_add_objective_node(lane, "RelayCore_A", &"data_lane", &"relay_a", down, 3.0, 8.0, 90.0, CYAN)
 	_add_objective_node(lane, "RelayCore_B", &"data_lane", &"relay_b", down, 13.0, 9.5, 90.0, MAGENTA)
 	_add_prop(lane, "RelayConsole_A", "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, 1.2, 2.5, 0.0, 1.25, 90.0)
@@ -862,6 +871,7 @@ func _build_extraction() -> void:
 	var route := _section(root, "ExtractionRoute")
 	_add_face_box(route, "ExtractionLane", down, -5.0, -20.0, 0.02, Vector3(14.0, 0.05, 10.0), DARK, AMBER, false)
 	_add_face_box(route, "RouteRail", down, -11.5, -20.0, 0.0, Vector3(0.3, 0.75, 10.0), WALL, AMBER, true, &"combat_cover")
+	_add_face_trim(route, "ExtractionGuide", down, -5.0, -20.0, 0.08, Vector3(0.08, 0.035, 9.0), AMBER)
 
 	var zone_container := _section(root, "ExtractionBeacon")
 	_add_ring_visual(zone_container, "ExtractionRing", down, 0.0, -25.0, 0.05, 3.4, Color(0.03, 0.06, 0.055), AMBER)
@@ -1102,6 +1112,30 @@ func _on_objective_node_destroyed(node: MissionObjectiveNode) -> void:
 	objective_node_destroyed.emit(node.encounter_id, node.objective_id, remaining)
 
 
+func _add_face_trim(
+	parent: Node3D,
+	name: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	height: float,
+	size: Vector3,
+	accent: Color
+) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var trim := MeshInstance3D.new()
+	trim.name = name
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	trim.mesh = mesh
+	trim.position = _face_point(down, u, v, height)
+	trim.basis = CubeGravity.tangent_basis(down)
+	trim.material_override = _material(accent * 0.08, accent, 4.8)
+	trim.add_to_group("mission_visual_trim")
+	parent.add_child(trim)
+
+
 func _add_face_box(
 	parent: Node3D,
 	name: String,
@@ -1142,7 +1176,7 @@ func _add_face_box(
 		var mesh := BoxMesh.new()
 		mesh.size = size
 		visual.mesh = mesh
-		visual.material_override = _material(base_color, emission_color, 1.35 if collidable else 0.75)
+		visual.material_override = _material(base_color, emission_color, 0.22 if collidable else 0.10)
 		node.add_child(visual)
 	return node
 
@@ -1235,8 +1269,9 @@ func _material(base_color: Color, emission_color: Color, energy: float) -> Stand
 	var material := StandardMaterial3D.new()
 	material.albedo_color = base_color
 	material.metallic = 0.65
-	material.roughness = 0.28
-	material.emission_enabled = true
-	material.emission = emission_color
-	material.emission_energy_multiplier = energy
+	material.roughness = 0.34
+	material.emission_enabled = energy > 0.0
+	if energy > 0.0:
+		material.emission = emission_color
+		material.emission_energy_multiplier = energy
 	return material
