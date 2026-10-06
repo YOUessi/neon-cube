@@ -116,12 +116,12 @@ func _run() -> void:
 	await _capture_anchor(
 		game,
 		camera,
-		"extraction_center",
+		"extraction_point",
 		Vector3.DOWN,
 		"extraction_yard.png",
-		11.0,
-		4.0,
-		1.0
+		12.0,
+		5.0,
+		2.5
 	)
 	game.mission_level.call("arm_extraction", false)
 
