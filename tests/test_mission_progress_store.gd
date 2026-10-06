@@ -14,6 +14,7 @@ func _run() -> void:
 	session.add_enemy()
 	session.register_kill(240)
 	runtime.complete_current_encounter()
+	runtime.mark_pickup_consumed(&"boss_left_gantry_shield")
 	session.wave_index = runtime.encounter_index
 	_check(runtime.checkpoint_id == &"cp_market_ingress", "runtime reached first checkpoint")
 
@@ -29,6 +30,8 @@ func _run() -> void:
 	_check(restored_session.score == 240, "checkpoint restores accumulated score")
 	_check(restored_session.kills == 1, "checkpoint restores kill count")
 	_check(restored_session.difficulty_name == "NIGHTMARE", "checkpoint restores difficulty name")
+	_check(restored.is_pickup_consumed(&"boss_left_gantry_shield"), "checkpoint restores consumed authored pickup IDs")
+	_check(not restored.is_pickup_consumed(&"extraction_dock_health"), "checkpoint leaves unconsumed authored pickups available")
 	_check(is_equal_approx(restored_session.difficulty_scale, 1.28), "checkpoint restores difficulty scale")
 
 	var clear_error := MissionProgressStore.clear()
