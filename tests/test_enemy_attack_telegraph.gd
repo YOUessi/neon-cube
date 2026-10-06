@@ -15,16 +15,16 @@ func _run() -> void:
 
 	var player: NeonPlayer = PLAYER.instantiate() as NeonPlayer
 	player.cube_half_extent = 30.0
+	player.position = Vector3(0, -28.5, 0)
 	world.add_child(player)
-	player.global_position = Vector3(0, -28.5, 0)
 	player.set_physics_process(false)
 
 	var sniper: NeonEnemy = ENEMY.instantiate() as NeonEnemy
 	sniper.cube_half_extent = 30.0
 	sniper.target = player
 	sniper.configure("sniper", 1, 1.0)
+	sniper.position = Vector3(0, -28.5, 12.0)
 	world.add_child(sniper)
-	sniper.global_position = Vector3(0, -28.5, 12.0)
 	sniper.set_physics_process(false)
 
 	await physics_frame
