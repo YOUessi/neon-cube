@@ -31,6 +31,7 @@ func _run() -> void:
 	_check(game._waiting_for_encounter_entry, "next encounter waits for arena entry")
 	_check(game.session.alive_enemies == 0, "no next-wave enemies spawn while player is travelling")
 	_check(get_nodes_in_group("enemies").is_empty(), "world remains clear during traversal")
+	_check(StringName(game.mission_level.call("current_navigation_target")) == &"market_crossfire", "travel phase exposes Market Crossfire world beacon")
 
 	var zone := game.mission_level.get_node_or_null(
 		"Geometry/EncounterActivationZones/MarketCrossfireActivation"
@@ -44,6 +45,7 @@ func _run() -> void:
 			await process_frame
 
 	_check(not game._waiting_for_encounter_entry, "entering the arena releases the encounter gate")
+	_check(StringName(game.mission_level.call("current_navigation_target")) == &"", "entering arena clears navigation beacon")
 	_check(bool(game.mission_level.call("is_encounter_locked", &"market_crossfire")), "arena closes its combat lockdown on activation")
 	_check(game.session.alive_enemies == 5, "Market Crossfire spawns five hostiles on entry")
 	var enemies := get_nodes_in_group("enemies")
