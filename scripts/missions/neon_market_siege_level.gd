@@ -189,6 +189,9 @@ func reset_hold_zones() -> void:
 			var visual := zone.get_node_or_null("HoldVisual") as MeshInstance3D
 			if visual != null:
 				visual.visible = false
+			var outline := zone.get_node_or_null("HoldOutline") as MeshInstance3D
+			if outline != null:
+				outline.visible = false
 			var core := zone.get_node_or_null("ProgressCore") as MeshInstance3D
 			if core != null:
 				core.visible = false
@@ -211,6 +214,9 @@ func arm_hold_zone(encounter_id: StringName, active: bool) -> void:
 			var visual := zone.get_node_or_null("HoldVisual") as MeshInstance3D
 			if visual != null:
 				visual.visible = enabled
+			var outline := zone.get_node_or_null("HoldOutline") as MeshInstance3D
+			if outline != null:
+				outline.visible = enabled
 				var visual_material := visual.material_override as StandardMaterial3D
 				if visual_material != null:
 					visual_material.albedo_color = CYAN * 0.045
@@ -1065,12 +1071,25 @@ func _build_hold_zones() -> void:
 		var mesh := CylinderMesh.new()
 		mesh.top_radius = 3.0
 		mesh.bottom_radius = 3.0
-		mesh.height = 0.07
+		mesh.height = 0.05
 		mesh.radial_segments = 56
 		visual.mesh = mesh
-		visual.material_override = _material(CYAN * 0.045, CYAN, 4.8)
+		visual.material_override = _material(Color(0.02, 0.045, 0.052), CYAN, 0.65)
 		visual.visible = false
 		area.add_child(visual)
+
+		var outline := MeshInstance3D.new()
+		outline.name = "HoldOutline"
+		var outline_mesh := TorusMesh.new()
+		outline_mesh.inner_radius = 2.72
+		outline_mesh.outer_radius = 3.0
+		outline_mesh.rings = 48
+		outline_mesh.ring_segments = 12
+		outline.mesh = outline_mesh
+		outline.rotation_degrees = Vector3(90, 0, 0)
+		outline.material_override = _material(CYAN * 0.08, CYAN, 3.6)
+		outline.visible = false
+		area.add_child(outline)
 
 	if DisplayServer.get_name() != "headless":
 		var core := MeshInstance3D.new()
@@ -1227,7 +1246,30 @@ func _build_boss_arena() -> void:
 	arena.add_to_group("boss_arena")
 	var down := Vector3.BACK
 
-	_add_ring_visual(arena, "BossArenaRing", down, 0.0, -4.0, 0.06, 10.8, Color(0.035, 0.02, 0.07), VIOLET)
+	_add_disc_visual(
+		arena,
+		"BossArenaFloor",
+		down,
+		0.0,
+		-4.0,
+		0.035,
+		10.8,
+		Color(0.028, 0.022, 0.045),
+		VIOLET,
+		0.18
+	)
+	_add_ring_outline(
+		arena,
+		"BossArenaRing",
+		down,
+		0.0,
+		-4.0,
+		0.075,
+		10.8,
+		0.22,
+		VIOLET,
+		3.4
+	)
 	_add_face_box(arena, "BossGateLeft", down, -6.0, 8.5, 0.0, Vector3(0.55, 5.2, 0.65), WALL, VIOLET, true)
 	_add_face_box(arena, "BossGateRight", down, 6.0, 8.5, 0.0, Vector3(0.55, 5.2, 0.65), WALL, MAGENTA, true)
 	_add_face_box(arena, "BossGateHeader", down, 0.0, 8.5, 4.8, Vector3(12.5, 0.4, 0.65), WALL, MAGENTA, true)
@@ -2177,6 +2219,63 @@ func _add_prop(
 	prop.scale = Vector3.ONE * uniform_scale
 	prop.add_to_group("mission_visual_prop")
 	parent.add_child(prop)
+
+
+func _add_disc_visual(
+	parent: Node3D,
+	name: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	height: float,
+	radius: float,
+	base_color: Color,
+	emission_color: Color,
+	emission_energy: float
+) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var disc := MeshInstance3D.new()
+	disc.name = name
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = 0.06
+	mesh.radial_segments = 64
+	disc.mesh = mesh
+	disc.position = _face_point(down, u, v, height)
+	disc.basis = CubeGravity.tangent_basis(down)
+	disc.material_override = _material(base_color, emission_color, emission_energy)
+	parent.add_child(disc)
+
+
+func _add_ring_outline(
+	parent: Node3D,
+	name: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	height: float,
+	radius: float,
+	thickness: float,
+	accent: Color,
+	energy: float
+) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var ring := MeshInstance3D.new()
+	ring.name = name
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = maxf(0.05, radius - thickness)
+	mesh.outer_radius = radius
+	mesh.rings = 64
+	mesh.ring_segments = 12
+	ring.mesh = mesh
+	ring.position = _face_point(down, u, v, height)
+	ring.basis = CubeGravity.tangent_basis(down)
+	ring.rotate_object_local(Vector3.RIGHT, deg_to_rad(90.0))
+	ring.material_override = _material(accent * 0.08, accent, energy)
+	parent.add_child(ring)
 
 
 func _add_ring_visual(
