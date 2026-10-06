@@ -258,7 +258,7 @@ func set_hold_zone_progress(encounter_id: StringName, current: float, required: 
 
 	if stable:
 		_hold_zone_occupied[encounter_id] = false
-		zone.set_deferred("monitoring", false)
+		zone.monitoring = false
 
 	var stable_color := Color(0.22, 1.0, 0.52)
 	var active_color := CYAN
