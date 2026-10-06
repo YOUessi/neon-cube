@@ -92,11 +92,12 @@ func _ready() -> void:
 		mission_level.connect("encounter_zone_entered", Callable(self, "_on_encounter_zone_entered"))
 	if mission_level.has_signal("objective_node_destroyed"):
 		mission_level.connect("objective_node_destroyed", Callable(self, "_on_objective_node_destroyed"))
-	performance_monitor = RuntimePerformanceMonitor.new()
-	performance_monitor.name = "PerformanceMonitor"
-	performance_monitor.budget = DESKTOP_PERFORMANCE_BUDGET
-	performance_monitor.budget_warning.connect(_on_performance_budget_warning)
-	add_child(performance_monitor)
+	if DisplayServer.get_name() != "headless":
+		performance_monitor = RuntimePerformanceMonitor.new()
+		performance_monitor.name = "PerformanceMonitor"
+		performance_monitor.budget = DESKTOP_PERFORMANCE_BUDGET
+		performance_monitor.budget_warning.connect(_on_performance_budget_warning)
+		add_child(performance_monitor)
 	var audio: NeonAudio = NeonAudio.new()
 	audio.name = "NeonAudio"
 	add_child(audio)
