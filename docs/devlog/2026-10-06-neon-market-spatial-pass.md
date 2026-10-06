@@ -361,3 +361,52 @@ Boss Arena 现有 4 个实体危险地面区：
 - 几何测试验证每个主要 Arena 的 route waypoint 数量。
 - 验证 route waypoint 位于正确 cube face。
 - Mission spatial flow 验证实际生成的 Market Crossfire 敌人收到 6 个 authored route points。
+
+
+## 2026-10-06 追加：Tactical Combat Slots
+
+### 问题
+
+Authored waypoint 解决了“看不到玩家时如何绕过关卡障碍”，但敌人重新获得 LOS 后，仍然可能全部朝玩家同一坐标推进，导致：
+
+- grunt / runner 扎堆。
+- 多个敌人互相挤压。
+- Arena 横向空间利用不足。
+- 玩家被单点包围，而不是受到多角度压力。
+
+### 实现
+
+每个 Story Encounter 生成敌人时，会按该 Encounter 敌人数量分配唯一 tactical slot：
+
+- `slot_index`
+- `slot_count`
+
+同一面并且已经重新看到玩家时，非 Boss 敌人会以玩家为中心选择环形战术位置。
+
+默认半径：
+
+- grunt / 普通 advance：4.0m
+- runner：2.2m
+- sniper：7.5m
+- tank：5.5m
+- boss：不使用 slot，继续使用 phase-driven movement
+
+因此：
+
+```text
+无 LOS
+→ authored waypoint routing
+
+恢复 LOS
+→ 清除 route waypoint
+→ 移向自己的 tactical slot
+→ EnemyBrain 再根据 rush / keep_distance / anchor 行为决策
+```
+
+### 回归测试
+
+Mission spatial flow 现在验证：
+
+- Market Crossfire 5 个敌人都收到 6 个 authored route waypoints。
+- 每个敌人都知道 slot_count = 5。
+- 5 个敌人的 slot_index 唯一，不会重复占同一个战术槽。
