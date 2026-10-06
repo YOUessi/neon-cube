@@ -19,6 +19,8 @@ const COVER := Color(0.07, 0.085, 0.12)
 var _geometry_root: Node3D
 var _extraction_zone: Area3D
 var _extraction_label: Label3D
+var _extraction_progress_core: MeshInstance3D
+var _extraction_progress_ratio := 0.0
 var _extraction_armed := false
 var _extraction_occupied := false
 var _encounter_zones: Dictionary = {}
@@ -38,6 +40,7 @@ var _reinforcement_warning_serial := 0
 var _objective_nodes: Dictionary = {}
 var _hold_zones: Dictionary = {}
 var _hold_zone_occupied: Dictionary = {}
+var _hold_zone_progress: Dictionary = {}
 
 
 func _ready() -> void:
@@ -145,13 +148,21 @@ func _add_reinforcement_warning_visual(parent: Node3D, name: String, spawn_posit
 
 func reset_hold_zones() -> void:
 	for key in _hold_zones:
+		var key_id := StringName(key)
 		var zone := _hold_zones[key] as Area3D
-		_hold_zone_occupied[StringName(key)] = false
+		_hold_zone_occupied[key_id] = false
+		_hold_zone_progress[key_id] = 0.0
 		if zone != null:
 			zone.monitoring = false
 			var visual := zone.get_node_or_null("HoldVisual") as MeshInstance3D
 			if visual != null:
 				visual.visible = false
+			var core := zone.get_node_or_null("ProgressCore") as MeshInstance3D
+			if core != null:
+				core.visible = false
+			var label := zone.get_node_or_null("ProgressLabel") as Label3D
+			if label != null:
+				label.visible = false
 
 
 func arm_hold_zone(encounter_id: StringName, active: bool) -> void:
@@ -160,11 +171,22 @@ func arm_hold_zone(encounter_id: StringName, active: bool) -> void:
 		var zone := _hold_zones[key] as Area3D
 		var enabled := active and key_id == encounter_id
 		_hold_zone_occupied[key_id] = false
+		if enabled:
+			_hold_zone_progress[key_id] = 0.0
 		if zone != null:
 			zone.monitoring = enabled
 			var visual := zone.get_node_or_null("HoldVisual") as MeshInstance3D
 			if visual != null:
 				visual.visible = enabled
+			var core := zone.get_node_or_null("ProgressCore") as MeshInstance3D
+			if core != null:
+				core.visible = enabled
+				core.scale.y = 0.03
+				core.position.y = 0.0
+			var label := zone.get_node_or_null("ProgressLabel") as Label3D
+			if label != null:
+				label.visible = enabled
+				label.text = "UPLINK 000%"
 
 
 func is_hold_zone_occupied(encounter_id: StringName) -> bool:
@@ -176,6 +198,53 @@ func hold_zone_world_position(encounter_id: StringName) -> Vector3:
 		return Vector3.ZERO
 	var zone := _hold_zones[encounter_id] as Area3D
 	return zone.global_position if zone != null else Vector3.ZERO
+
+
+func set_hold_zone_progress(encounter_id: StringName, current: float, required: float) -> void:
+	var ratio := 0.0
+	if required > 0.0:
+		ratio = clampf(current / required, 0.0, 1.0)
+	_hold_zone_progress[encounter_id] = ratio
+	if not _hold_zones.has(encounter_id):
+		return
+	var zone := _hold_zones[encounter_id] as Area3D
+	if zone == null:
+		return
+	var core := zone.get_node_or_null("ProgressCore") as MeshInstance3D
+	if core != null:
+		core.visible = zone.monitoring
+		core.scale.y = maxf(0.03, ratio)
+		core.position.y = 0.92 * ratio
+		var material := core.material_override as StandardMaterial3D
+		if material != null:
+			material.emission_energy_multiplier = 2.8 + ratio * 4.2
+	var label := zone.get_node_or_null("ProgressLabel") as Label3D
+	if label != null:
+		label.visible = zone.monitoring
+		label.text = "UPLINK %03d%%" % int(round(ratio * 100.0))
+
+
+func hold_zone_progress_state(encounter_id: StringName) -> float:
+	return float(_hold_zone_progress.get(encounter_id, 0.0))
+
+
+func set_extraction_progress(current: float, required: float) -> void:
+	_extraction_progress_ratio = 0.0
+	if required > 0.0:
+		_extraction_progress_ratio = clampf(current / required, 0.0, 1.0)
+	if _extraction_progress_core != null:
+		_extraction_progress_core.visible = _extraction_armed
+		_extraction_progress_core.scale.y = maxf(0.03, _extraction_progress_ratio)
+		_extraction_progress_core.position.y = 1.35 * _extraction_progress_ratio
+		var material := _extraction_progress_core.material_override as StandardMaterial3D
+		if material != null:
+			material.emission_energy_multiplier = 3.0 + _extraction_progress_ratio * 5.0
+	if _extraction_label != null and _extraction_armed:
+		_extraction_label.text = "EXTRACTION // %03d%%" % int(round(_extraction_progress_ratio * 100.0))
+
+
+func extraction_progress_state() -> float:
+	return _extraction_progress_ratio
 
 
 func reset_objective_nodes() -> void:
@@ -211,10 +280,17 @@ func objective_nodes_remaining(encounter_id: StringName) -> int:
 func arm_extraction(active: bool = true) -> void:
 	_extraction_armed = active
 	_extraction_occupied = false
+	_extraction_progress_ratio = 0.0
 	if _extraction_zone != null:
 		_extraction_zone.monitoring = active
+	if _extraction_progress_core != null:
+		_extraction_progress_core.visible = active
+		_extraction_progress_core.scale.y = 0.03
+		_extraction_progress_core.position.y = 0.0
 	if _extraction_label != null:
 		_extraction_label.visible = active
+		if active:
+			_extraction_label.text = "EXTRACTION // 000%"
 
 
 func is_extraction_occupied() -> bool:
@@ -677,11 +753,39 @@ func _build_hold_zones() -> void:
 		visual.visible = false
 		area.add_child(visual)
 
+	if DisplayServer.get_name() != "headless":
+		var core := MeshInstance3D.new()
+		core.name = "ProgressCore"
+		var core_mesh := CylinderMesh.new()
+		core_mesh.top_radius = 0.38
+		core_mesh.bottom_radius = 0.50
+		core_mesh.height = 1.85
+		core_mesh.radial_segments = 32
+		core.mesh = core_mesh
+		core.scale.y = 0.03
+		core.position.y = 0.0
+		core.material_override = _material(CYAN * 0.08, CYAN, 2.8)
+		core.visible = false
+		area.add_child(core)
+
+		var progress_label := Label3D.new()
+		progress_label.name = "ProgressLabel"
+		progress_label.text = "UPLINK 000%"
+		progress_label.font_size = 28
+		progress_label.outline_size = 6
+		progress_label.modulate = CYAN
+		progress_label.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
+		progress_label.position = Vector3(0, 2.4, 0)
+		progress_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		progress_label.visible = false
+		area.add_child(progress_label)
+
 	area.body_entered.connect(_on_hold_zone_body_entered.bind(encounter_id))
 	area.body_exited.connect(_on_hold_zone_body_exited.bind(encounter_id))
 	root.add_child(area)
 	_hold_zones[encounter_id] = area
 	_hold_zone_occupied[encounter_id] = false
+	_hold_zone_progress[encounter_id] = 0.0
 
 
 func _on_hold_zone_body_entered(body: Node3D, encounter_id: StringName) -> void:
@@ -900,6 +1004,21 @@ func _build_extraction() -> void:
 
 	var zone_container := _section(root, "ExtractionBeacon")
 	_add_ring_visual(zone_container, "ExtractionRing", down, 0.0, -25.0, 0.05, 3.4, Color(0.03, 0.06, 0.055), AMBER)
+	if DisplayServer.get_name() != "headless":
+		_extraction_progress_core = MeshInstance3D.new()
+		_extraction_progress_core.name = "ExtractionProgressCore"
+		var progress_mesh := CylinderMesh.new()
+		progress_mesh.top_radius = 0.34
+		progress_mesh.bottom_radius = 0.52
+		progress_mesh.height = 2.7
+		progress_mesh.radial_segments = 36
+		_extraction_progress_core.mesh = progress_mesh
+		_extraction_progress_core.position = _face_point(down, 0.0, -25.0, 0.0)
+		_extraction_progress_core.basis = CubeGravity.tangent_basis(down)
+		_extraction_progress_core.scale.y = 0.03
+		_extraction_progress_core.material_override = _material(AMBER * 0.08, AMBER, 3.0)
+		_extraction_progress_core.visible = false
+		zone_container.add_child(_extraction_progress_core)
 	_add_prop(zone_container, "ExtractionBeaconAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 2.7, -25.0, 0.0, 1.75, 0.0)
 	_extraction_zone = Area3D.new()
 	_extraction_zone.name = "ExtractionZone"
