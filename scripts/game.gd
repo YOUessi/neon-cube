@@ -42,6 +42,7 @@ var _encounter_batch_sizes: Array[int] = []
 var _encounter_batch_index := 0
 var _encounter_spawned_count := 0
 var _reinforcement_scheduled := false
+var _hold_progress := 0.0
 
 var hud_layer: CanvasLayer
 var hud_panel: Control
@@ -103,12 +104,14 @@ func _ready() -> void:
 	else:
 		_show_menu()
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if game_state != GameState.PLAYING:
 		return
 	if is_instance_valid(player) and dash_label != null:
 		var dash_remaining: float = player.get_dash_remaining()
 		dash_label.text = "DASH READY" if dash_remaining <= 0.0 else "DASH %.1fs" % dash_remaining
+	if story_mode:
+		_update_hold_objective(delta)
 	if story_mode and _has_pending_reinforcements():
 		var encounter := mission_runtime.current_encounter()
 		if (
@@ -150,7 +153,9 @@ func start_game() -> void:
 	_waiting_for_encounter_entry = false
 	_last_boss_phase = 1
 	_clear_encounter_batch_state()
+	_hold_progress = 0.0
 	_reset_objective_nodes()
+	_reset_hold_zones()
 	_set_extraction_armed(false)
 	_set_encounter_zone_armed(&"", false)
 	_set_encounter_lockdown(&"", false)
@@ -238,6 +243,8 @@ func _finish_wave() -> void:
 		_clear_encounter_batch_state()
 		if encounter != null:
 			_arm_objective_nodes(encounter.encounter_id, false)
+			_arm_hold_zone(encounter.encounter_id, false)
+			_hold_progress = 0.0
 			_set_encounter_lockdown(encounter.encounter_id, false)
 			if encounter.encounter_id == &"null_warden":
 				_set_boss_arena_phase(1)
@@ -275,6 +282,7 @@ func _advance_wave() -> void:
 	_sync_session_fields()
 	if story_mode:
 		var encounter := mission_runtime.current_encounter()
+		_hold_progress = 0.0
 		_waiting_for_encounter_entry = true
 		_wave_transitioning = true
 		_set_encounter_zone_armed(encounter.encounter_id, true)
@@ -616,7 +624,9 @@ func _resume_story_from_save() -> void:
 	_waiting_for_extraction = false
 	_waiting_for_encounter_entry = true
 	_clear_encounter_batch_state()
+	_hold_progress = 0.0
 	_reset_objective_nodes()
+	_reset_hold_zones()
 	_set_extraction_armed(false)
 	_set_encounter_lockdown(&"", false)
 	_set_encounter_zone_armed(mission_runtime.current_encounter().encounter_id, true)
@@ -900,6 +910,27 @@ func _update_objective() -> void:
 		if _waiting_for_encounter_entry:
 			objective_label.text = "ADVANCE TO\n%s" % encounter.title
 			return
+		if encounter.hold_zone_seconds > 0.0:
+			var hold_status := "UPLINK %.1f/%.1fs" % [_hold_progress, encounter.hold_zone_seconds]
+			if _reinforcement_scheduled:
+				objective_label.text = "%s\n%s  //  INBOUND" % [encounter.objective_text, hold_status]
+				return
+			var hold_batch_count := current_story_batch_count()
+			if hold_batch_count > 1:
+				objective_label.text = "%s\n%s  //  HOSTILES %02d  //  BATCH %d/%d" % [
+					encounter.objective_text,
+					hold_status,
+					session.alive_enemies,
+					current_story_batch_number(),
+					hold_batch_count,
+				]
+				return
+			objective_label.text = "%s\n%s  //  HOSTILES %02d" % [
+				encounter.objective_text,
+				hold_status,
+				session.alive_enemies,
+			]
+			return
 		var remaining_nodes := _objective_nodes_remaining(encounter.encounter_id)
 		if encounter.objective_node_count > 0:
 			if _reinforcement_scheduled:
@@ -1008,6 +1039,37 @@ func _set_boss_arena_phase(phase: int) -> void:
 		mission_level.call("set_boss_phase", phase)
 
 
+func _reset_hold_zones() -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("reset_hold_zones"):
+		mission_level.call("reset_hold_zones")
+
+
+func _arm_hold_zone(encounter_id: StringName, active: bool) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("arm_hold_zone"):
+		mission_level.call("arm_hold_zone", encounter_id, active)
+
+
+func _hold_zone_occupied(encounter_id: StringName) -> bool:
+	if not is_instance_valid(mission_level) or not mission_level.has_method("is_hold_zone_occupied"):
+		return false
+	return bool(mission_level.call("is_hold_zone_occupied", encounter_id))
+
+
+func _update_hold_objective(delta: float) -> void:
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.hold_zone_seconds <= 0.0 or _waiting_for_encounter_entry:
+		return
+	if _hold_zone_occupied(encounter.encounter_id):
+		var previous := _hold_progress
+		_hold_progress = minf(encounter.hold_zone_seconds, _hold_progress + maxf(0.0, delta))
+		if not is_equal_approx(previous, _hold_progress):
+			_update_objective()
+	else:
+		if _hold_progress > 0.0:
+			_hold_progress = 0.0
+			_update_objective()
+
+
 func _reset_objective_nodes() -> void:
 	if is_instance_valid(mission_level) and mission_level.has_method("reset_objective_nodes"):
 		mission_level.call("reset_objective_nodes")
@@ -1028,9 +1090,13 @@ func _story_objectives_complete() -> bool:
 	if not story_mode:
 		return true
 	var encounter := mission_runtime.current_encounter()
-	if encounter == null or encounter.objective_node_count <= 0:
+	if encounter == null:
 		return true
-	return _objective_nodes_remaining(encounter.encounter_id) <= 0
+	if encounter.objective_node_count > 0 and _objective_nodes_remaining(encounter.encounter_id) > 0:
+		return false
+	if encounter.hold_zone_seconds > 0.0 and _hold_progress < encounter.hold_zone_seconds:
+		return false
+	return true
 
 
 func _on_encounter_zone_entered(encounter_id: StringName) -> void:
@@ -1043,6 +1109,8 @@ func _on_encounter_zone_entered(encounter_id: StringName) -> void:
 	_set_navigation_target(&"")
 	_set_encounter_lockdown(encounter_id, true)
 	_arm_objective_nodes(encounter_id, true)
+	_arm_hold_zone(encounter_id, true)
+	_hold_progress = 0.0
 	_spawn_current_wave()
 	_wave_transitioning = false
 	_update_score()
