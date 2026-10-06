@@ -56,6 +56,8 @@ func _run() -> void:
 	_check(bool(game.mission_level.call("is_hold_zone_occupied", &"gravity_breach")), "player presence is detected inside hold zone")
 	game._process(2.0)
 	_check(game._hold_progress > 1.9 and game._hold_progress < 2.1, "continuous hold accumulates progress")
+	var world_hold_ratio := float(game.mission_level.call("hold_zone_progress_state", &"gravity_breach"))
+	_check(world_hold_ratio > 0.49 and world_hold_ratio < 0.51, "world uplink indicator mirrors fifty-percent hold progress")
 	_check(game.mission_runtime.encounter_index == 2, "partial hold does not advance mission")
 
 	game.player.global_position = hold_zone.to_global(Vector3(7.0, 1.0, 0))
@@ -65,6 +67,7 @@ func _run() -> void:
 	game._process(0.1)
 	_check(not bool(game.mission_level.call("is_hold_zone_occupied", &"gravity_breach")), "leaving control zone clears occupancy")
 	_check(is_equal_approx(game._hold_progress, 0.0), "leaving control zone resets continuous hold progress")
+	_check(is_equal_approx(float(game.mission_level.call("hold_zone_progress_state", &"gravity_breach")), 0.0), "world uplink indicator resets when player leaves zone")
 
 	game.player.global_position = hold_zone.to_global(Vector3(0, 1.0, 0))
 	for i in range(3):
