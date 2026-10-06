@@ -27,6 +27,7 @@ var _boss_hazards: Array[Area3D] = []
 var _boss_hazard_active: Array[bool] = []
 var _boss_phase := 1
 var _boss_hazard_tick_remaining := 0.0
+var _tracked_player: NeonPlayer
 
 
 func _ready() -> void:
@@ -44,6 +45,10 @@ func _ready() -> void:
 	_build_extraction()
 	_build_combat_lockdown_gates()
 	_build_encounter_activation_zones()
+
+
+func set_player(player: NeonPlayer) -> void:
+	_tracked_player = player
 
 
 func arm_extraction(active: bool = true) -> void:
@@ -114,7 +119,7 @@ func boss_hazard_state() -> Dictionary:
 
 
 func _physics_process(delta: float) -> void:
-	if _boss_phase < 2 or _boss_hazards.is_empty():
+	if _boss_phase < 2 or _boss_hazards.is_empty() or not is_instance_valid(_tracked_player):
 		return
 	_boss_hazard_tick_remaining -= delta
 	if _boss_hazard_tick_remaining > 0.0:
@@ -124,10 +129,17 @@ func _physics_process(delta: float) -> void:
 	for i in range(_boss_hazards.size()):
 		if not _boss_hazard_active[i]:
 			continue
-		for body in _boss_hazards[i].get_overlapping_bodies():
-			if body is NeonPlayer:
-				(body as NeonPlayer).take_damage(damage)
-				return
+		if _player_inside_boss_hazard(_boss_hazards[i]):
+			_tracked_player.take_damage(damage)
+			return
+
+
+func _player_inside_boss_hazard(hazard: Area3D) -> bool:
+	if hazard == null or not is_instance_valid(_tracked_player):
+		return false
+	var local_position := hazard.to_local(_tracked_player.global_position)
+	var planar_distance := Vector2(local_position.x, local_position.z).length()
+	return planar_distance <= 2.25 and local_position.y >= -0.25 and local_position.y <= 2.9
 
 
 func _apply_gate_state(encounter_id: StringName, active: bool) -> void:
