@@ -1429,8 +1429,9 @@ func _build_boss_arena() -> void:
 	_add_face_box(arena, "RearCoverB", down, 4.0, -13.0, 0.0, Vector3(3.4, 1.1, 1.0), COVER, MAGENTA, true, &"combat_cover")
 
 	var gantries := _section(arena, "ServiceGantries")
-	for side in [-1.0, 1.0]:
-		var gantry_u := 8.25 * side
+	for side_variant in [-1.0, 1.0]:
+		var side: float = float(side_variant)
+		var gantry_u: float = 8.25 * side
 		var deck := _add_face_box(
 			gantries,
 			"GantryDeck_%s" % ("L" if side < 0.0 else "R"),
