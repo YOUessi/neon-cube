@@ -19,6 +19,8 @@ var _extraction_zone: Area3D
 var _extraction_label: Label3D
 var _extraction_armed := false
 var _encounter_zones: Dictionary = {}
+var _combat_gates: Dictionary = {}
+var _lockdown_state: Dictionary = {}
 
 
 func _ready() -> void:
@@ -33,6 +35,7 @@ func _ready() -> void:
 	_build_data_lane()
 	_build_boss_arena()
 	_build_extraction()
+	_build_combat_lockdown_gates()
 	_build_encounter_activation_zones()
 
 
@@ -48,6 +51,33 @@ func arm_encounter_zone(encounter_id: StringName, active: bool = true) -> void:
 	for key in _encounter_zones:
 		var zone: Area3D = _encounter_zones[key]
 		zone.monitoring = active and StringName(key) == encounter_id
+
+
+func set_encounter_lockdown(encounter_id: StringName, active: bool) -> void:
+	if encounter_id == &"" and not active:
+		for key in _combat_gates:
+			_apply_gate_state(StringName(key), false)
+		return
+	if not _combat_gates.has(encounter_id):
+		return
+	_apply_gate_state(encounter_id, active)
+
+
+func is_encounter_locked(encounter_id: StringName) -> bool:
+	return bool(_lockdown_state.get(encounter_id, false))
+
+
+func _apply_gate_state(encounter_id: StringName, active: bool) -> void:
+	var gate_data: Dictionary = _combat_gates.get(encounter_id, {})
+	if gate_data.is_empty():
+		return
+	_lockdown_state[encounter_id] = active
+	var collision := gate_data.get("collision") as CollisionShape3D
+	if collision != null:
+		collision.set_deferred("disabled", not active)
+	var visual := gate_data.get("visual") as MeshInstance3D
+	if visual != null:
+		visual.visible = active
 
 
 func spawn_points_for(encounter_id: StringName, count: int, sequence_offset: int = 0) -> Array[Vector3]:
@@ -121,6 +151,7 @@ func spatial_summary() -> Dictionary:
 		"boss_arena": get_tree().get_nodes_in_group("boss_arena").size(),
 		"extraction_zone": get_tree().get_nodes_in_group("extraction_zone").size(),
 		"encounter_activation_zone": get_tree().get_nodes_in_group("encounter_activation_zone").size(),
+		"combat_lockdown_gate": get_tree().get_nodes_in_group("combat_lockdown_gate").size(),
 	}
 
 
@@ -450,6 +481,57 @@ func _build_extraction() -> void:
 		_extraction_label.basis = CubeGravity.tangent_basis(down)
 		_extraction_label.visible = false
 		zone_container.add_child(_extraction_label)
+
+
+func _build_combat_lockdown_gates() -> void:
+	var root := _section(_geometry_root, "CombatLockdownGates")
+	var specs := [
+		[&"market_crossfire", Vector3.DOWN, 21.0, 8.0, Vector3(5.4, 3.6, 0.34), MAGENTA],
+		[&"gravity_breach", Vector3.RIGHT, 3.0, -4.0, Vector3(5.4, 3.6, 0.34), AMBER],
+		[&"data_lane", Vector3.LEFT, 0.0, 14.0, Vector3(8.0, 4.2, 0.34), VIOLET],
+		[&"null_warden", Vector3.BACK, 0.0, 8.3, Vector3(11.0, 4.6, 0.34), MAGENTA],
+		[&"extraction", Vector3.DOWN, -4.5, -20.0, Vector3(8.0, 3.6, 0.34), AMBER],
+	]
+	for spec in specs:
+		var encounter_id: StringName = spec[0]
+		var down: Vector3 = spec[1]
+		var u: float = float(spec[2])
+		var v: float = float(spec[3])
+		var size: Vector3 = spec[4]
+		var accent: Color = spec[5]
+
+		var body := StaticBody3D.new()
+		body.name = "%sLockdown" % String(encounter_id).to_pascal_case()
+		body.position = _face_point(down, u, v, size.y * 0.5)
+		body.basis = CubeGravity.tangent_basis(down)
+		body.add_to_group("mission_geometry")
+		body.add_to_group("combat_lockdown_gate")
+
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = size
+		collision.shape = shape
+		collision.disabled = true
+		body.add_child(collision)
+
+		var visual: MeshInstance3D = null
+		if DisplayServer.get_name() != "headless":
+			visual = MeshInstance3D.new()
+			visual.name = "EnergyBarrier"
+			var mesh := BoxMesh.new()
+			mesh.size = size
+			visual.mesh = mesh
+			visual.material_override = _material(accent * 0.08, accent, 7.5)
+			visual.visible = false
+			body.add_child(visual)
+
+		root.add_child(body)
+		_combat_gates[encounter_id] = {
+			"body": body,
+			"collision": collision,
+			"visual": visual,
+		}
+		_lockdown_state[encounter_id] = false
 
 
 func _build_encounter_activation_zones() -> void:
