@@ -29,6 +29,9 @@ var _difficulty_scale := 1.0
 var _definition: EnemyDefinition
 var _boss_phase := 1
 var _visual_time := 0.0
+var _authored_route_points: Array[Vector3] = []
+var _route_waypoint := Vector3.ZERO
+var _has_route_waypoint := false
 
 func configure(kind: String, wave_level: int, difficulty_scale: float = 1.0) -> void:
 	archetype = kind
@@ -36,6 +39,15 @@ func configure(kind: String, wave_level: int, difficulty_scale: float = 1.0) -> 
 	_difficulty_scale = maxf(0.5, difficulty_scale)
 	_definition = EnemyCatalog.get_definition(StringName(kind))
 	_apply_archetype()
+
+func set_route_points(points: Array[Vector3]) -> void:
+	_authored_route_points.clear()
+	for point in points:
+		_authored_route_points.append(point)
+	_has_route_waypoint = false
+
+func get_route_point_count() -> int:
+	return _authored_route_points.size()
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -78,12 +90,17 @@ func _physics_process(delta: float) -> void:
 	var distance: float = (target.global_position - global_position).length()
 	var target_down := CubeGravity.nearest_down(target.global_position, cube_half_extent)
 	var same_face := target_down.is_equal_approx(gravity_down)
+	var has_line_of_sight := same_face and _has_line_of_sight()
 	var route_direction := CubeSurfaceNavigator.route_direction(
 		global_position,
 		gravity_down,
 		target.global_position,
 		cube_half_extent
 	)
+	if same_face and not has_line_of_sight and not _authored_route_points.is_empty():
+		route_direction = _authored_route_direction(route_direction)
+	elif has_line_of_sight:
+		_has_route_waypoint = false
 	var wish := EnemyBrain.desired_direction(
 		_definition,
 		same_face,
@@ -111,13 +128,53 @@ func _physics_process(delta: float) -> void:
 		_face_tangent_direction(wish, delta)
 	move_and_slide()
 
-	if distance <= attack_range and _attack_cooldown <= 0.0 and _has_line_of_sight():
+	if distance <= attack_range and _attack_cooldown <= 0.0 and has_line_of_sight:
 		_attack_cooldown = attack_interval
 		var burst_multiplier: float = 1.0
 		if archetype == "boss":
 			burst_multiplier = 1.0 + float(_boss_phase - 1) * 0.22
 		target.take_damage(attack_damage * burst_multiplier)
 		_play_animation(["Attack", "attack", "Shooting", "shooting"])
+
+func _authored_route_direction(fallback: Vector3) -> Vector3:
+	if not is_instance_valid(target) or _authored_route_points.is_empty():
+		return fallback
+	if _has_route_waypoint and global_position.distance_to(_route_waypoint) <= 1.35:
+		_has_route_waypoint = false
+	if not _has_route_waypoint:
+		_select_route_waypoint()
+	if not _has_route_waypoint:
+		return fallback
+	var to_waypoint := _route_waypoint - global_position
+	var tangent := to_waypoint - gravity_down * to_waypoint.dot(gravity_down)
+	if tangent.length_squared() <= 0.01:
+		return fallback
+	return tangent.normalized()
+
+func _select_route_waypoint() -> void:
+	_has_route_waypoint = false
+	if not is_instance_valid(target):
+		return
+	var best_score := INF
+	for point in _authored_route_points:
+		if not _route_point_reachable(point):
+			continue
+		var travel_cost := global_position.distance_to(point)
+		var target_cost := point.distance_to(target.global_position)
+		var score := travel_cost * 0.32 + target_cost
+		if score < best_score:
+			best_score = score
+			_route_waypoint = point
+			_has_route_waypoint = true
+
+func _route_point_reachable(point: Vector3) -> bool:
+	if not is_instance_valid(target):
+		return false
+	var origin := global_position - gravity_down * 0.55
+	var destination := point - gravity_down * 0.55
+	var query := PhysicsRayQueryParameters3D.create(origin, destination)
+	query.exclude = [get_rid(), target.get_rid()]
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 func _avoid_obstacles(wish: Vector3) -> Vector3:
 	if wish.length_squared() < 0.01:
