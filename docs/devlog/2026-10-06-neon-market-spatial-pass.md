@@ -1502,3 +1502,64 @@ Sniper 在 perch 半径内
 - Sniper spawn 后位于对应 leash radius 内。
 - 地面 Runner / Tank leash radius = 0。
 - timed reinforcement 下 Market Sniper 仍保持在 authored perch 附近。
+
+
+## 2026-10-07 追加：Arrival Street Mid-layer Market Lighting
+
+### CI Screenshot 复核
+
+当前 visual smoke 已确认：
+
+- 暗色道路 + emissive trim 方向正确。
+- 物理 kiosk 已进入画面。
+- 暖色窗口已开始打破纯青/粉配色。
+- HUD 安全区正常。
+
+剩余最明显的问题是：
+
+- 上半屏建筑体量偏黑。
+- Arrival Street 中高层缺少“市场生活层”。
+- 视觉信息集中在地面和 kiosk，垂直层次不足。
+
+### 跨街灯串
+
+Arrival Street 新增 3 组 visual-only string lights：
+
+- StringLights_A
+- StringLights_B
+- StringLights_C
+
+每组：
+
+- 一根暗色 cable。
+- 9 个 emissive bulb。
+- 青 / 粉 / 暖橙交替。
+- 轻微下垂弧线。
+- 不增加 collision。
+- 不使用 OmniLight，不增加实时灯光预算。
+
+### Neon Market Storefront Layer
+
+只对 `neon_market` 的程序化建筑生效。
+
+seed 为偶数的建筑底层新增：
+
+- `MarketAwning`
+- `StorefrontLightbox`
+
+Storefront accent：
+
+- 部分使用暖橙。
+- 其余延续 district primary/secondary neon。
+
+目标不是让整栋建筑变亮，而是形成：
+
+```text
+dark tower mass
+→ low-level storefront
+→ warm/cool window strips
+→ street kiosk
+→ road trim
+```
+
+让开场街道从“赛博黑盒建筑”进一步接近真正的夜间市场街区。
