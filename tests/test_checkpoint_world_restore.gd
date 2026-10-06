@@ -46,12 +46,14 @@ func _run() -> void:
 
 	var restored_pickups := get_nodes_in_group("authored_pickup")
 	_check(restored_pickups.size() == 2, "checkpoint restore skips authored pickups from completed encounters")
-	var restored_pickup_names := {}
+	var restored_pickup_ids := {}
 	for node in restored_pickups:
-		restored_pickup_names[node.name] = true
-	_check(not restored_pickup_names.has("data_bridge_ammo"), "completed Data Lane ammo does not respawn at Warden checkpoint")
-	_check(restored_pickup_names.has("boss_left_gantry_shield"), "upcoming Boss gantry shield remains available after checkpoint restore")
-	_check(restored_pickup_names.has("extraction_dock_health"), "upcoming Extraction health remains available after checkpoint restore")
+		var pickup := node as NeonPickup
+		if pickup != null:
+			restored_pickup_ids[String(pickup.pickup_id)] = true
+	_check(not restored_pickup_ids.has("data_bridge_ammo"), "completed Data Lane ammo does not respawn at Warden checkpoint")
+	_check(restored_pickup_ids.has("boss_left_gantry_shield"), "upcoming Boss gantry shield remains available after checkpoint restore")
+	_check(restored_pickup_ids.has("extraction_dock_health"), "upcoming Extraction health remains available after checkpoint restore")
 
 	MissionProgressStore.clear()
 	game.queue_free()
