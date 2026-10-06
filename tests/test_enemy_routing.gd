@@ -76,7 +76,7 @@ func _test_enemy_auto_step_bottom_face() -> void:
 		Vector3(3.0, 0.42, 0.70)
 	)
 	var target := _make_stair_target(world, Vector3(2.0, -28.35, 0.0))
-	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, -28.35, 0))
+	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, -28.35, 0.18))
 	# Keep this isolated fixture stationary while gravity settles it. Moving the
 	# CharacterBody transform after floor contact would invalidate is_on_floor().
 	stair_enemy.move_speed = 0.0
@@ -122,7 +122,7 @@ func _test_enemy_auto_step_side_face() -> void:
 	_add_test_box(world, Vector3(-29.60, 0, 0), Vector3(0.20, 12.0, 12.0))
 	_add_test_box(world, Vector3(-29.29, 0, -0.75), Vector3(0.42, 3.0, 0.70))
 	var target := _make_stair_target(world, Vector3(-28.35, 2.0, 0.0))
-	var stair_enemy := _make_stair_enemy(world, target, Vector3(-28.35, 0, 0))
+	var stair_enemy := _make_stair_enemy(world, target, Vector3(-28.35, 0, 0.18))
 	await _settle_stair_enemy(stair_enemy)
 
 	_check(stair_enemy.gravity_down.is_equal_approx(Vector3.LEFT), "enemy stair solver acquires Data Quarter gravity")
@@ -142,7 +142,7 @@ func _test_enemy_auto_step_back_face() -> void:
 	_add_test_box(world, Vector3(0, 0, 29.60), Vector3(12.0, 12.0, 0.20))
 	_add_test_box(world, Vector3(0, 0.75, 29.29), Vector3(3.0, 0.70, 0.42))
 	var target := _make_stair_target(world, Vector3(2.0, 0, 28.35))
-	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, 0, 28.35))
+	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, -0.18, 28.35))
 	await _settle_stair_enemy(stair_enemy)
 
 	_check(stair_enemy.gravity_down.is_equal_approx(Vector3.BACK), "enemy BACK-face stair acquires Void Docks gravity")
@@ -161,7 +161,7 @@ func _test_perch_leash_blocks_stair_step() -> void:
 	_add_test_box(world, Vector3(0, -29.60, 0), Vector3(12.0, 0.20, 12.0))
 	_add_test_box(world, Vector3(0, -29.29, -0.75), Vector3(3.0, 0.42, 0.70))
 	var target := _make_stair_target(world, Vector3(2.0, -28.35, 0.0))
-	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, -28.35, 0))
+	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, -28.35, 0.18))
 	await _settle_stair_enemy(stair_enemy)
 	stair_enemy.set_physics_process(false)
 	stair_enemy.set_tactical_leash(stair_enemy.global_position, 0.55)
@@ -384,6 +384,12 @@ func _settle_stair_enemy(enemy: NeonEnemy, frames: int = 60) -> void:
 			break
 	enemy.move_speed = saved_move_speed
 	enemy.max_step_height = saved_step_height
+	# max_step_height=0 changes route eligibility during fixture settling.
+	# Discard any waypoint selected under that temporary configuration.
+	enemy._has_route_waypoint = false
+	enemy._blocked_route_waypoint = Vector3.ZERO
+	enemy._blocked_route_cooldown = 0.0
+	enemy._reset_route_progress()
 
 
 func _add_test_box(parent: Node3D, position: Vector3, size: Vector3) -> StaticBody3D:

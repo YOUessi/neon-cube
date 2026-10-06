@@ -2312,3 +2312,44 @@ Enemy 现在已经能沿 Data Maintenance Bridge / Boss Gantry 的实体楼梯�
 - Data Bridge pursuit 失败时打印最大爬升、最终位置、active/blocked waypoint、cooldown、stall timer 和最后 stair failure reason。
 
 目标是让下一次 Linux CI 直接告诉我们失败发生在 stair solver 的哪一个前置条件，而不是继续靠参数试错。
+
+
+### 2026-10-07 根因确认：Bottom fixture 初始胶囊重叠 + settle 临时配置污染 route state
+
+Linux 诊断输出：
+
+```text
+BOTTOM_STEP_DIAG
+reason=low_probe_clear
+pos=(0.234396, -28.59973, 0.785161)
+floor=true
+
+DATA_ROUTE_DIAG
+max_elevation=0.014
+waypoint=(-28.5, 11, -12)
+has_waypoint=true
+blocked=(0, 0, 0)
+step_reason=low_probe_clear
+```
+
+#### Bottom fixture
+
+Enemy capsule radius = 0.45m；测试台阶前沿约位于 `z=-0.40`，旧 spawn 为 `z=0`，因此初始水平间距只有 0.40m，小于 capsule radius。
+
+Linux 物理解算在 settle 阶段将胶囊推出到 `z≈0.785`，超过 `step_probe_distance=0.72`，于是正式断言时 low probe 合理地返回 clear。
+
+修复不是落地后 teleport，而是从第一帧就给胶囊留下明确间隙，同时仍保持在 probe 范围内：
+
+- Bottom / LEFT-face fixtures：沿接近方向反向留出 0.18m。
+- BACK-face fixture：沿其局部接近方向反向留出 0.18m。
+- Perch fixture 使用同样的几何初始条件。
+
+#### Data Bridge fixture
+
+settle helper 临时设置 `max_step_height=0` 来禁止自动迈步，但 Enemy 仍执行 route selection。
+
+在这个临时配置下，stair-chain waypoint 的资格发生变化，于是 fixture 提前留下普通平面 waypoint `(-28.5, 11, -12)`。恢复 `max_step_height=0.52` 后，该 waypoint 仍是 active，导致正式追击从错误的测试准备状态开始。
+
+修复：恢复 runtime 参数后清空 settle 阶段产生的 active/blocked route state，并重置 route progress；正式测试开始后再用真实参数重新选择 waypoint。
+
+这两项均是测试 fixture 初始状态修复，不修改游戏运行时 stair/route 阈值。

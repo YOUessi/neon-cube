@@ -29,7 +29,7 @@ func _test_bottom_face_enemy_step() -> void:
 	)
 
 	var target := _make_target(world, Vector3(0, -28.35, 0.2))
-	var enemy := _make_enemy(world, target, Vector3(0, -28.35, 0))
+	var enemy := _make_enemy(world, target, Vector3(0, -28.35, 0.18))
 	await _settle_enemy(enemy)
 
 	_check(enemy.gravity_down.is_equal_approx(Vector3.DOWN), "enemy stair test uses floor gravity")
@@ -78,7 +78,7 @@ func _test_left_face_enemy_step() -> void:
 	)
 
 	var target := _make_target(world, Vector3(-28.35, 0, 0.2))
-	var enemy := _make_enemy(world, target, Vector3(-28.35, 0, 0))
+	var enemy := _make_enemy(world, target, Vector3(-28.35, 0, 0.18))
 	await _settle_enemy(enemy)
 
 	_check(enemy.gravity_down.is_equal_approx(Vector3.LEFT), "enemy side-face stair acquires Data Quarter gravity")
@@ -107,7 +107,7 @@ func _test_perch_leash_blocks_step() -> void:
 	)
 
 	var target := _make_target(world, Vector3(0, -28.35, 0.2))
-	var enemy := _make_enemy(world, target, Vector3(0, -28.35, 0))
+	var enemy := _make_enemy(world, target, Vector3(0, -28.35, 0.18))
 	await _settle_enemy(enemy)
 	enemy.set_physics_process(false)
 	enemy.set_tactical_leash(enemy.global_position, 0.55)
@@ -155,6 +155,10 @@ func _settle_enemy(enemy: NeonEnemy, frames: int = 60) -> void:
 			break
 	enemy.move_speed = saved_move_speed
 	enemy.max_step_height = saved_step_height
+	enemy._has_route_waypoint = false
+	enemy._blocked_route_waypoint = Vector3.ZERO
+	enemy._blocked_route_cooldown = 0.0
+	enemy._reset_route_progress()
 
 
 func _add_box(parent: Node3D, name: String, position: Vector3, size: Vector3) -> StaticBody3D:
