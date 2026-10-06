@@ -76,14 +76,13 @@ func _test_enemy_auto_step_bottom_face() -> void:
 	)
 	var target := _make_stair_target(world, Vector3(2.0, -28.35, 0.0))
 	var stair_enemy := _make_stair_enemy(world, target, Vector3(0, -28.35, 0))
+	# Keep this isolated fixture stationary while gravity settles it. Moving the
+	# CharacterBody transform after floor contact would invalidate is_on_floor().
+	stair_enemy.move_speed = 0.0
 	await _settle_stair_enemy(stair_enemy)
 
 	_check(stair_enemy.is_on_floor(), "enemy stair test settles on authored floor")
 	stair_enemy.set_physics_process(false)
-	# Settling while a live target exists can add a small horizontal drift.
-	# Re-center the isolated stair fixture so this assertion measures only the
-	# stair solver, not AI pursuit motion from previous physics frames.
-	stair_enemy.global_position = Vector3(0.0, stair_enemy.global_position.y, 0.0)
 	stair_enemy.velocity = Vector3.ZERO
 	var before := stair_enemy.global_position
 	_check(stair_enemy._try_auto_step(Vector3.FORWARD), "ordinary enemy auto-steps a 0.42m stair")
