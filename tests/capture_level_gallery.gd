@@ -56,9 +56,9 @@ func _run() -> void:
 		"market_crossfire_center",
 		Vector3.DOWN,
 		"neon_market_hall.png",
-		16.5,
-		6.2,
-		3.2
+		0.0,
+		5.8,
+		15.5
 	)
 	game.mission_level.call("set_encounter_lockdown", &"market_crossfire", false)
 
@@ -119,9 +119,9 @@ func _run() -> void:
 		"extraction_point",
 		Vector3.DOWN,
 		"extraction_yard.png",
-		12.0,
-		5.0,
-		2.5
+		-18.0,
+		5.5,
+		3.0
 	)
 	game.mission_level.call("arm_extraction", false)
 
