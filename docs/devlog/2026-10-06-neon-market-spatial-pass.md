@@ -968,3 +968,61 @@ Trim 仍维持较高 emission（4.8），只承担方向和轮廓信息。
 - Extraction Beacon
 
 下一次 CI visual smoke 用于判断这次调整是否真正减少“整屏纯霓虹”。
+
+
+## 2026-10-06 追加：Neon Market Identity Pass
+
+### Screenshot 复核
+
+Dark Surface + Emissive Trim 之后的 CI 实际截图确认：
+
+- 大面积纯青地面已经消失。
+- 道路主体变暗，车道线和玩法信息更清楚。
+- HUD 顶部安全区正常。
+- 新问题变成：两侧建筑仍偏黑盒，Arrival Street 缺少“市场”识别度。
+
+### Arrival Street 市场化
+
+新增 6 个 visual-only 摊位：
+
+- NOODLES // 24H
+- SYNTH TEA
+- NIGHT GRILL
+- BYTE MART
+- AUGMENT REPAIR
+- HOT POT // B7
+
+每个摊位包含：
+
+- 暗色 Counter。
+- 薄 Canopy。
+- 两根发光立柱。
+- 独立 Lightbox。
+- Label3D 店招。
+
+不增加 collision，不改变 AI / Player 路径。
+
+### 跨街招牌
+
+新增：
+
+- `NEON MARKET // NIGHT BAZAAR`
+- `SUBLEVEL 07 // OPEN ALL NIGHT`
+
+结构为暗色 backing + 两侧 emissive edge + 文字，不再依赖整面霓虹墙表达区域身份。
+
+### Neon Market 建筑立面
+
+只对 `neon_market` district：
+
+- 建筑 base 稍微提亮，保持夜景但不再纯黑。
+- 每三层中的一层 window strip 改为暖橙色。
+- 青 / 粉仍作为主要区域色，但加入暖色生活感。
+
+其它五个 district 保持原调色，避免六面最终全部同质化。
+
+下一轮 CI screenshot 用于检查：
+
+1. 悬挂招牌朝向是否正确。
+2. 两侧 kiosk 是否足够可见但不遮挡战斗。
+3. 暖色窗口是否改善层次。
