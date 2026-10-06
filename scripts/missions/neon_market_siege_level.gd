@@ -587,6 +587,15 @@ func spawn_points_for(encounter_id: StringName, count: int, sequence_offset: int
 	return result
 
 
+func perch_radius_for(encounter_id: StringName, enemy_index: int) -> float:
+	match encounter_id:
+		&"market_crossfire":
+			return 0.75 if enemy_index == 4 else 0.0
+		&"data_lane":
+			return 0.30 if enemy_index == 3 else 0.0
+	return 0.0
+
+
 func route_points_for(encounter_id: StringName) -> Array[Vector3]:
 	var authored := _authored_route_specs(encounter_id)
 	var result: Array[Vector3] = []
