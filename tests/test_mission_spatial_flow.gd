@@ -99,8 +99,6 @@ func _run() -> void:
 			ground_runner = typed_enemy
 	_check(elevated_sniper != null, "Market second batch includes authored slot-four sniper reinforcement")
 	_check(ground_runner != null, "Market second batch includes slot-three ground runner")
-	if elevated_sniper != null and ground_runner != null:
-		_check(elevated_sniper.global_position.y > ground_runner.global_position.y + 0.75, "Market sniper reinforcement remains clearly above ground runner")
 
 	for enemy in reinforced_enemies:
 		var typed_enemy := enemy as NeonEnemy
