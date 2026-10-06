@@ -99,6 +99,13 @@ func _run() -> void:
 			ground_runner = typed_enemy
 	_check(elevated_sniper != null, "Market second batch includes authored slot-four sniper reinforcement")
 	_check(ground_runner != null, "Market second batch includes slot-three ground runner")
+	if elevated_sniper != null:
+		_check(is_equal_approx(elevated_sniper.get_tactical_leash_radius(), 0.75), "Market elevated sniper receives catwalk leash")
+		var leash_offset := elevated_sniper.global_position - elevated_sniper.get_tactical_leash_center()
+		leash_offset -= elevated_sniper.gravity_down * leash_offset.dot(elevated_sniper.gravity_down)
+		_check(leash_offset.length() <= 0.95, "Market elevated sniper remains near authored perch after timed reinforcement")
+	if ground_runner != null:
+		_check(is_equal_approx(ground_runner.get_tactical_leash_radius(), 0.0), "Market ground runner remains unrestricted")
 
 	for enemy in reinforced_enemies:
 		var typed_enemy := enemy as NeonEnemy
