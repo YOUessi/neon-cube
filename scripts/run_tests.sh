@@ -39,6 +39,7 @@ TESTS=(
   "tests/test_boss_phases.gd"
   "tests/test_settings_and_boss_ui.gd"
   "tests/test_mission_audio_events.gd"
+  "tests/test_full_mission_playthrough.gd"
   "tests/test_campaign.gd"
   "tests/test_project_smoke.gd"
 )
