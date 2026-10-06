@@ -22,6 +22,7 @@ var gravity_down := Vector3.DOWN
 var score_value := 100
 var _health := 70.0
 var _attack_cooldown := 0.0
+var _attack_runtime: EnemyAttackRuntime = EnemyAttackRuntime.new()
 var _dead := false
 var _anim: AnimationPlayer
 var _wave_level := 1
@@ -142,13 +143,78 @@ func _physics_process(delta: float) -> void:
 		_face_tangent_direction(wish, delta)
 	move_and_slide()
 
-	if distance <= attack_range and _attack_cooldown <= 0.0 and has_line_of_sight:
-		_attack_cooldown = attack_interval
-		var burst_multiplier: float = 1.0
-		if archetype == "boss":
-			burst_multiplier = 1.0 + float(_boss_phase - 1) * 0.22
-		target.take_damage(attack_damage * burst_multiplier)
-		_play_animation(["Attack", "attack", "Shooting", "shooting"])
+	if _attack_runtime.is_pending():
+		if _attack_runtime.tick(delta):
+			_resolve_pending_attack()
+	elif distance <= attack_range and _attack_cooldown <= 0.0 and has_line_of_sight:
+		_begin_attack()
+
+func _begin_attack() -> void:
+	if _definition == null or not is_instance_valid(target):
+		return
+	_attack_cooldown = attack_interval
+	_attack_runtime.begin(_definition.attack_windup)
+	_play_animation(["Attack", "attack", "Shooting", "shooting"])
+	_spawn_attack_beam(true)
+	if _definition.attack_windup <= 0.0 and _attack_runtime.tick(0.0):
+		_resolve_pending_attack()
+
+
+func _resolve_pending_attack() -> void:
+	if _definition == null or not is_instance_valid(target):
+		return
+	var distance := global_position.distance_to(target.global_position)
+	var target_down := CubeGravity.nearest_down(target.global_position, cube_half_extent)
+	if not target_down.is_equal_approx(gravity_down):
+		return
+	if distance > attack_range * 1.05 or not _has_line_of_sight():
+		return
+	var burst_multiplier := 1.0
+	if archetype == "boss":
+		burst_multiplier = 1.0 + float(_boss_phase - 1) * 0.22
+	target.take_damage(attack_damage * burst_multiplier)
+	_spawn_attack_beam(false)
+
+
+func is_attack_winding_up() -> bool:
+	return _attack_runtime.is_pending()
+
+
+func get_attack_windup_remaining() -> float:
+	return _attack_runtime.remaining()
+
+
+func _spawn_attack_beam(telegraph: bool) -> void:
+	if DisplayServer.get_name() == "headless" or _definition == null or not is_instance_valid(target):
+		return
+	var from := global_position - gravity_down * 0.72
+	var to := target.global_position - target.gravity_down * 0.45
+	var length := from.distance_to(to)
+	if length <= 0.02:
+		return
+	var beam := MeshInstance3D.new()
+	beam.name = "AttackTelegraph" if telegraph else "AttackTracer"
+	var mesh := BoxMesh.new()
+	var width := 0.018 if telegraph else 0.045
+	if archetype == "tank" or archetype == "boss":
+		width *= 1.45
+	mesh.size = Vector3(width, width, length)
+	beam.mesh = mesh
+	beam.global_position = (from + to) * 0.5
+	beam.look_at(to, -gravity_down)
+	var mat := StandardMaterial3D.new()
+	var color := _definition.attack_fx_color
+	mat.albedo_color = color * (0.35 if telegraph else 0.9)
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 3.0 if telegraph else 8.0
+	mat.metallic = 0.25
+	mat.roughness = 0.18
+	beam.material_override = mat
+	get_tree().current_scene.add_child(beam)
+	var lifetime := maxf(0.06, _definition.attack_windup) if telegraph else 0.09
+	get_tree().create_timer(lifetime).timeout.connect(beam.queue_free)
+
 
 func _tactical_slot_direction(fallback: Vector3) -> Vector3:
 	if not is_instance_valid(target) or _tactical_slot_index < 0 or _tactical_slot_count <= 1:
@@ -280,6 +346,7 @@ func _update_boss_phase() -> void:
 
 func _die() -> void:
 	_dead = true
+	_attack_runtime.cancel()
 	set_physics_process(false)
 	$CollisionShape3D.set_deferred("disabled", true)
 	_play_animation(["Death", "death", "Dying", "dying"])
