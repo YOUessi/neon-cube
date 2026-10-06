@@ -80,6 +80,11 @@ func _test_enemy_auto_step_bottom_face() -> void:
 
 	_check(stair_enemy.is_on_floor(), "enemy stair test settles on authored floor")
 	stair_enemy.set_physics_process(false)
+	# Settling while a live target exists can add a small horizontal drift.
+	# Re-center the isolated stair fixture so this assertion measures only the
+	# stair solver, not AI pursuit motion from previous physics frames.
+	stair_enemy.global_position = Vector3(0.0, stair_enemy.global_position.y, 0.0)
+	stair_enemy.velocity = Vector3.ZERO
 	var before := stair_enemy.global_position
 	_check(stair_enemy._try_auto_step(Vector3.FORWARD), "ordinary enemy auto-steps a 0.42m stair")
 	_check(stair_enemy.global_position.y > before.y + 0.35, "enemy bottom-face stair lift follows local up")
