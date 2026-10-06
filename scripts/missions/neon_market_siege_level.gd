@@ -21,6 +21,7 @@ var _extraction_zone: Area3D
 var _extraction_label: Label3D
 var _extraction_progress_core: MeshInstance3D
 var _extraction_progress_ratio := 0.0
+var _extraction_complete := false
 var _extraction_armed := false
 var _extraction_occupied := false
 var _encounter_zones: Dictionary = {}
@@ -354,23 +355,75 @@ func objective_nodes_remaining(encounter_id: StringName) -> int:
 
 func arm_extraction(active: bool = true) -> void:
 	_extraction_armed = active
+	_extraction_complete = false
 	_extraction_occupied = false
 	_extraction_progress_ratio = 0.0
+	var active_color := AMBER
+
 	if _extraction_zone != null:
 		_extraction_zone.monitoring = active
+
 	if _extraction_progress_core != null:
 		_extraction_progress_core.visible = active
 		_extraction_progress_core.scale.y = 0.03
 		_extraction_progress_core.position.y = 0.0
+		var core_material := _extraction_progress_core.material_override as StandardMaterial3D
+		if core_material != null:
+			core_material.albedo_color = active_color * 0.08
+			core_material.emission = active_color
+			core_material.emission_energy_multiplier = 3.0
+
 	var extraction_ring := get_node_or_null("Geometry/Extraction/ExtractionBeacon/ExtractionRing") as MeshInstance3D
 	if extraction_ring != null:
 		var ring_material := extraction_ring.material_override as StandardMaterial3D
 		if ring_material != null:
+			ring_material.albedo_color = Color(0.03, 0.06, 0.055)
+			ring_material.emission = active_color
 			ring_material.emission_energy_multiplier = 2.5 if active else 1.0
+
 	if _extraction_label != null:
 		_extraction_label.visible = active
+		_extraction_label.modulate = active_color
 		if active:
 			_extraction_label.text = "EXTRACTION // 000%"
+
+
+func complete_extraction() -> void:
+	_extraction_armed = false
+	_extraction_complete = true
+	_extraction_occupied = false
+	_extraction_progress_ratio = 1.0
+	var complete_color := Color(0.24, 1.0, 0.56)
+
+	if _extraction_zone != null:
+		_extraction_zone.monitoring = false
+
+	if _extraction_progress_core != null:
+		_extraction_progress_core.visible = true
+		_extraction_progress_core.scale.y = 1.0
+		_extraction_progress_core.position.y = 1.35
+		var core_material := _extraction_progress_core.material_override as StandardMaterial3D
+		if core_material != null:
+			core_material.albedo_color = complete_color * 0.08
+			core_material.emission = complete_color
+			core_material.emission_energy_multiplier = 8.0
+
+	var extraction_ring := get_node_or_null("Geometry/Extraction/ExtractionBeacon/ExtractionRing") as MeshInstance3D
+	if extraction_ring != null:
+		var ring_material := extraction_ring.material_override as StandardMaterial3D
+		if ring_material != null:
+			ring_material.albedo_color = complete_color * 0.05
+			ring_material.emission = complete_color
+			ring_material.emission_energy_multiplier = 8.0
+
+	if _extraction_label != null:
+		_extraction_label.visible = true
+		_extraction_label.text = "EXTRACTION COMPLETE"
+		_extraction_label.modulate = complete_color
+
+
+func extraction_complete_state() -> bool:
+	return _extraction_complete
 
 
 func is_extraction_occupied() -> bool:
