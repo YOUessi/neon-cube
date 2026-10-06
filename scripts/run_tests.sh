@@ -13,6 +13,7 @@ TESTS=(
   "tests/test_campaign_definition.gd"
   "tests/test_mission_runtime.gd"
   "tests/test_mission_blockout.gd"
+  "tests/test_mission_level_geometry.gd"
   "tests/test_encounter_spawn_planner.gd"
   "tests/test_mission_progress_store.gd"
   "tests/test_profile_store.gd"
