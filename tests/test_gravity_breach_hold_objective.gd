@@ -30,7 +30,7 @@ func _run() -> void:
 
 	game.mission_runtime.encounter_index = 2
 	game.session.wave_index = 2
-	game.session.alive_enemies = 0
+	game.session.alive_enemies = 1
 	game._sync_session_fields()
 	game._clear_encounter_batch_state()
 	game._reset_hold_zones()
@@ -43,7 +43,7 @@ func _run() -> void:
 
 	game._process(1.0)
 	_check(is_equal_approx(game._hold_progress, 0.0), "hold progress does not advance while player is outside zone")
-	_check(game.mission_runtime.encounter_index == 2, "zero hostiles alone cannot finish Gravity Breach")
+	_check(game.mission_runtime.encounter_index == 2, "Gravity Breach remains active before uplink hold completes")
 	_check(bool(game.mission_level.call("is_encounter_locked", &"gravity_breach")), "Gravity Breach stays locked before uplink hold")
 
 	game.player.global_position = hold_zone.to_global(Vector3(0, 1.0, 0))
@@ -76,8 +76,24 @@ func _run() -> void:
 	_check(bool(game.mission_level.call("is_hold_zone_occupied", &"gravity_breach")), "player can re-enter hold zone")
 
 	game._process(4.1)
-	_check(game.mission_runtime.encounter_index == 3, "four-second continuous hold advances mission to Data Lane")
-	_check(not bool(game.mission_level.call("is_encounter_locked", &"gravity_breach")), "Gravity Breach unlocks after hold objective and hostile clear")
+	_check(game._hold_completed, "four-second continuous hold latches uplink completion")
+	_check(game.mission_runtime.encounter_index == 2, "completed uplink waits for remaining hostile clear")
+	_check(bool(game.mission_level.call("is_encounter_locked", &"gravity_breach")), "Arena remains locked while hostile remains")
+
+	game.player.global_position = hold_zone.to_global(Vector3(7.0, 1.0, 0))
+	for i in range(3):
+		await physics_frame
+		await process_frame
+	game._process(0.1)
+	_check(game._hold_completed, "leaving zone after completion does not revoke stable uplink")
+	_check(game._hold_progress >= 4.0, "completed uplink keeps full progress after leaving zone")
+	_check(float(game.mission_level.call("hold_zone_progress_state", &"gravity_breach")) >= 0.999, "world uplink indicator remains at one hundred percent after completion")
+
+	game.session.alive_enemies = 0
+	game._sync_session_fields()
+	game._process(0.016)
+	_check(game.mission_runtime.encounter_index == 3, "final hostile clear advances completed uplink encounter to Data Lane")
+	_check(not bool(game.mission_level.call("is_encounter_locked", &"gravity_breach")), "Gravity Breach unlocks after uplink and hostile clear")
 
 	game.queue_free()
 	await process_frame
