@@ -888,3 +888,83 @@ Game 负责倒计时与 Mission 完成，避免把任务状态机塞进场景触
 6. 重新进入并连续保持 3 秒。
 7. GameState = VICTORY。
 8. MissionRuntime = COMPLETED。
+
+
+## 2026-10-06 追加：Dark Surface + Emissive Trim Art Pass
+
+### 依据
+
+最新 GitHub visual smoke 显示玩法/HUD 已经稳定，但 Mission 空间仍然存在明显 blockout 感：
+
+- 路面、墙、掩体整块带 emission。
+- 青 / 粉 / 黄大面积铺满画面。
+- 建筑和道路缺少真实的暗部。
+- 城市轮廓虽然清楚，但整体被高环境光洗平。
+
+### 新视觉规则
+
+从本阶段开始：
+
+```text
+结构主体 = 暗色金属 / 沥青
+玩法导向 = 细 emissive trim
+任务信号 = 高亮
+局部空间 = 少量 OmniLight
+全局环境 = 低环境光夜景
+```
+
+### Mission Geometry
+
+普通 authored box 的 emission：
+
+- collidable：1.35 → 0.22
+- visual-only：0.75 → 0.10
+
+碰撞、尺寸、位置全部不变。
+
+新增 `mission_visual_trim`：
+
+- Arrival Street 双车道灯带 + stop line
+- Market Hall center/cross guide
+- Gravity Breach 双轴控制线
+- Data Lane spine/divider
+- Extraction route guide
+
+Trim 仍维持较高 emission（4.8），只承担方向和轮廓信息。
+
+### Local Lighting
+
+新增无阴影、有限范围的 authored OmniLight：
+
+- Arrival Street ×2
+- Market Hall ×2
+- Gravity Breach ×1
+- Data Lane ×2
+- Boss Arena ×2
+- Extraction Route ×1
+
+这些灯只负责局部体块塑形，不参与 gameplay collision。
+
+### Global Night Lighting
+
+`CyberCityBuilder` 环境：
+
+- ambient energy：1.70 → 0.95
+- ambient color 更暗、更偏蓝紫
+- key light：1.25 → 0.92
+- fill light：0.65 → 0.34
+
+目标：保留可玩亮度，但让局部灯、敌人 telegraph、lockdown、beacon、hazard 成为真正的视觉焦点。
+
+### 不降低亮度的信号
+
+以下仍维持高亮：
+
+- Combat Lockdown
+- Navigation Beacon
+- Boss Hazard
+- Enemy Attack Telegraph / Tracer
+- Reinforcement Ingress Warning
+- Extraction Beacon
+
+下一次 CI visual smoke 用于判断这次调整是否真正减少“整屏纯霓虹”。
