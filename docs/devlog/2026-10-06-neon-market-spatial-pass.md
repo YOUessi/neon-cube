@@ -751,3 +751,76 @@ Data Lane 会显示：
 
 - Mission runtime 测试断言 `objective_node_count = 2`。
 - Geometry 测试断言实际存在两个 `mission_objective_node`。
+
+
+## 2026-10-06 追加：Gravity Breach Continuous Hold Objective
+
+### 目标
+
+让 Gravity Breach 与 Data Lane 形成不同任务行为：
+
+- Data Lane：摧毁两个 relay core。
+- Gravity Breach：进入控制区并连续稳定 uplink。
+
+### Mission 数据
+
+Gravity Breach：
+
+- `hold_zone_seconds = 4.0`
+- objective text：`Stabilize the breach control uplink.`
+
+### Hold Zone
+
+东面 Gravity Breach Arena 新增一个 authored `Area3D`：
+
+`Geometry/HoldZones/GravityBreachHold`
+
+- 半径 3m。
+- 激活时显示低高度能量圆区。
+- 只在当前 Encounter 激活。
+- Headless 下保留完整 occupancy 状态。
+
+### 运行规则
+
+```text
+进入 Gravity Breach
+→ Hold Zone 激活
+→ 玩家进入控制区
+→ hold_progress 连续累计
+→ 玩家离开
+→ hold_progress 立即归零
+→ 重新进入后从 0 开始
+
+hold_progress >= 4s
+AND 所有 reinforcement batch 已完成
+AND alive_enemies = 0
+→ Encounter complete
+```
+
+所以“提前清光敌人”也不能跳过 uplink 任务。
+
+### HUD
+
+Gravity Breach 显示：
+
+`UPLINK 2.3/4.0s // HOSTILES XX // BATCH N/M`
+
+增援阶段：
+
+`UPLINK X.X/4.0s // INBOUND`
+
+### 回归
+
+新增 `tests/test_gravity_breach_hold_objective.gd`：
+
+1. 玩家站在区外不累计。
+2. 即使敌人 = 0，也不会提前完成。
+3. 进入控制区后连续累计。
+4. 中途离开后进度归零。
+5. 重新进入并连续站满 4 秒后才推进到 Data Lane。
+6. Arena lockdown 同时解除。
+
+Mission 与 Geometry 测试分别断言：
+
+- `hold_zone_seconds = 4.0`
+- 全关卡正好存在 1 个 `mission_hold_zone`
