@@ -44,6 +44,7 @@ func _run() -> void:
 			await process_frame
 
 	_check(not game._waiting_for_encounter_entry, "entering the arena releases the encounter gate")
+	_check(bool(game.mission_level.call("is_encounter_locked", &"market_crossfire")), "arena closes its combat lockdown on activation")
 	_check(game.session.alive_enemies == 5, "Market Crossfire spawns five hostiles on entry")
 	var enemies := get_nodes_in_group("enemies")
 	_check(enemies.size() == 5, "five enemy bodies exist after activation")
@@ -51,6 +52,15 @@ func _run() -> void:
 		var down := CubeGravity.nearest_down(enemy.global_position, game.cube_size * 0.5)
 		_check(down.is_equal_approx(Vector3.DOWN), "Market Crossfire hostile uses authored Neon Market spawn face")
 		break
+
+	for enemy in enemies:
+		enemy.queue_free()
+	await process_frame
+	game.session.alive_enemies = 0
+	game._sync_session_fields()
+	game._finish_wave()
+	await process_frame
+	_check(not bool(game.mission_level.call("is_encounter_locked", &"market_crossfire")), "clearing encounter reopens combat lockdown")
 
 	game.queue_free()
 	await process_frame
