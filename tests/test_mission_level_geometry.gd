@@ -78,6 +78,11 @@ func _run() -> void:
 		_check(not market_zone.monitoring and breach_zone.monitoring, "arming next arena disarms previous arena")
 		level.call("arm_encounter_zone", &"gravity_breach", false)
 
+	_check(is_equal_approx(float(level.call("perch_radius_for", &"market_crossfire", 4)), 0.75), "Market slot-four sniper owns authored catwalk leash")
+	_check(is_equal_approx(float(level.call("perch_radius_for", &"market_crossfire", 3)), 0.0), "Market ground reinforcement has no perch leash")
+	_check(is_equal_approx(float(level.call("perch_radius_for", &"data_lane", 3)), 0.30), "Data Lane slot-three sniper owns authored rack leash")
+	_check(is_equal_approx(float(level.call("perch_radius_for", &"data_lane", 4)), 0.0), "Data Lane ground tank has no perch leash")
+
 	var market_routes: Array = level.call("route_points_for", &"market_crossfire")
 	var breach_routes: Array = level.call("route_points_for", &"gravity_breach")
 	var data_routes: Array = level.call("route_points_for", &"data_lane")
