@@ -32,6 +32,7 @@ TESTS=(
   "tests/test_district_catalog.gd"
   "tests/test_face_transitions.gd"
   "tests/test_player_contract.gd"
+  "tests/test_player_stair_step.gd"
   "tests/test_weapon_system.gd"
   "tests/test_enemy_routing.gd"
   "tests/test_enemy_brain.gd"
