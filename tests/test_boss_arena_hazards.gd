@@ -33,28 +33,28 @@ func _run() -> void:
 	level.set_boss_phase(2)
 	await physics_frame
 	await physics_frame
-	var before := player.get_health()
+	var before := player.get_shield()
 	level._physics_process(1.0)
 	await process_frame
-	var after := player.get_health()
+	var after := player.get_shield()
 	_check(after < before, "phase two hazard damages a player standing on an active pad")
 	_check(is_equal_approx(before - after, 6.0), "phase two hazard applies six damage per pulse")
 
 	level.set_boss_phase(3)
 	await physics_frame
 	await physics_frame
-	var before_phase_three := player.get_health()
+	var before_phase_three := player.get_shield()
 	level._physics_process(1.0)
 	await process_frame
-	var after_phase_three := player.get_health()
+	var after_phase_three := player.get_shield()
 	_check(after_phase_three < before_phase_three, "phase three hazard remains damaging")
 	_check(is_equal_approx(before_phase_three - after_phase_three, 10.0), "phase three overload applies ten damage per pulse")
 
 	level.set_boss_phase(1)
-	var safe_before := player.get_health()
+	var safe_before := player.get_shield()
 	level._physics_process(1.0)
 	await process_frame
-	_check(is_equal_approx(player.get_health(), safe_before), "phase one disables boss arena hazard damage")
+	_check(is_equal_approx(player.get_shield(), safe_before), "phase one disables boss arena hazard damage")
 
 	level.queue_free()
 	await process_frame
