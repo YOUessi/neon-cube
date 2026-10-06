@@ -32,6 +32,8 @@ var _visual_time := 0.0
 var _authored_route_points: Array[Vector3] = []
 var _route_waypoint := Vector3.ZERO
 var _has_route_waypoint := false
+var _tactical_slot_index := -1
+var _tactical_slot_count := 0
 
 func configure(kind: String, wave_level: int, difficulty_scale: float = 1.0) -> void:
 	archetype = kind
@@ -48,6 +50,16 @@ func set_route_points(points: Array[Vector3]) -> void:
 
 func get_route_point_count() -> int:
 	return _authored_route_points.size()
+
+func set_tactical_slot(index: int, count: int) -> void:
+	_tactical_slot_index = index
+	_tactical_slot_count = maxi(0, count)
+
+func get_tactical_slot_index() -> int:
+	return _tactical_slot_index
+
+func get_tactical_slot_count() -> int:
+	return _tactical_slot_count
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -101,6 +113,8 @@ func _physics_process(delta: float) -> void:
 		route_direction = _authored_route_direction(route_direction)
 	elif has_line_of_sight:
 		_has_route_waypoint = false
+		if archetype != "boss" and _tactical_slot_count > 1:
+			route_direction = _tactical_slot_direction(route_direction)
 	var wish := EnemyBrain.desired_direction(
 		_definition,
 		same_face,
@@ -135,6 +149,30 @@ func _physics_process(delta: float) -> void:
 			burst_multiplier = 1.0 + float(_boss_phase - 1) * 0.22
 		target.take_damage(attack_damage * burst_multiplier)
 		_play_animation(["Attack", "attack", "Shooting", "shooting"])
+
+func _tactical_slot_direction(fallback: Vector3) -> Vector3:
+	if not is_instance_valid(target) or _tactical_slot_index < 0 or _tactical_slot_count <= 1:
+		return fallback
+	var radius := 4.0
+	match archetype:
+		"runner":
+			radius = 2.2
+		"sniper":
+			radius = 7.5
+		"tank":
+			radius = 5.5
+		_:
+			radius = 4.0
+	var angle := TAU * float(_tactical_slot_index) / float(_tactical_slot_count)
+	var basis := CubeGravity.tangent_basis(gravity_down)
+	var right := basis.x
+	var forward := -basis.z
+	var slot_position := target.global_position + right * cos(angle) * radius + forward * sin(angle) * radius
+	var to_slot := slot_position - global_position
+	var tangent := to_slot - gravity_down * to_slot.dot(gravity_down)
+	if tangent.length_squared() <= 0.16:
+		return Vector3.ZERO
+	return tangent.normalized()
 
 func _authored_route_direction(fallback: Vector3) -> Vector3:
 	if not is_instance_valid(target) or _authored_route_points.is_empty():
