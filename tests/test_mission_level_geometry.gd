@@ -39,6 +39,7 @@ func _run() -> void:
 	_check(int(summary.get("combat_lockdown_gate", 0)) == 5, "five authored combat lockdown gates exist")
 	_check(int(summary.get("navigation_beacon", 0)) == 5, "five world-space navigation beacons exist")
 	_check(int(summary.get("boss_hazard", 0)) == 4, "boss arena exposes four hazard pads")
+	_check(int(summary.get("mission_objective_node", 0)) == 2, "Data Lane exposes two mission objective nodes")
 
 	_check(StringName(level.call("current_navigation_target")) == &"", "navigation target starts clear")
 	level.call("set_navigation_target", &"market_crossfire")
