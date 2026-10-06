@@ -90,7 +90,7 @@ func show_reinforcement_warning(
 				positions[i]
 			)
 
-	var timer := get_tree().create_timer(maxf(0.05, duration))
+	var timer := get_tree().create_timer(maxf(0.05, duration), false)
 	timer.timeout.connect(_clear_reinforcement_warning_if.bind(serial))
 
 
@@ -355,7 +355,7 @@ func set_boss_phase(phase: int) -> void:
 
 	if _boss_phase <= 1:
 		return
-	var timer := get_tree().create_timer(BOSS_HAZARD_TELEGRAPH_SECONDS)
+	var timer := get_tree().create_timer(BOSS_HAZARD_TELEGRAPH_SECONDS, false)
 	timer.timeout.connect(_arm_boss_hazard_damage_if.bind(serial, _boss_phase))
 
 
