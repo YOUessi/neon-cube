@@ -33,21 +33,38 @@ func _run() -> void:
 	level.set_boss_phase(2)
 	await physics_frame
 	await physics_frame
+	var phase_two_state: Dictionary = level.boss_hazard_state()
+	_check(int(phase_two_state.get("active_count", 0)) == 2, "phase two telegraphs two hazard pads immediately")
+	_check(not bool(phase_two_state.get("damage_armed", true)), "phase two hazard damage starts disarmed during telegraph")
+	var telegraph_before := player.get_shield()
+	level._physics_process(1.0)
+	await process_frame
+	_check(is_equal_approx(player.get_shield(), telegraph_before), "phase two telegraph does not damage player")
+	await create_timer(0.95).timeout
+	_check(bool(level.boss_hazard_state().get("damage_armed", false)), "phase two hazard arms after telegraph window")
 	var before := player.get_shield()
 	level._physics_process(1.0)
 	await process_frame
 	var after := player.get_shield()
-	_check(after < before, "phase two hazard damages a player standing on an active pad")
+	_check(after < before, "phase two hazard damages player after telegraph")
 	_check(is_equal_approx(before - after, 6.0), "phase two hazard applies six damage per pulse")
 
 	level.set_boss_phase(3)
 	await physics_frame
 	await physics_frame
+	var phase_three_state: Dictionary = level.boss_hazard_state()
+	_check(int(phase_three_state.get("active_count", 0)) == 4, "phase three telegraphs all four hazard pads")
+	_check(not bool(phase_three_state.get("damage_armed", true)), "phase three overload also starts with a telegraph window")
+	var phase_three_telegraph_before := player.get_shield()
+	level._physics_process(1.0)
+	await process_frame
+	_check(is_equal_approx(player.get_shield(), phase_three_telegraph_before), "phase three telegraph does not damage player")
+	await create_timer(0.95).timeout
 	var before_phase_three := player.get_shield()
 	level._physics_process(1.0)
 	await process_frame
 	var after_phase_three := player.get_shield()
-	_check(after_phase_three < before_phase_three, "phase three hazard remains damaging")
+	_check(after_phase_three < before_phase_three, "phase three hazard damages after telegraph")
 	_check(is_equal_approx(before_phase_three - after_phase_three, 10.0), "phase three overload applies ten damage per pulse")
 
 	level.set_boss_phase(1)
