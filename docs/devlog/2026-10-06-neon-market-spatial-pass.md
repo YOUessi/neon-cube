@@ -535,3 +535,89 @@ IDLE
 - 增加 outline，提高深色/霓虹背景下的文字可读性。
 
 下一次 GitHub visual smoke artifact 用于确认这轮改动是否真的改善画面，而不是只根据代码猜测。
+
+
+## 2026-10-06 追加：Encounter Reinforcement Pacing
+
+### 问题
+
+此前玩家进入 Arena 后，整个 Encounter 的敌人一次性全部生成。即使空间、路线、锁门已经完成，战斗仍然是单段压力，没有明显节拍。
+
+### 数据结构
+
+`EncounterDefinition` 新增：
+
+- `spawn_batch_sizes`
+- `reinforcement_trigger_remaining`
+- `reinforcement_delay`
+
+并加入校验：
+
+- batch size 必须为正数。
+- 所有 batch size 总和必须等于 `enemy_kinds.size()`。
+- trigger / delay 不允许负数。
+
+### Mission 01 当前配置
+
+- Arrival Ambush：`[4]`
+- Market Crossfire：`[3, 2]`，剩 1 人时触发，0.7s 后增援。
+- Gravity Breach：`[2, 2]`，剩 1 人时触发，0.65s 后增援。
+- Data Lane：`[3, 2]`，剩 1 人时触发，0.8s 后增援。
+- Null Warden：`[4]`，保持完整 Boss 开场阵容。
+- Extraction：`[2, 2]`，首批清空后 0.65s 增援。
+
+### 运行状态
+
+Story encounter 现在维护：
+
+- 完整 enemy plan。
+- authored spawn positions。
+- authored route points。
+- batch sizes。
+- 当前 batch index。
+- 已生成 enemy index。
+- reinforcement scheduled 状态。
+
+运行流程：
+
+```text
+进入 Arena
+→ 生成 Batch 1
+→ Arena lockdown 保持关闭
+→ alive_enemies <= reinforcement_trigger_remaining
+→ REINFORCEMENTS // INBOUND
+→ reinforcement_delay
+→ 生成下一 Batch
+→ 如果仍有 batch，继续
+→ 所有 batch 已生成且 alive_enemies = 0
+→ Encounter 才真正完成
+→ lockdown 打开
+```
+
+### HUD
+
+多批次 Encounter 会显示：
+
+`HOSTILES XX // BATCH N/M`
+
+增援倒计时时显示：
+
+`HOSTILES XX // INBOUND`
+
+### 回归
+
+`test_mission_runtime.gd`
+
+验证 Mission 01 每个 Encounter 的 batch 数据。
+
+`test_mission_spatial_flow.gd`
+
+实际验证 Market Crossfire：
+
+1. 进入 Arena 只生成 3 人。
+2. 3 人仍使用总 Encounter 的 5 个 tactical slot 体系。
+3. 击败 2 人后 alive = 1。
+4. 不会误判清场，lockdown 仍关闭。
+5. 0.7s 后生成 2 个 reinforcement。
+6. reinforcement 使用剩余 tactical slot 3 / 4。
+7. 最后一批全部清空后才 reopen Arena。
