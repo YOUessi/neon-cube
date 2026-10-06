@@ -210,15 +210,26 @@ func arm_hold_zone(encounter_id: StringName, active: bool) -> void:
 			var visual := zone.get_node_or_null("HoldVisual") as MeshInstance3D
 			if visual != null:
 				visual.visible = enabled
+				var visual_material := visual.material_override as StandardMaterial3D
+				if visual_material != null:
+					visual_material.albedo_color = CYAN * 0.045
+					visual_material.emission = CYAN
+					visual_material.emission_energy_multiplier = 4.8
 			var core := zone.get_node_or_null("ProgressCore") as MeshInstance3D
 			if core != null:
 				core.visible = enabled
 				core.scale.y = 0.03
 				core.position.y = 0.0
+				var core_material := core.material_override as StandardMaterial3D
+				if core_material != null:
+					core_material.albedo_color = CYAN * 0.08
+					core_material.emission = CYAN
+					core_material.emission_energy_multiplier = 2.8
 			var label := zone.get_node_or_null("ProgressLabel") as Label3D
 			if label != null:
 				label.visible = enabled
 				label.text = "UPLINK 000%"
+				label.modulate = CYAN
 
 
 func is_hold_zone_occupied(encounter_id: StringName) -> bool:
