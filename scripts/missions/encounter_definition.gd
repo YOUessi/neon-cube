@@ -6,6 +6,9 @@ extends Resource
 @export var objective_text := ""
 @export var district_id: StringName
 @export var enemy_kinds: Array[StringName] = []
+@export var spawn_batch_sizes: Array[int] = []
+@export var reinforcement_trigger_remaining := 0
+@export var reinforcement_delay := 0.75
 @export var checkpoint_id: StringName
 @export var boss_encounter := false
 @export var reward_health := 0.0
@@ -29,6 +32,28 @@ func validation_errors() -> PackedStringArray:
 	for kind in enemy_kinds:
 		if not EnemyCatalog.has_definition(kind):
 			errors.append("unknown enemy kind: %s" % kind)
+	if reinforcement_trigger_remaining < 0:
+		errors.append("reinforcement_trigger_remaining must be non-negative")
+	if reinforcement_delay < 0.0:
+		errors.append("reinforcement_delay must be non-negative")
+	if not spawn_batch_sizes.is_empty():
+		var total := 0
+		for batch_size in spawn_batch_sizes:
+			if batch_size <= 0:
+				errors.append("spawn_batch_sizes must contain only positive values")
+			total += batch_size
+		if total != enemy_kinds.size():
+			errors.append("spawn_batch_sizes must sum to enemy_kinds size")
 	if boss_encounter and not enemy_kinds.has(&"boss"):
 		errors.append("boss encounter must include boss enemy")
 	return errors
+
+
+func effective_batch_sizes() -> Array[int]:
+	if spawn_batch_sizes.is_empty():
+		return [enemy_kinds.size()]
+	return spawn_batch_sizes.duplicate()
+
+
+func batch_count() -> int:
+	return effective_batch_sizes().size()
