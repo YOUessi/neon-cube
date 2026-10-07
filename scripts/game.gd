@@ -4,7 +4,7 @@ extends Node3D
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const PICKUP_SCENE := preload("res://scenes/pickup.tscn")
-const MISSION_BLOCKOUT_SCENE := preload("res://scenes/missions/neon_market_siege_blockout.tscn")
+const MISSION_LEVEL_SCENE := preload("res://scenes/missions/neon_market_siege.tscn")
 const DESKTOP_PERFORMANCE_BUDGET: PerformanceBudget = preload("res://data/performance/desktop_high.tres")
 
 enum GameState { MENU, PLAYING, PAUSED, VICTORY, GAME_OVER }
@@ -32,6 +32,19 @@ var _alive_enemies := 0
 var _spawn_cursor := 0
 var _kills := 0
 var _wave_transitioning := false
+var _waiting_for_extraction := false
+var _waiting_for_encounter_entry := false
+var _last_boss_phase := 1
+var _encounter_enemy_kinds: Array[StringName] = []
+var _encounter_positions: Array[Vector3] = []
+var _encounter_route_points: Array[Vector3] = []
+var _encounter_batch_sizes: Array[int] = []
+var _encounter_batch_index := 0
+var _encounter_spawned_count := 0
+var _reinforcement_scheduled := false
+var _hold_progress := 0.0
+var _hold_completed := false
+var _extraction_progress := 0.0
 
 var hud_layer: CanvasLayer
 var hud_panel: Control
@@ -70,14 +83,21 @@ func _ready() -> void:
 		total_waves = campaign.wave_count()
 		starting_enemies = campaign.get_wave(0).enemy_kinds.size()
 	CyberCityBuilder.build(self, cube_size)
-	mission_level = MISSION_BLOCKOUT_SCENE.instantiate() as Node3D
+	mission_level = MISSION_LEVEL_SCENE.instantiate() as Node3D
 	add_child(mission_level)
 	mission_anchors = MissionAnchorRegistry.collect(mission_level)
-	performance_monitor = RuntimePerformanceMonitor.new()
-	performance_monitor.name = "PerformanceMonitor"
-	performance_monitor.budget = DESKTOP_PERFORMANCE_BUDGET
-	performance_monitor.budget_warning.connect(_on_performance_budget_warning)
-	add_child(performance_monitor)
+	if mission_level.has_signal("extraction_reached"):
+		mission_level.connect("extraction_reached", Callable(self, "_on_extraction_reached"))
+	if mission_level.has_signal("encounter_zone_entered"):
+		mission_level.connect("encounter_zone_entered", Callable(self, "_on_encounter_zone_entered"))
+	if mission_level.has_signal("objective_node_destroyed"):
+		mission_level.connect("objective_node_destroyed", Callable(self, "_on_objective_node_destroyed"))
+	if DisplayServer.get_name() != "headless":
+		performance_monitor = RuntimePerformanceMonitor.new()
+		performance_monitor.name = "PerformanceMonitor"
+		performance_monitor.budget = DESKTOP_PERFORMANCE_BUDGET
+		performance_monitor.budget_warning.connect(_on_performance_budget_warning)
+		add_child(performance_monitor)
 	var audio: NeonAudio = NeonAudio.new()
 	audio.name = "NeonAudio"
 	add_child(audio)
@@ -87,13 +107,30 @@ func _ready() -> void:
 	else:
 		_show_menu()
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if game_state != GameState.PLAYING:
 		return
 	if is_instance_valid(player) and dash_label != null:
 		var dash_remaining: float = player.get_dash_remaining()
 		dash_label.text = "DASH READY" if dash_remaining <= 0.0 else "DASH %.1fs" % dash_remaining
+	if story_mode:
+		_update_hold_objective(delta)
+		if _waiting_for_extraction:
+			_update_extraction_hold(delta)
+			return
+	if story_mode and _has_pending_reinforcements():
+		var encounter := mission_runtime.current_encounter()
+		if (
+			encounter != null
+			and _alive_enemies <= encounter.reinforcement_trigger_remaining
+			and not _reinforcement_scheduled
+			and not _wave_transitioning
+		):
+			_schedule_reinforcement(encounter)
+		return
 	if _alive_enemies <= 0 and not _wave_transitioning:
+		if story_mode and not _story_objectives_complete():
+			return
 		_finish_wave()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -118,12 +155,26 @@ func start_game() -> void:
 	_sync_session_fields()
 	_spawn_cursor = 0
 	_wave_transitioning = false
+	_waiting_for_extraction = false
+	_waiting_for_encounter_entry = false
+	_last_boss_phase = 1
+	_clear_encounter_batch_state()
+	_hold_progress = 0.0
+	_hold_completed = false
+	_extraction_progress = 0.0
+	_reset_objective_nodes()
+	_reset_hold_zones()
+	_reset_progression_gates()
+	_set_extraction_armed(false)
+	_set_encounter_zone_armed(&"", false)
+	_set_encounter_lockdown(&"", false)
 	game_state = GameState.PLAYING
 	menu_panel.visible = false
 	pause_panel.visible = false
 	end_panel.visible = false
 	hud_panel.visible = true
 	_create_player()
+	_spawn_authored_pickups()
 	_spawn_current_wave()
 	_update_score()
 	_update_objective()
@@ -199,13 +250,33 @@ func _finish_wave() -> void:
 	_wave_transitioning = true
 	if story_mode:
 		var encounter := mission_runtime.current_encounter()
+		_clear_encounter_batch_state()
+		if encounter != null:
+			_arm_objective_nodes(encounter.encounter_id, false)
+			_arm_hold_zone(encounter.encounter_id, false)
+			_hold_progress = 0.0
+			_set_encounter_lockdown(encounter.encounter_id, false)
+			if encounter.encounter_id == &"data_lane":
+				_set_progression_gate_open(&"data_lane", true, true)
+			if encounter.encounter_id == &"null_warden":
+				_set_boss_arena_phase(1)
+		if encounter != null and encounter.encounter_id == &"extraction":
+			_set_navigation_target(&"")
+			_extraction_progress = 0.0
+			_waiting_for_extraction = true
+			_wave_transitioning = true
+			_set_extraction_armed(true)
+			_audio_call("play_extraction_ready")
+			_show_message("HOSTILES CLEARED // REACH EXTRACTION", 2.0)
+			_update_objective()
+			return
 		_spawn_encounter_rewards(encounter)
 		mission_runtime.complete_current_encounter()
 		MissionProgressStore.save_runtime(mission_runtime, session)
 		if mission_runtime.state == MissionRuntime.State.COMPLETED:
 			_finish_game(true)
 			return
-		var timer := get_tree().create_timer(1.8)
+		var timer := get_tree().create_timer(1.8, false)
 		timer.timeout.connect(_advance_wave)
 		return
 
@@ -215,7 +286,7 @@ func _finish_wave() -> void:
 	var current_wave: WaveDefinition = campaign.get_wave(session.wave_index)
 	_show_message("WAVE %02d CLEARED" % session.current_wave_number(), 1.25)
 	_spawn_reward_pickups(session.wave_index)
-	var timer: SceneTreeTimer = get_tree().create_timer(current_wave.intermission_seconds)
+	var timer: SceneTreeTimer = get_tree().create_timer(current_wave.intermission_seconds, false)
 	timer.timeout.connect(_advance_wave)
 
 func _advance_wave() -> void:
@@ -223,14 +294,22 @@ func _advance_wave() -> void:
 		return
 	session.advance_wave()
 	_sync_session_fields()
+	if story_mode:
+		var encounter := mission_runtime.current_encounter()
+		_hold_progress = 0.0
+		_hold_completed = false
+		_waiting_for_encounter_entry = true
+		_wave_transitioning = true
+		_set_encounter_zone_armed(encounter.encounter_id, true)
+		_set_navigation_target(encounter.encounter_id)
+		_update_score()
+		_update_objective()
+		_show_message("ADVANCE // %s" % encounter.title, 2.0)
+		return
 	_wave_transitioning = false
 	_spawn_current_wave()
 	_update_score()
 	_update_objective()
-	if story_mode:
-		var encounter := mission_runtime.current_encounter()
-		_show_message("%s // %s" % [encounter.title, encounter.objective_text], 2.0)
-		return
 	var wave: WaveDefinition = campaign.get_wave(session.wave_index)
 	if wave.boss_wave:
 		_show_message("FINAL WAVE // %s ONLINE" % wave.title, 2.0)
@@ -254,14 +333,41 @@ func _spawn_current_wave() -> void:
 		var encounter := mission_runtime.current_encounter()
 		if encounter == null:
 			return
-		var center_anchor := MissionAnchorRegistry.find_for_encounter(
-			mission_anchors,
+		_prepare_story_encounter(encounter)
+		_spawn_next_story_batch()
+		return
+
+	var plan: Array[String] = wave_plan(session.current_wave_number())
+	for i in range(plan.size()):
+		_spawn_enemy(plan[i], i)
+
+
+func _prepare_story_encounter(encounter: EncounterDefinition) -> void:
+	_clear_encounter_batch_state()
+	_encounter_enemy_kinds = encounter.enemy_kinds.duplicate()
+	_encounter_batch_sizes = encounter.effective_batch_sizes()
+
+	var center_anchor := MissionAnchorRegistry.find_for_encounter(
+		mission_anchors,
+		encounter.encounter_id,
+		MissionAnchor.Kind.ENCOUNTER_CENTER
+	)
+	if is_instance_valid(mission_level) and mission_level.has_method("spawn_points_for"):
+		var authored_positions: Variant = mission_level.call(
+			"spawn_points_for",
 			encounter.encounter_id,
-			MissionAnchor.Kind.ENCOUNTER_CENTER
+			encounter.enemy_kinds.size(),
+			0
 		)
-		var positions: Array[Vector3]
+		if authored_positions is Array:
+			for authored_position in authored_positions:
+				if authored_position is Vector3:
+					_encounter_positions.append(authored_position)
+
+	if _encounter_positions.size() != encounter.enemy_kinds.size():
+		_encounter_positions.clear()
 		if center_anchor != null:
-			positions = EncounterSpawnPlanner.spawn_positions_around(
+			_encounter_positions = EncounterSpawnPlanner.spawn_positions_around(
 				encounter,
 				encounter.enemy_kinds.size(),
 				cube_size,
@@ -269,30 +375,147 @@ func _spawn_current_wave() -> void:
 				_spawn_cursor
 			)
 		else:
-			positions = EncounterSpawnPlanner.spawn_positions(
+			_encounter_positions = EncounterSpawnPlanner.spawn_positions(
 				encounter,
 				encounter.enemy_kinds.size(),
 				cube_size,
 				_spawn_cursor
 			)
-		for i in range(encounter.enemy_kinds.size()):
-			_spawn_enemy_at(String(encounter.enemy_kinds[i]), positions[i])
+
+	if is_instance_valid(mission_level) and mission_level.has_method("route_points_for"):
+		var authored_routes: Variant = mission_level.call("route_points_for", encounter.encounter_id)
+		if authored_routes is Array:
+			for route_point in authored_routes:
+				if route_point is Vector3:
+					_encounter_route_points.append(route_point)
+
+
+func _spawn_next_story_batch() -> void:
+	if not _has_pending_reinforcements():
 		return
+	var encounter := mission_runtime.current_encounter()
+	var batch_size := _encounter_batch_sizes[_encounter_batch_index]
+	var total_count := _encounter_enemy_kinds.size()
+	var batch_number := _encounter_batch_index + 1
+	for _batch_offset in range(batch_size):
+		var enemy_index := _encounter_spawned_count
+		if enemy_index >= total_count:
+			break
+		var leash_radius := 0.0
+		if (
+			encounter != null
+			and is_instance_valid(mission_level)
+			and mission_level.has_method("perch_radius_for")
+		):
+			leash_radius = float(
+				mission_level.call("perch_radius_for", encounter.encounter_id, enemy_index)
+			)
+		_spawn_enemy_at(
+			String(_encounter_enemy_kinds[enemy_index]),
+			_encounter_positions[enemy_index],
+			_encounter_route_points,
+			enemy_index,
+			total_count,
+			leash_radius
+		)
+		_encounter_spawned_count += 1
+	_encounter_batch_index += 1
+	if batch_number > 1:
+		_show_message(
+			"REINFORCEMENTS // BATCH %d/%d" % [batch_number, _encounter_batch_sizes.size()],
+			1.35
+		)
 
-	var plan: Array[String] = wave_plan(session.current_wave_number())
-	for i in range(plan.size()):
-		_spawn_enemy(plan[i], i)
 
+func _has_pending_reinforcements() -> bool:
+	return _encounter_batch_index < _encounter_batch_sizes.size()
+
+
+func _schedule_reinforcement(encounter: EncounterDefinition) -> void:
+	_reinforcement_scheduled = true
+	_audio_call("play_reinforcement")
+	_show_reinforcement_warning(encounter)
+	_show_message("REINFORCEMENTS // INBOUND", maxf(0.45, encounter.reinforcement_delay))
+	_update_objective()
+	var timer := get_tree().create_timer(encounter.reinforcement_delay, false)
+	timer.timeout.connect(_on_reinforcement_ready.bind(encounter.encounter_id))
+
+
+func _on_reinforcement_ready(encounter_id: StringName) -> void:
+	if game_state != GameState.PLAYING or not story_mode:
+		_reinforcement_scheduled = false
+		return
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.encounter_id != encounter_id:
+		_reinforcement_scheduled = false
+		return
+	_clear_reinforcement_warning()
+	_spawn_next_story_batch()
+	_reinforcement_scheduled = false
+	_update_objective()
+
+
+func _clear_encounter_batch_state() -> void:
+	_clear_reinforcement_warning()
+	_encounter_enemy_kinds.clear()
+	_encounter_positions.clear()
+	_encounter_route_points.clear()
+	_encounter_batch_sizes.clear()
+	_encounter_batch_index = 0
+	_encounter_spawned_count = 0
+	_reinforcement_scheduled = false
+
+
+func _show_reinforcement_warning(encounter: EncounterDefinition) -> void:
+	if not is_instance_valid(mission_level) or not mission_level.has_method("show_reinforcement_warning"):
+		return
+	if not _has_pending_reinforcements():
+		return
+	var batch_size := _encounter_batch_sizes[_encounter_batch_index]
+	var positions: Array[Vector3] = []
+	for offset in range(batch_size):
+		var index := _encounter_spawned_count + offset
+		if index >= 0 and index < _encounter_positions.size():
+			positions.append(_encounter_positions[index])
+	mission_level.call(
+		"show_reinforcement_warning",
+		encounter.encounter_id,
+		positions,
+		encounter.reinforcement_delay
+	)
+
+
+func _clear_reinforcement_warning() -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("clear_reinforcement_warning"):
+		mission_level.call("clear_reinforcement_warning")
+
+
+func current_story_batch_number() -> int:
+	return _encounter_batch_index
+
+
+func current_story_batch_count() -> int:
+	return _encounter_batch_sizes.size()
 func _spawn_enemy(kind: String, index: int) -> void:
 	_spawn_enemy_at(kind, _spawn_position(index + _spawn_cursor))
 
-func _spawn_enemy_at(kind: String, world_position: Vector3) -> void:
+func _spawn_enemy_at(
+	kind: String,
+	world_position: Vector3,
+	route_points: Array[Vector3] = [],
+	tactical_slot_index: int = -1,
+	tactical_slot_count: int = 0,
+	tactical_leash_radius: float = 0.0
+) -> void:
 	if not is_instance_valid(player):
 		return
 	var enemy: NeonEnemy = ENEMY_SCENE.instantiate() as NeonEnemy
 	enemy.cube_half_extent = cube_size * 0.5
 	enemy.target = player
 	enemy.configure(kind, session.current_wave_number(), session.difficulty_scale)
+	enemy.set_route_points(route_points)
+	enemy.set_tactical_slot(tactical_slot_index, tactical_slot_count)
+	enemy.set_tactical_leash(world_position, tactical_leash_radius)
 	enemy.position = world_position
 	enemy.killed.connect(_on_enemy_killed)
 	if kind == "boss":
@@ -347,11 +570,54 @@ func _spawn_encounter_rewards(encounter: EncounterDefinition) -> void:
 			encounter.reward_shield
 		)
 
-func _spawn_pickup(world_position: Vector3, kind: String, amount: float) -> void:
+func _spawn_pickup(
+	world_position: Vector3,
+	kind: String,
+	amount: float,
+	pickup_id: StringName = &""
+) -> NeonPickup:
 	var pickup: NeonPickup = PICKUP_SCENE.instantiate() as NeonPickup
-	pickup.configure(kind, amount)
+	pickup.configure(kind, amount, pickup_id)
 	pickup.position = world_position
 	add_child(pickup)
+	if pickup_id != &"":
+		pickup.collected.connect(_on_authored_pickup_collected)
+	return pickup
+
+
+func _spawn_authored_pickups() -> void:
+	if not story_mode:
+		return
+	if not is_instance_valid(mission_level) or not mission_level.has_method("authored_pickup_specs"):
+		return
+	var specs: Variant = mission_level.call("authored_pickup_specs")
+	if not specs is Array:
+		return
+	for spec_variant in specs:
+		if not spec_variant is Dictionary:
+			continue
+		var spec: Dictionary = spec_variant
+		var pickup_id := StringName(spec.get("pickup_id", &""))
+		if pickup_id != &"" and mission_runtime.is_pickup_consumed(pickup_id):
+			continue
+		var encounter_id := StringName(spec.get("encounter_id", &""))
+		if encounter_id != &"" and mission_runtime.completed_encounters.has(encounter_id):
+			continue
+		var position: Variant = spec.get("position", Vector3.ZERO)
+		if not position is Vector3:
+			continue
+		var kind := String(spec.get("kind", "health"))
+		var amount := float(spec.get("amount", 25.0))
+		var pickup := _spawn_pickup(position, kind, amount, pickup_id)
+		pickup.name = String(pickup_id if pickup_id != &"" else &"authored_pickup")
+		pickup.add_to_group("authored_pickup")
+
+func _on_authored_pickup_collected(pickup_id: StringName) -> void:
+	if not story_mode or pickup_id == &"":
+		return
+	mission_runtime.mark_pickup_consumed(pickup_id)
+	MissionProgressStore.save_runtime(mission_runtime, session)
+
 
 func _on_enemy_killed(enemy: NeonEnemy) -> void:
 	session.register_kill(enemy.get_score_value())
@@ -371,6 +637,8 @@ func _create_player() -> void:
 	player.cube_half_extent = cube_size * 0.5
 	player.mouse_sensitivity = _mouse_sensitivity_setting
 	add_child(player)
+	if is_instance_valid(mission_level) and mission_level.has_method("set_player"):
+		mission_level.call("set_player", player)
 	if story_mode and mission_anchors.has("player_start"):
 		var start_anchor: MissionAnchor = mission_anchors["player_start"]
 		player.global_position = start_anchor.global_position
@@ -424,7 +692,22 @@ func _resume_story_from_save() -> void:
 	session.alive_enemies = 0
 	_sync_session_fields()
 	_spawn_cursor = mission_runtime.encounter_index * 8
-	_wave_transitioning = false
+	_wave_transitioning = true
+	_waiting_for_extraction = false
+	_waiting_for_encounter_entry = true
+	_clear_encounter_batch_state()
+	_hold_progress = 0.0
+	_hold_completed = false
+	_extraction_progress = 0.0
+	_reset_objective_nodes()
+	_reset_hold_zones()
+	_reset_progression_gates()
+	if mission_runtime.completed_encounters.has(&"data_lane"):
+		_set_progression_gate_open(&"data_lane", true, false)
+	_set_extraction_armed(false)
+	_set_encounter_lockdown(&"", false)
+	_set_encounter_zone_armed(mission_runtime.current_encounter().encounter_id, true)
+	_set_navigation_target(mission_runtime.current_encounter().encounter_id)
 	game_state = GameState.PLAYING
 	menu_panel.visible = false
 	pause_panel.visible = false
@@ -436,10 +719,10 @@ func _resume_story_from_save() -> void:
 		if mission_anchors.has(checkpoint_key):
 			var checkpoint_anchor: MissionAnchor = mission_anchors[checkpoint_key]
 			player.global_position = checkpoint_anchor.global_position
-	_spawn_current_wave()
+	_spawn_authored_pickups()
 	_update_score()
 	_update_objective()
-	_show_message("CHECKPOINT // %s" % mission_runtime.current_encounter().title, 1.8)
+	_show_message("CHECKPOINT // ADVANCE TO %s" % mission_runtime.current_encounter().title, 1.8)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -457,14 +740,25 @@ func _create_ui() -> void:
 	panel.size = Vector2(430, 196)
 	hud_panel.add_child(panel)
 
+	var right_panel := ColorRect.new()
+	right_panel.color = Color(0.005, 0.008, 0.02, 0.78)
+	right_panel.position = Vector2(930, 20)
+	right_panel.size = Vector2(330, 102)
+	hud_panel.add_child(right_panel)
+
 	health_label = _make_label(Vector2(36, 30), 20, Color(0.1, 1.0, 0.85))
 	shield_label = _make_label(Vector2(36, 58), 18, Color(0.2, 0.65, 1.0))
 	ammo_label = _make_label(Vector2(36, 84), 20, Color(1.0, 0.12, 0.7))
 	weapon_label = _make_label(Vector2(36, 112), 17, Color(1.0, 0.75, 0.2))
 	face_label = _make_label(Vector2(36, 138), 15, Color(0.45, 0.72, 1.0))
 	dash_label = _make_label(Vector2(36, 162), 15, Color(0.7, 1.0, 0.5))
-	score_label = _make_label(Vector2(990, 28), 20, Color(1.0, 0.85, 0.2))
-	objective_label = _make_label(Vector2(980, 60), 16, Color(0.25, 1.0, 0.95))
+	score_label = _make_label(Vector2(946, 30), 18, Color(1.0, 0.85, 0.2))
+	score_label.size = Vector2(292, 24)
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	objective_label = _make_label(Vector2(940, 58), 14, Color(0.25, 1.0, 0.95))
+	objective_label.size = Vector2(300, 54)
+	objective_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for label in [health_label, shield_label, ammo_label, weapon_label, face_label, dash_label, score_label, objective_label]:
 		hud_panel.add_child(label)
 
@@ -496,11 +790,13 @@ func _create_ui() -> void:
 
 	message_label = Label.new()
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	message_label.add_theme_font_size_override("font_size", 30)
+	message_label.add_theme_font_size_override("font_size", 22)
 	message_label.add_theme_color_override("font_color", Color(1.0, 0.14, 0.75))
+	message_label.add_theme_constant_override("outline_size", 4)
+	message_label.add_theme_color_override("font_outline_color", Color(0.005, 0.008, 0.02, 0.95))
 	message_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	message_label.position = Vector2(-300, 38)
-	message_label.size = Vector2(600, 52)
+	message_label.position = Vector2(-210, 28)
+	message_label.size = Vector2(420, 42)
 	hud_panel.add_child(message_label)
 
 	menu_panel = _create_full_overlay(Color(0.006, 0.005, 0.025, 0.94))
@@ -686,7 +982,76 @@ func _update_objective() -> void:
 		return
 	if story_mode and mission_runtime.current_encounter() != null:
 		var encounter := mission_runtime.current_encounter()
-		objective_label.text = "%s  //  HOSTILES %02d" % [
+		if encounter.encounter_id == &"extraction" and _waiting_for_extraction:
+			objective_label.text = "HOLD EXTRACTION\nEXTRACT %.1f/%.1fs" % [
+				_extraction_progress,
+				encounter.extraction_hold_seconds,
+			]
+			return
+		if _waiting_for_encounter_entry:
+			objective_label.text = "ADVANCE TO\n%s" % encounter.title
+			return
+		if encounter.hold_zone_seconds > 0.0:
+			var hold_status := "UPLINK STABLE" if _hold_completed else "UPLINK %.1f/%.1fs" % [_hold_progress, encounter.hold_zone_seconds]
+			if _reinforcement_scheduled:
+				objective_label.text = "%s\n%s  //  INBOUND" % [encounter.objective_text, hold_status]
+				return
+			var hold_batch_count := current_story_batch_count()
+			if hold_batch_count > 1:
+				objective_label.text = "%s\n%s  //  HOSTILES %02d  //  BATCH %d/%d" % [
+					encounter.objective_text,
+					hold_status,
+					session.alive_enemies,
+					current_story_batch_number(),
+					hold_batch_count,
+				]
+				return
+			objective_label.text = "%s\n%s  //  HOSTILES %02d" % [
+				encounter.objective_text,
+				hold_status,
+				session.alive_enemies,
+			]
+			return
+		var remaining_nodes := _objective_nodes_remaining(encounter.encounter_id)
+		if encounter.objective_node_count > 0:
+			if _reinforcement_scheduled:
+				objective_label.text = "%s\nRELAYS %02d LEFT  //  INBOUND" % [
+					encounter.objective_text,
+					remaining_nodes,
+				]
+				return
+			var objective_batch_count := current_story_batch_count()
+			if objective_batch_count > 1:
+				objective_label.text = "%s\nRELAYS %02d  //  HOSTILES %02d  //  BATCH %d/%d" % [
+					encounter.objective_text,
+					remaining_nodes,
+					session.alive_enemies,
+					current_story_batch_number(),
+					objective_batch_count,
+				]
+				return
+			objective_label.text = "%s\nRELAYS %02d  //  HOSTILES %02d" % [
+				encounter.objective_text,
+				remaining_nodes,
+				session.alive_enemies,
+			]
+			return
+		if _reinforcement_scheduled:
+			objective_label.text = "%s\nHOSTILES %02d  //  INBOUND" % [
+				encounter.objective_text,
+				session.alive_enemies,
+			]
+			return
+		var batch_count := current_story_batch_count()
+		if batch_count > 1:
+			objective_label.text = "%s\nHOSTILES %02d  //  BATCH %d/%d" % [
+				encounter.objective_text,
+				session.alive_enemies,
+				current_story_batch_number(),
+				batch_count,
+			]
+			return
+		objective_label.text = "%s\nHOSTILES %02d" % [
 			encounter.objective_text,
 			session.alive_enemies,
 		]
@@ -703,6 +1068,14 @@ func _sync_session_fields() -> void:
 
 
 func _on_boss_health_changed(current: float, maximum: float, phase: int) -> void:
+	_set_boss_arena_phase(phase)
+	if phase > _last_boss_phase:
+		_last_boss_phase = phase
+		_audio_call("play_boss_phase")
+		if phase == 2:
+			_show_message("NULL WARDEN // PHASE 2 // TWIN HAZARDS ONLINE", 2.0)
+		elif phase >= 3:
+			_show_message("NULL WARDEN // PHASE 3 // ARENA OVERLOAD", 2.0)
 	if boss_bar == null or boss_label == null:
 		return
 	boss_bar.visible = true
@@ -721,6 +1094,231 @@ func _show_message(text: String, duration: float) -> void:
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_interval(duration)
 	tween.tween_property(message_label, "modulate:a", 0.0, 0.4)
+
+
+func _set_extraction_armed(active: bool) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("arm_extraction"):
+		mission_level.call("arm_extraction", active)
+	if is_instance_valid(mission_level) and mission_level.has_method("set_extraction_progress"):
+		mission_level.call("set_extraction_progress", 0.0, 1.0)
+
+
+func _complete_extraction_world_state() -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("complete_extraction"):
+		mission_level.call("complete_extraction")
+
+
+func _set_encounter_zone_armed(encounter_id: StringName, active: bool) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("arm_encounter_zone"):
+		mission_level.call("arm_encounter_zone", encounter_id, active)
+
+
+func _set_encounter_lockdown(encounter_id: StringName, active: bool) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_encounter_lockdown"):
+		mission_level.call("set_encounter_lockdown", encounter_id, active)
+
+
+func _reset_progression_gates() -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("reset_progression_gates"):
+		mission_level.call("reset_progression_gates")
+
+
+func _set_progression_gate_open(
+	encounter_id: StringName,
+	open: bool,
+	animate: bool = true
+) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_progression_gate_open"):
+		mission_level.call("set_progression_gate_open", encounter_id, open, animate)
+
+
+func _set_navigation_target(encounter_id: StringName) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_navigation_target"):
+		mission_level.call("set_navigation_target", encounter_id)
+
+
+func _set_boss_arena_phase(phase: int) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_boss_phase"):
+		mission_level.call("set_boss_phase", phase)
+
+
+func _extraction_zone_occupied() -> bool:
+	if not is_instance_valid(mission_level) or not mission_level.has_method("is_extraction_occupied"):
+		return false
+	return bool(mission_level.call("is_extraction_occupied"))
+
+
+func _update_extraction_hold(delta: float) -> void:
+	if not _waiting_for_extraction:
+		return
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null:
+		return
+	var required := maxf(0.0, encounter.extraction_hold_seconds)
+	if required <= 0.0:
+		_on_extraction_reached()
+		return
+	if _extraction_zone_occupied():
+		_extraction_progress = minf(required, _extraction_progress + maxf(0.0, delta))
+		_set_extraction_world_progress(_extraction_progress, required)
+		_update_objective()
+		if _extraction_progress >= required:
+			_on_extraction_reached()
+	else:
+		if _extraction_progress > 0.0:
+			_extraction_progress = 0.0
+			_set_extraction_world_progress(0.0, required)
+			_update_objective()
+
+
+func _set_extraction_world_progress(current: float, required: float) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_extraction_progress"):
+		mission_level.call("set_extraction_progress", current, required)
+
+
+func _set_hold_world_progress(
+	encounter_id: StringName,
+	current: float,
+	required: float
+) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("set_hold_zone_progress"):
+		mission_level.call("set_hold_zone_progress", encounter_id, current, required)
+
+
+func _reset_hold_zones() -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("reset_hold_zones"):
+		mission_level.call("reset_hold_zones")
+
+
+func _arm_hold_zone(encounter_id: StringName, active: bool) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("arm_hold_zone"):
+		mission_level.call("arm_hold_zone", encounter_id, active)
+	if is_instance_valid(mission_level) and mission_level.has_method("set_hold_zone_progress"):
+		mission_level.call("set_hold_zone_progress", encounter_id, 0.0, 1.0)
+
+
+func _hold_zone_occupied(encounter_id: StringName) -> bool:
+	if not is_instance_valid(mission_level) or not mission_level.has_method("is_hold_zone_occupied"):
+		return false
+	return bool(mission_level.call("is_hold_zone_occupied", encounter_id))
+
+
+func _update_hold_objective(delta: float) -> void:
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.hold_zone_seconds <= 0.0 or _waiting_for_encounter_entry:
+		return
+	if _hold_completed:
+		return
+	if _hold_zone_occupied(encounter.encounter_id):
+		var previous := _hold_progress
+		_hold_progress = minf(encounter.hold_zone_seconds, _hold_progress + maxf(0.0, delta))
+		_set_hold_world_progress(encounter.encounter_id, _hold_progress, encounter.hold_zone_seconds)
+		if previous < encounter.hold_zone_seconds and _hold_progress >= encounter.hold_zone_seconds:
+			_hold_completed = true
+			_audio_call("play_uplink_complete")
+			_show_message("UPLINK STABLE // HOLD COMPLETE", 1.4)
+		if not is_equal_approx(previous, _hold_progress):
+			_update_objective()
+	else:
+		if _hold_progress > 0.0:
+			_hold_progress = 0.0
+			_set_hold_world_progress(encounter.encounter_id, 0.0, encounter.hold_zone_seconds)
+			_update_objective()
+
+
+func _reset_objective_nodes() -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("reset_objective_nodes"):
+		mission_level.call("reset_objective_nodes")
+
+
+func _arm_objective_nodes(encounter_id: StringName, active: bool) -> void:
+	if is_instance_valid(mission_level) and mission_level.has_method("arm_objective_nodes"):
+		mission_level.call("arm_objective_nodes", encounter_id, active)
+
+
+func _objective_nodes_remaining(encounter_id: StringName) -> int:
+	if not is_instance_valid(mission_level) or not mission_level.has_method("objective_nodes_remaining"):
+		return 0
+	return int(mission_level.call("objective_nodes_remaining", encounter_id))
+
+
+func _story_objectives_complete() -> bool:
+	if not story_mode:
+		return true
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null:
+		return true
+	if encounter.objective_node_count > 0 and _objective_nodes_remaining(encounter.encounter_id) > 0:
+		return false
+	if encounter.hold_zone_seconds > 0.0 and not _hold_completed:
+		return false
+	return true
+
+
+func _on_encounter_zone_entered(encounter_id: StringName) -> void:
+	if not story_mode or not _waiting_for_encounter_entry:
+		return
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.encounter_id != encounter_id:
+		return
+	_waiting_for_encounter_entry = false
+	_set_navigation_target(&"")
+	_set_encounter_lockdown(encounter_id, true)
+	_audio_call("play_lockdown")
+	_arm_objective_nodes(encounter_id, true)
+	_arm_hold_zone(encounter_id, true)
+	_hold_progress = 0.0
+	_hold_completed = false
+	_spawn_current_wave()
+	_wave_transitioning = false
+	_update_score()
+	_update_objective()
+	_show_message("%s // %s" % [encounter.title, encounter.objective_text], 2.0)
+
+
+func _on_objective_node_destroyed(
+	encounter_id: StringName,
+	objective_id: StringName,
+	remaining: int
+) -> void:
+	if not story_mode:
+		return
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.encounter_id != encounter_id:
+		return
+	_audio_call("play_objective_destroyed")
+	_show_message(
+		"OBJECTIVE DESTROYED // %s // %d REMAINING" % [
+			String(objective_id).replace("_", " ").to_upper(),
+			remaining,
+		],
+		1.4
+	)
+	_update_objective()
+	if (
+		remaining <= 0
+		and _alive_enemies <= 0
+		and not _has_pending_reinforcements()
+		and not _reinforcement_scheduled
+		and not _wave_transitioning
+	):
+		_finish_wave()
+
+
+func _on_extraction_reached() -> void:
+	if not story_mode or not _waiting_for_extraction:
+		return
+	var encounter := mission_runtime.current_encounter()
+	if encounter == null or encounter.encounter_id != &"extraction":
+		return
+	_waiting_for_extraction = false
+	_extraction_progress = encounter.extraction_hold_seconds
+	_complete_extraction_world_state()
+	_spawn_encounter_rewards(encounter)
+	mission_runtime.complete_current_encounter()
+	MissionProgressStore.save_runtime(mission_runtime, session)
+	_finish_game(true)
+
 
 func _on_performance_budget_warning(messages: PackedStringArray) -> void:
 	for message in messages:

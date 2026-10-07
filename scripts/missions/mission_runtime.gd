@@ -13,6 +13,7 @@ var state := State.NOT_STARTED
 var encounter_index := 0
 var checkpoint_id: StringName = &""
 var completed_encounters: Array[StringName] = []
+var consumed_pickups: Array[StringName] = []
 
 func start(mission: MissionDefinition) -> void:
 	definition = mission
@@ -20,6 +21,7 @@ func start(mission: MissionDefinition) -> void:
 	encounter_index = 0
 	checkpoint_id = &""
 	completed_encounters.clear()
+	consumed_pickups.clear()
 	state_changed.emit(state)
 	_emit_current_encounter()
 
@@ -50,6 +52,17 @@ func complete_current_encounter() -> bool:
 	_emit_current_encounter()
 	return true
 
+func mark_pickup_consumed(pickup_id: StringName) -> void:
+	if pickup_id == &"":
+		return
+	if not consumed_pickups.has(pickup_id):
+		consumed_pickups.append(pickup_id)
+
+
+func is_pickup_consumed(pickup_id: StringName) -> bool:
+	return pickup_id != &"" and consumed_pickups.has(pickup_id)
+
+
 func fail() -> void:
 	if state == State.COMPLETED:
 		return
@@ -76,6 +89,7 @@ func snapshot() -> Dictionary:
 		"encounter_index": encounter_index,
 		"checkpoint_id": checkpoint_id,
 		"completed_encounters": completed_encounters.duplicate(),
+		"consumed_pickups": consumed_pickups.duplicate(),
 	}
 
 func restore(mission: MissionDefinition, snapshot_data: Dictionary) -> void:
@@ -85,6 +99,9 @@ func restore(mission: MissionDefinition, snapshot_data: Dictionary) -> void:
 	completed_encounters.clear()
 	for item in snapshot_data.get("completed_encounters", []):
 		completed_encounters.append(StringName(item))
+	consumed_pickups.clear()
+	for item in snapshot_data.get("consumed_pickups", []):
+		consumed_pickups.append(StringName(item))
 	state = clampi(int(snapshot_data.get("state", State.NOT_STARTED)), State.NOT_STARTED, State.FAILED)
 	state_changed.emit(state)
 	if state == State.ACTIVE:

@@ -16,22 +16,22 @@ static func _build_environment(parent: Node3D) -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.003, 0.006, 0.02)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.28, 0.16, 0.48)
-	env.ambient_light_energy = 1.7
+	env.ambient_light_color = Color(0.18, 0.12, 0.32)
+	env.ambient_light_energy = 0.95
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	world.environment = env
 	parent.add_child(world)
 
 	var key := DirectionalLight3D.new()
 	key.light_color = Color(0.28, 0.46, 1.0)
-	key.light_energy = 1.25
+	key.light_energy = 0.92
 	key.rotation_degrees = Vector3(-42, -28, 0)
 	key.shadow_enabled = true
 	parent.add_child(key)
 
 	var fill := DirectionalLight3D.new()
 	fill.light_color = Color(1.0, 0.08, 0.42)
-	fill.light_energy = 0.65
+	fill.light_energy = 0.34
 	fill.rotation_degrees = Vector3(30, 145, 0)
 	parent.add_child(fill)
 
@@ -98,6 +98,8 @@ static func _build_city_blocks(
 		for v in coords:
 			if absf(u) < 5.0 or absf(v) < 5.0:
 				continue
+			if _reserved_for_mission(district.district_id, u, v):
+				continue
 			if int((absf(u) + absf(v)) / 7.0 + float(district.prop_seed)) % district.density_skip_mod == 0:
 				continue
 			var height := (3.8 + float((idx * 37 + district.prop_seed * 11) % 9) * 0.78) * district.building_height_scale
@@ -106,6 +108,33 @@ static func _build_city_blocks(
 			var center: Vector3 = face_center + right * u + forward * v + inward_up * (height * 0.5)
 			_add_building(parent, center, basis, Vector3(width, height, depth), idx, district)
 			idx += 1
+
+static func _reserved_for_mission(district_id: StringName, u: float, v: float) -> bool:
+	match district_id:
+		&"neon_market":
+			# Arrival boulevard, market hall/seam, and the return extraction route.
+			return (
+				(absf(u) <= 7.0 and v >= -25.0 and v <= -2.0)
+				or (u >= 4.0 and u <= 29.0 and v >= -5.0 and v <= 13.0)
+				or (u >= -20.0 and u <= 6.0 and v >= -28.0 and v <= -6.0)
+			)
+		&"industrial_arc":
+			# Bottom-to-east landing, breach arena, relay approach and east conduit.
+			return (
+				(u >= -14.0 and u <= 4.0 and v >= -29.0 and v <= 1.0)
+				or (u >= -2.0 and u <= 29.0 and v >= -9.0 and v <= 1.0)
+			)
+		&"data_quarter":
+			# West conduit, data-lane combat bowl and Warden access gate.
+			return u >= -29.0 and u <= 16.0 and v >= 1.0 and v <= 20.0
+		&"void_docks":
+			# South-face transit band and Null Warden arena.
+			return (
+				(absf(u) <= 13.0 and v >= -16.0 and v <= 11.0)
+				or (u >= -29.0 and u <= 29.0 and v >= 10.0 and v <= 21.0)
+			)
+	return false
+
 
 static func _add_building(
 	parent: Node3D,
@@ -116,8 +145,10 @@ static func _add_building(
 	district: DistrictDefinition
 ) -> void:
 	var body := StaticBody3D.new()
+	body.name = "CityBuilding_%03d" % seed
 	body.position = position
 	body.basis = basis
+	body.add_to_group("city_building")
 	parent.add_child(body)
 
 	var shape := CollisionShape3D.new()
@@ -135,16 +166,21 @@ static func _add_building(
 	mesh.size = size
 	visual.mesh = mesh
 	var base := Color(0.045, 0.052, 0.078)
-	visual.material_override = _material(base, neon * 0.05, 0.28, 0.82, 0.22)
+	if district.district_id == &"neon_market":
+		base = Color(0.062, 0.052, 0.068)
+	visual.material_override = _material(base, neon * 0.05, 0.22, 0.80, 0.28)
 	body.add_child(visual)
 
 	var floors := clampi(int(size.y / 1.4), 2, 6)
 	for row in range(floors):
 		var y: float = -size.y * 0.34 + float(row) * size.y * 0.68 / float(maxi(1, floors - 1))
-		_add_window_strip(body, Vector3(0, y, -size.z * 0.505), Vector3(size.x * 0.68, 0.10, 0.04), neon)
-		_add_window_strip(body, Vector3(0, y, size.z * 0.505), Vector3(size.x * 0.68, 0.10, 0.04), neon)
-		_add_window_strip(body, Vector3(size.x * 0.505, y, 0), Vector3(0.04, 0.10, size.z * 0.68), neon)
-		_add_window_strip(body, Vector3(-size.x * 0.505, y, 0), Vector3(0.04, 0.10, size.z * 0.68), neon)
+		var window_neon := neon
+		if district.district_id == &"neon_market" and row % 3 == 1:
+			window_neon = Color(1.0, 0.38, 0.12)
+		_add_window_strip(body, Vector3(0, y, -size.z * 0.505), Vector3(size.x * 0.68, 0.10, 0.04), window_neon)
+		_add_window_strip(body, Vector3(0, y, size.z * 0.505), Vector3(size.x * 0.68, 0.10, 0.04), window_neon)
+		_add_window_strip(body, Vector3(size.x * 0.505, y, 0), Vector3(0.04, 0.10, size.z * 0.68), window_neon)
+		_add_window_strip(body, Vector3(-size.x * 0.505, y, 0), Vector3(0.04, 0.10, size.z * 0.68), window_neon)
 
 	for side in [-1.0, 1.0]:
 		var edge := MeshInstance3D.new()
@@ -152,8 +188,41 @@ static func _add_building(
 		edge_mesh.size = Vector3(0.06, size.y * 0.9, 0.06)
 		edge.mesh = edge_mesh
 		edge.position = Vector3(size.x * 0.43 * side, 0, -size.z * 0.51)
-		edge.material_override = _material(neon * 0.1, neon, 8.0, 0.05, 0.65)
+		edge.material_override = _material(neon * 0.07, neon, 3.8, 0.05, 0.68)
 		body.add_child(edge)
+
+	if district.district_id == &"neon_market" and seed % 2 == 0:
+		var storefront_accent := Color(1.0, 0.36, 0.12) if seed % 4 == 0 else neon
+
+		var awning := MeshInstance3D.new()
+		awning.name = "MarketAwning"
+		var awning_mesh := BoxMesh.new()
+		awning_mesh.size = Vector3(maxf(1.2, size.x * 0.62), 0.10, 0.42)
+		awning.mesh = awning_mesh
+		awning.position = Vector3(0, -size.y * 0.28, -size.z * 0.52)
+		awning.material_override = _material(
+			Color(0.055, 0.035, 0.055),
+			storefront_accent,
+			0.55,
+			0.08,
+			0.58
+		)
+		body.add_child(awning)
+
+		var storefront := MeshInstance3D.new()
+		storefront.name = "StorefrontLightbox"
+		var storefront_mesh := BoxMesh.new()
+		storefront_mesh.size = Vector3(maxf(0.9, size.x * 0.44), 0.32, 0.055)
+		storefront.mesh = storefront_mesh
+		storefront.position = Vector3(0, -size.y * 0.20, -size.z * 0.51 - 0.035)
+		storefront.material_override = _material(
+			storefront_accent * 0.08,
+			storefront_accent,
+			2.8,
+			0.06,
+			0.55
+		)
+		body.add_child(storefront)
 
 	if seed % 3 == 0:
 		var sign := Label3D.new()
@@ -174,7 +243,7 @@ static func _add_building(
 		antenna_mesh.height = 1.4
 		antenna.mesh = antenna_mesh
 		antenna.position = Vector3(0, size.y * 0.5 + 0.7, 0)
-		antenna.material_override = _material(neon * 0.1, neon, 8.5, 0.05, 0.7)
+		antenna.material_override = _material(neon * 0.07, neon, 4.0, 0.05, 0.72)
 		body.add_child(antenna)
 
 static func _add_window_strip(parent: Node3D, position: Vector3, size: Vector3, neon: Color) -> void:
@@ -183,7 +252,7 @@ static func _add_window_strip(parent: Node3D, position: Vector3, size: Vector3, 
 	strip_mesh.size = size
 	strip.mesh = strip_mesh
 	strip.position = position
-	strip.material_override = _material(neon * 0.18, neon, 6.2, 0.08, 0.55)
+	strip.material_override = _material(neon * 0.10, neon, 2.8, 0.08, 0.62)
 	parent.add_child(strip)
 
 static func _build_neon_grid(
@@ -218,14 +287,14 @@ static func _build_authored_props(
 	var center: Vector3 = down * (half - 0.48) + inward * 0.04
 
 	var placements := [
-		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 + forward * 6.0, 1.25],
-		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 + forward * 6.0, 1.25],
-		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 - forward * 6.0, 1.25],
-		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 - forward * 6.0, 1.25],
-		["res://assets/third_party/quaternius_cyberpunk/computer.gltf", center + right * 7.5 + forward * 1.5, 1.4],
-		["res://assets/third_party/quaternius_cyberpunk/door.gltf", center - right * 8.0 - forward * 2.0, 1.7],
-		["res://assets/third_party/quaternius_cyberpunk/antenna.gltf", center + right * 10.5 - forward * 9.0, 1.65],
-		["res://assets/third_party/quaternius_cyberpunk/fence.gltf", center - right * 10.0 + forward * 9.0, 1.8],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 + forward * 6.0, 0.72],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 + forward * 6.0, 0.72],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center + right * 5.0 - forward * 6.0, 0.72],
+		["res://assets/third_party/quaternius_cyberpunk/street_light.gltf", center - right * 5.0 - forward * 6.0, 0.72],
+		["res://assets/third_party/quaternius_cyberpunk/computer.gltf", center + right * 7.5 + forward * 1.5, 0.55],
+		["res://assets/third_party/quaternius_cyberpunk/door.gltf", center - right * 8.0 - forward * 2.0, 1.0],
+		["res://assets/third_party/quaternius_cyberpunk/antenna.gltf", center + right * 10.5 - forward * 9.0, 1.0],
+		["res://assets/third_party/quaternius_cyberpunk/fence.gltf", center - right * 10.0 + forward * 9.0, 1.15],
 	]
 	var rotation_offset := district.prop_seed % placements.size()
 	for i in range(placements.size()):
@@ -239,15 +308,19 @@ static func _build_authored_props(
 		var prop: Node3D = packed.instantiate() as Node3D
 		if prop == null:
 			continue
+		var prop_kind := path.get_file().get_basename()
+		prop.name = "CityProp_%s_%02d" % [prop_kind.to_pascal_case(), i]
 		prop.position = placement[1]
 		prop.basis = basis
 		prop.scale = Vector3.ONE * float(placement[2])
+		prop.add_to_group("city_authored_prop")
+		prop.add_to_group("city_prop_%s" % prop_kind)
 		parent.add_child(prop)
 
 	for light_offset in [-8.0, 8.0]:
 		var glow_light := OmniLight3D.new()
 		glow_light.light_color = district.primary_neon if light_offset < 0.0 else district.secondary_neon
-		glow_light.light_energy = 2.2
+		glow_light.light_energy = 1.3
 		glow_light.omni_range = 9.0
 		glow_light.position = center + right * light_offset + inward * 2.2
 		parent.add_child(glow_light)
@@ -294,7 +367,7 @@ static func _add_strip(parent: Node3D, position: Vector3, basis: Basis, size: Ve
 	strip.mesh = mesh
 	strip.position = position
 	strip.basis = basis
-	strip.material_override = _material(color * 0.12, color, 6.4, 0.02, 0.72)
+	strip.material_override = _material(color * 0.07, color, 2.6, 0.02, 0.78)
 	parent.add_child(strip)
 
 static func _material(

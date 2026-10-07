@@ -11,6 +11,11 @@ signal health_changed(current: float, maximum: float, phase: int)
 @export var acceleration := 16.0
 @export var gravity_strength := 24.0
 @export var gravity_align_speed := 10.0
+@export var max_step_height := 0.52
+@export var step_probe_distance := 0.72
+@export var route_stall_timeout := 1.35
+@export var route_progress_epsilon := 0.10
+@export var route_retry_cooldown := 1.0
 @export var attack_range := 15.0
 @export var attack_damage := 8.0
 @export var attack_interval := 0.8
@@ -22,6 +27,7 @@ var gravity_down := Vector3.DOWN
 var score_value := 100
 var _health := 70.0
 var _attack_cooldown := 0.0
+var _attack_runtime: EnemyAttackRuntime = EnemyAttackRuntime.new()
 var _dead := false
 var _anim: AnimationPlayer
 var _wave_level := 1
@@ -29,6 +35,20 @@ var _difficulty_scale := 1.0
 var _definition: EnemyDefinition
 var _boss_phase := 1
 var _visual_time := 0.0
+var _authored_route_points: Array[Vector3] = []
+var _route_waypoint := Vector3.ZERO
+var _has_route_waypoint := false
+var _route_progress_waypoint := Vector3.ZERO
+var _route_progress_position := Vector3.ZERO
+var _route_best_distance := INF
+var _route_stall_elapsed := 0.0
+var _blocked_route_waypoint := Vector3.ZERO
+var _blocked_route_cooldown := 0.0
+var _last_auto_step_failure_reason := "not_attempted"
+var _tactical_slot_index := -1
+var _tactical_slot_count := 0
+var _tactical_leash_center := Vector3.ZERO
+var _tactical_leash_radius := 0.0
 
 func configure(kind: String, wave_level: int, difficulty_scale: float = 1.0) -> void:
 	archetype = kind
@@ -36,6 +56,40 @@ func configure(kind: String, wave_level: int, difficulty_scale: float = 1.0) -> 
 	_difficulty_scale = maxf(0.5, difficulty_scale)
 	_definition = EnemyCatalog.get_definition(StringName(kind))
 	_apply_archetype()
+
+func set_route_points(points: Array[Vector3]) -> void:
+	_authored_route_points.clear()
+	for point in points:
+		_authored_route_points.append(point)
+	_has_route_waypoint = false
+	_blocked_route_cooldown = 0.0
+	_reset_route_progress()
+
+func get_route_point_count() -> int:
+	return _authored_route_points.size()
+
+func set_tactical_slot(index: int, count: int) -> void:
+	_tactical_slot_index = index
+	_tactical_slot_count = maxi(0, count)
+
+func get_tactical_slot_index() -> int:
+	return _tactical_slot_index
+
+func get_tactical_slot_count() -> int:
+	return _tactical_slot_count
+
+func set_tactical_leash(center: Vector3, radius: float) -> void:
+	_tactical_leash_center = center
+	_tactical_leash_radius = maxf(0.0, radius)
+
+
+func get_tactical_leash_radius() -> float:
+	return _tactical_leash_radius
+
+
+func get_tactical_leash_center() -> Vector3:
+	return _tactical_leash_center
+
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -47,6 +101,7 @@ func _ready() -> void:
 	_build_visual()
 	gravity_down = CubeGravity.nearest_down(global_position, cube_half_extent)
 	up_direction = -gravity_down
+	floor_snap_length = maxf(floor_snap_length, max_step_height + 0.08)
 
 func _process(delta: float) -> void:
 	if DisplayServer.get_name() == "headless" or visual_root == null or _dead:
@@ -71,6 +126,7 @@ func _physics_process(delta: float) -> void:
 	if _dead or not is_instance_valid(target):
 		return
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
+	_blocked_route_cooldown = maxf(0.0, _blocked_route_cooldown - delta)
 	gravity_down = CubeGravity.nearest_down(global_position, cube_half_extent, gravity_down, 0.24)
 	up_direction = -gravity_down
 	global_transform.basis = CubeGravity.aligned_basis(global_transform.basis, gravity_down, delta, gravity_align_speed)
@@ -78,12 +134,32 @@ func _physics_process(delta: float) -> void:
 	var distance: float = (target.global_position - global_position).length()
 	var target_down := CubeGravity.nearest_down(target.global_position, cube_half_extent)
 	var same_face := target_down.is_equal_approx(gravity_down)
+	var has_line_of_sight := same_face and _has_line_of_sight()
+	var local_up := -gravity_down.normalized()
+	var elevation_delta := (
+		target.global_position - global_position
+	).dot(local_up)
+	var needs_elevated_route := (
+		same_face
+		and absf(elevation_delta) > max_step_height * 1.25
+		and not _authored_route_points.is_empty()
+	)
 	var route_direction := CubeSurfaceNavigator.route_direction(
 		global_position,
 		gravity_down,
 		target.global_position,
 		cube_half_extent
 	)
+	if (
+		same_face
+		and (not has_line_of_sight or needs_elevated_route)
+		and not _authored_route_points.is_empty()
+	):
+		route_direction = _authored_route_direction(route_direction)
+	elif has_line_of_sight:
+		_has_route_waypoint = false
+		if archetype != "boss" and _tactical_slot_count > 1:
+			route_direction = _tactical_slot_direction(route_direction)
 	var wish := EnemyBrain.desired_direction(
 		_definition,
 		same_face,
@@ -92,17 +168,36 @@ func _physics_process(delta: float) -> void:
 		gravity_down,
 		_boss_phase
 	)
+	var stepped_up := false
+	if (
+		wish.length_squared() > 0.01
+		and is_on_floor()
+		and _tactical_leash_radius <= 0.0
+	):
+		# Authored stairs are intentional traversal, not obstacles. Give the
+		# stair solver first refusal before steering around the riser.
+		stepped_up = _try_auto_step(wish)
 	if wish.length_squared() > 0.01:
-		wish = _avoid_obstacles(wish)
+		if not stepped_up:
+			wish = _avoid_obstacles(wish)
+		wish = _apply_tactical_leash(wish)
 
 	var fall_speed: float = velocity.dot(gravity_down)
 	var horizontal: Vector3 = velocity - gravity_down * fall_speed
-	if distance > 3.0:
+	var should_advance := distance > 3.0 or needs_elevated_route
+	var tracking_route_progress := (
+		_has_route_waypoint
+		and should_advance
+		and wish.length_squared() > 0.01
+		and _tactical_leash_radius <= 0.0
+	)
+	if should_advance:
 		horizontal = horizontal.move_toward(wish * move_speed, acceleration * delta)
 		_play_animation(["Run", "run", "Walking", "walking"])
 	else:
 		horizontal = horizontal.move_toward(Vector3.ZERO, acceleration * delta)
 		_play_animation(["Idle", "idle"])
+	horizontal = _clamp_tactical_leash_velocity(horizontal)
 	fall_speed += gravity_strength * delta
 	if is_on_floor() and fall_speed > 1.0:
 		fall_speed = 1.0
@@ -110,14 +205,443 @@ func _physics_process(delta: float) -> void:
 	if wish.length_squared() > 0.05:
 		_face_tangent_direction(wish, delta)
 	move_and_slide()
+	if tracking_route_progress:
+		_update_route_progress(delta)
+	else:
+		_route_stall_elapsed = 0.0
 
-	if distance <= attack_range and _attack_cooldown <= 0.0 and _has_line_of_sight():
-		_attack_cooldown = attack_interval
-		var burst_multiplier: float = 1.0
-		if archetype == "boss":
-			burst_multiplier = 1.0 + float(_boss_phase - 1) * 0.22
-		target.take_damage(attack_damage * burst_multiplier)
-		_play_animation(["Attack", "attack", "Shooting", "shooting"])
+	if _attack_runtime.is_pending():
+		if _attack_runtime.tick(delta):
+			_resolve_pending_attack()
+	elif distance <= attack_range and _attack_cooldown <= 0.0 and has_line_of_sight:
+		_begin_attack()
+
+func _try_auto_step(wish: Vector3) -> bool:
+	_last_auto_step_failure_reason = ""
+	if _tactical_leash_radius > 0.0:
+		return _auto_step_fail("tactical_leash")
+	if max_step_height <= 0.0 or step_probe_distance <= 0.0:
+		return _auto_step_fail("step_disabled")
+	if not is_on_floor():
+		return _auto_step_fail("not_on_floor")
+	if wish.length_squared() <= 0.001:
+		return _auto_step_fail("zero_wish")
+
+	var up := -gravity_down.normalized()
+	var direction := wish.normalized()
+	var space := get_world_3d().direct_space_state
+
+	var floor_query := PhysicsRayQueryParameters3D.create(
+		global_position,
+		global_position + gravity_down.normalized() * 1.35
+	)
+	floor_query.exclude = [get_rid()]
+	floor_query.collision_mask = collision_mask
+	var floor_hit := space.intersect_ray(floor_query)
+	if floor_hit.is_empty():
+		return _auto_step_fail("floor_ray_miss")
+	var floor_normal: Vector3 = floor_hit.get("normal", up)
+	if floor_normal.dot(up) < 0.55:
+		return _auto_step_fail("floor_normal")
+	var floor_point: Vector3 = floor_hit.get("position", global_position)
+
+	var low_origin := floor_point + up * 0.14
+	var low_query := PhysicsRayQueryParameters3D.create(
+		low_origin,
+		low_origin + direction * step_probe_distance
+	)
+	low_query.exclude = [get_rid()]
+	low_query.collision_mask = collision_mask
+	if space.intersect_ray(low_query).is_empty():
+		return _auto_step_fail("low_probe_clear")
+
+	var high_origin := floor_point + up * (max_step_height + 0.16)
+	var high_query := PhysicsRayQueryParameters3D.create(
+		high_origin,
+		high_origin + direction * step_probe_distance
+	)
+	high_query.exclude = [get_rid()]
+	high_query.collision_mask = collision_mask
+	if not space.intersect_ray(high_query).is_empty():
+		return _auto_step_fail("high_probe_blocked")
+
+	var landing_probe_origin := (
+		floor_point
+		+ direction * step_probe_distance
+		+ up * (max_step_height + 0.22)
+	)
+	var landing_query := PhysicsRayQueryParameters3D.create(
+		landing_probe_origin,
+		landing_probe_origin + gravity_down.normalized() * (max_step_height + 0.30)
+	)
+	landing_query.exclude = [get_rid()]
+	landing_query.collision_mask = collision_mask
+	var landing_hit := space.intersect_ray(landing_query)
+	if landing_hit.is_empty():
+		return _auto_step_fail("landing_ray_miss")
+	var landing_normal: Vector3 = landing_hit.get("normal", up)
+	if landing_normal.dot(up) < 0.55:
+		return _auto_step_fail("landing_normal")
+	var landing_point: Vector3 = landing_hit.get("position", floor_point)
+	var step_height := (landing_point - floor_point).dot(up)
+	if step_height <= 0.04 or step_height > max_step_height + 0.02:
+		return _auto_step_fail("step_height_%.3f" % step_height)
+
+	var lift := up * (step_height + 0.025)
+	var base_transform := global_transform
+	var base_offset := Vector3.ZERO
+
+	if test_move(base_transform, lift):
+		# Enemy capsules are slightly wider than the player capsule. When they
+		# stop flush against a riser, a pure vertical sweep can still touch the
+		# riser side even though the tread above is valid. Back off a few
+		# centimeters, then retry the same validated lift. This does not relax
+		# the high-ray or max-step-height checks, so normal cover/walls remain
+		# unclimbable.
+		var backoff := -direction * 0.08
+		if test_move(base_transform, backoff):
+			return _auto_step_fail("backoff_blocked")
+		base_transform.origin += backoff
+		base_offset = backoff
+		if test_move(base_transform, lift):
+			return _auto_step_fail("lift_blocked_after_backoff")
+
+	# A vertical lift alone can leave a slow-moving enemy suspended just before
+	# the riser. Seat the capsule onto the validated tread so the next gravity
+	# frame sees the new floor instead of dropping it back down.
+	var lifted_transform := base_transform
+	lifted_transform.origin += lift
+	var forward_seat := direction * minf(0.52, step_probe_distance * 0.72)
+	if not test_move(lifted_transform, forward_seat):
+		global_position += base_offset + lift + forward_seat
+	else:
+		global_position += base_offset + lift
+	return true
+
+
+func _auto_step_fail(reason: String) -> bool:
+	_last_auto_step_failure_reason = reason
+	return false
+
+
+func last_auto_step_failure_reason() -> String:
+	return _last_auto_step_failure_reason
+
+
+func _begin_attack() -> void:
+	if _definition == null or not is_instance_valid(target):
+		return
+	_attack_cooldown = attack_interval
+	_attack_runtime.begin(_definition.attack_windup)
+	_play_animation(["Attack", "attack", "Shooting", "shooting"])
+	_spawn_attack_beam(true)
+	if _definition.attack_windup <= 0.0 and _attack_runtime.tick(0.0):
+		_resolve_pending_attack()
+
+
+func _resolve_pending_attack() -> void:
+	if _definition == null or not is_instance_valid(target):
+		return
+	var distance := global_position.distance_to(target.global_position)
+	var target_down := CubeGravity.nearest_down(target.global_position, cube_half_extent)
+	if not target_down.is_equal_approx(gravity_down):
+		return
+	if distance > attack_range * 1.05 or not _has_line_of_sight():
+		return
+	var burst_multiplier := 1.0
+	if archetype == "boss":
+		burst_multiplier = 1.0 + float(_boss_phase - 1) * 0.22
+	target.take_damage(attack_damage * burst_multiplier)
+	_spawn_attack_beam(false)
+
+
+func is_attack_winding_up() -> bool:
+	return _attack_runtime.is_pending()
+
+
+func get_attack_windup_remaining() -> float:
+	return _attack_runtime.remaining()
+
+
+func _spawn_attack_beam(telegraph: bool) -> void:
+	if DisplayServer.get_name() == "headless" or _definition == null or not is_instance_valid(target):
+		return
+	var from := global_position - gravity_down * 0.72
+	var to := target.global_position - target.gravity_down * 0.45
+	var length := from.distance_to(to)
+	if length <= 0.02:
+		return
+	var beam := MeshInstance3D.new()
+	beam.name = "AttackTelegraph" if telegraph else "AttackTracer"
+	var mesh := BoxMesh.new()
+	var width := 0.018 if telegraph else 0.045
+	if archetype == "tank" or archetype == "boss":
+		width *= 1.45
+	mesh.size = Vector3(width, width, length)
+	beam.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	var color := _definition.attack_fx_color
+	mat.albedo_color = color * (0.35 if telegraph else 0.9)
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 3.0 if telegraph else 8.0
+	mat.metallic = 0.25
+	mat.roughness = 0.18
+	beam.material_override = mat
+	var host: Node = get_tree().current_scene
+	if host == null:
+		host = get_tree().root
+	host.add_child(beam)
+	beam.global_position = (from + to) * 0.5
+	beam.look_at(to, -gravity_down)
+	var lifetime := maxf(0.06, _definition.attack_windup) if telegraph else 0.09
+	get_tree().create_timer(lifetime).timeout.connect(beam.queue_free)
+
+
+func _clamp_tactical_leash_velocity(horizontal: Vector3) -> Vector3:
+	if _tactical_leash_radius <= 0.0 or horizontal.length_squared() <= 0.001:
+		return horizontal
+
+	var offset := global_position - _tactical_leash_center
+	offset -= gravity_down * offset.dot(gravity_down)
+	var distance := offset.length()
+	if distance <= _tactical_leash_radius * 0.72 or distance <= 0.001:
+		return horizontal
+
+	var outward := offset.normalized()
+	var outward_speed := horizontal.dot(outward)
+	if outward_speed <= 0.0:
+		return horizontal
+
+	var edge_blend := clampf(
+		(distance - _tactical_leash_radius * 0.72) /
+		maxf(0.05, _tactical_leash_radius * 0.28),
+		0.0,
+		1.0
+	)
+	return horizontal - outward * outward_speed * edge_blend
+
+
+func _apply_tactical_leash(wish: Vector3) -> Vector3:
+	if _tactical_leash_radius <= 0.0 or wish.length_squared() <= 0.001:
+		return wish
+	var offset := global_position - _tactical_leash_center
+	offset -= gravity_down * offset.dot(gravity_down)
+	var distance := offset.length()
+	if distance <= 0.001:
+		return wish
+
+	var inward := -offset.normalized()
+	var soft_radius := _tactical_leash_radius * 0.55
+	if distance >= _tactical_leash_radius:
+		return inward
+
+	var predicted := offset + wish * minf(0.8, _tactical_leash_radius)
+	if predicted.length() > _tactical_leash_radius:
+		return (wish + inward * 2.2).normalized()
+
+	if distance > soft_radius:
+		var blend := clampf(
+			(distance - soft_radius) / maxf(0.05, _tactical_leash_radius - soft_radius),
+			0.0,
+			1.0
+		)
+		return (wish * (1.0 - blend) + inward * blend).normalized()
+	return wish
+
+
+func _tactical_slot_direction(fallback: Vector3) -> Vector3:
+	if not is_instance_valid(target) or _tactical_slot_index < 0 or _tactical_slot_count <= 1:
+		return fallback
+	var radius := 4.0
+	match archetype:
+		"runner":
+			radius = 2.2
+		"sniper":
+			radius = 7.5
+		"tank":
+			radius = 5.5
+		_:
+			radius = 4.0
+	var angle := TAU * float(_tactical_slot_index) / float(_tactical_slot_count)
+	var basis := CubeGravity.tangent_basis(gravity_down)
+	var right := basis.x
+	var forward := -basis.z
+	var slot_position := target.global_position + right * cos(angle) * radius + forward * sin(angle) * radius
+	var to_slot := slot_position - global_position
+	var tangent := to_slot - gravity_down * to_slot.dot(gravity_down)
+	if tangent.length_squared() <= 0.16:
+		return Vector3.ZERO
+	return tangent.normalized()
+
+func _authored_route_direction(fallback: Vector3) -> Vector3:
+	if not is_instance_valid(target) or _authored_route_points.is_empty():
+		return fallback
+	if _has_route_waypoint and _route_waypoint_reached(_route_waypoint):
+		_has_route_waypoint = false
+		_reset_route_progress()
+	if not _has_route_waypoint:
+		_select_route_waypoint()
+	if not _has_route_waypoint:
+		return fallback
+	var to_waypoint := _route_waypoint - global_position
+	var tangent := to_waypoint - gravity_down * to_waypoint.dot(gravity_down)
+	if tangent.length_squared() <= 0.01:
+		return fallback
+	return tangent.normalized()
+
+func _route_waypoint_reached(point: Vector3) -> bool:
+	var up := -gravity_down.normalized()
+	var delta := point - global_position
+	var elevation_error := absf(delta.dot(up))
+	var planar_delta := delta - up * delta.dot(up)
+	return planar_delta.length() <= 0.55 and elevation_error <= 0.30
+
+
+func _reset_route_progress() -> void:
+	_route_progress_waypoint = Vector3.ZERO
+	# set_route_points() may run before this CharacterBody enters SceneTree.
+	# Reading global_position in that state emits a Godot ERROR and breaks CI.
+	# The first active progress sample/select establishes the real world anchor.
+	_route_progress_position = Vector3.ZERO
+	_route_best_distance = INF
+	_route_stall_elapsed = 0.0
+
+
+func _update_route_progress(delta: float) -> void:
+	if not _has_route_waypoint:
+		_reset_route_progress()
+		return
+
+	var current_distance := global_position.distance_to(_route_waypoint)
+	if (
+		_route_best_distance == INF
+		or _route_progress_waypoint.distance_to(_route_waypoint) > 0.05
+	):
+		_route_progress_waypoint = _route_waypoint
+		_route_progress_position = global_position
+		_route_best_distance = current_distance
+		_route_stall_elapsed = 0.0
+		return
+
+	var distance_progress := current_distance + route_progress_epsilon < _route_best_distance
+	var physical_progress := (
+		global_position.distance_to(_route_progress_position) >= route_progress_epsilon
+	)
+	if distance_progress or physical_progress:
+		_route_best_distance = minf(_route_best_distance, current_distance)
+		_route_progress_position = global_position
+		_route_stall_elapsed = 0.0
+		return
+
+	_route_stall_elapsed += maxf(0.0, delta)
+	if route_stall_timeout <= 0.0 or _route_stall_elapsed < route_stall_timeout:
+		return
+
+	# A waypoint that makes no measurable progress is treated as locally blocked,
+	# not as a reason to abandon the whole authored route. Skip it briefly so the
+	# next selection can use an alternate point or obstacle-avoidance fallback,
+	# then allow the authored point to be retried after the cooldown.
+	_blocked_route_waypoint = _route_waypoint
+	_blocked_route_cooldown = maxf(0.0, route_retry_cooldown)
+	_has_route_waypoint = false
+	_reset_route_progress()
+
+
+func _select_route_waypoint() -> void:
+	_has_route_waypoint = false
+	if not is_instance_valid(target):
+		return
+
+	var up := -gravity_down.normalized()
+	var target_delta := target.global_position - global_position
+	var target_elevation := target_delta.dot(up)
+	var climbing := target_elevation > max_step_height * 1.25
+	var descending := target_elevation < -max_step_height * 1.25
+	var best_score := INF
+
+	for point in _authored_route_points:
+		if (
+			_blocked_route_cooldown > 0.0
+			and point.distance_to(_blocked_route_waypoint) <= 0.08
+		):
+			continue
+		var point_delta := point - global_position
+		var travel_cost := point_delta.length()
+		# Never immediately reselect a waypoint we have physically reached.
+		if _route_waypoint_reached(point):
+			continue
+
+		var planar_delta := point_delta - up * point_delta.dot(up)
+		var planar_cost := planar_delta.length()
+		var point_elevation := point_delta.dot(up)
+		var direct_reachable := _route_point_reachable(point)
+		# Clear line-of-sight to a high platform does not imply walkable access.
+		# During a climb/descent, forbid distant elevation shortcuts so the AI
+		# must consume the authored stair-chain waypoints in local order.
+		if (
+			climbing
+			and point_elevation > max_step_height * 1.25
+			and planar_cost > 4.25
+		):
+			direct_reachable = false
+		elif (
+			descending
+			and point_elevation < -max_step_height * 1.25
+			and planar_cost > 4.25
+		):
+			direct_reachable = false
+		var max_chain_step := max_step_height + 0.18
+		if climbing and point_elevation > max_chain_step:
+			direct_reachable = false
+		elif descending and point_elevation < -max_chain_step:
+			direct_reachable = false
+		var stair_chain_candidate := (
+			climbing
+			and point_elevation >= -0.10
+			and point_elevation <= max_chain_step
+			and planar_cost <= 2.25
+		)
+		var descent_chain_candidate := (
+			descending
+			and point_elevation <= 0.10
+			and point_elevation >= -max_chain_step
+			and planar_cost <= 2.25
+		)
+		if not direct_reachable and not stair_chain_candidate and not descent_chain_candidate:
+			continue
+
+		var target_cost := point.distance_to(target.global_position)
+		var target_height_error := absf(
+			(target.global_position - point).dot(up)
+		)
+		var score := (
+			target_cost
+			+ planar_cost * 0.42
+			+ target_height_error * 1.8
+		)
+		# Prefer the next reachable stair-chain point over a distant shortcut.
+		if not direct_reachable:
+			score += planar_cost * 0.35
+		if score < best_score:
+			best_score = score
+			_route_waypoint = point
+			_has_route_waypoint = true
+
+	if _has_route_waypoint:
+		_route_progress_waypoint = _route_waypoint
+		_route_progress_position = global_position
+		_route_best_distance = global_position.distance_to(_route_waypoint)
+		_route_stall_elapsed = 0.0
+
+func _route_point_reachable(point: Vector3) -> bool:
+	if not is_instance_valid(target):
+		return false
+	var origin := global_position - gravity_down * 0.55
+	var destination := point - gravity_down * 0.55
+	var query := PhysicsRayQueryParameters3D.create(origin, destination)
+	query.exclude = [get_rid(), target.get_rid()]
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 func _avoid_obstacles(wish: Vector3) -> Vector3:
 	if wish.length_squared() < 0.01:
@@ -185,6 +709,7 @@ func _update_boss_phase() -> void:
 
 func _die() -> void:
 	_dead = true
+	_attack_runtime.cancel()
 	set_physics_process(false)
 	$CollisionShape3D.set_deferred("disabled", true)
 	_play_animation(["Death", "death", "Dying", "dying"])

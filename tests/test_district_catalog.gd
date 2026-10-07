@@ -17,9 +17,13 @@ func _run() -> void:
 		ids[district.district_id] = true
 		_check(district.face_down.is_equal_approx(face), "district face axis matches gravity face")
 
-	_check(DistrictCatalog.FLOOR.display_name != DistrictCatalog.CEILING.display_name, "floor and ceiling identities differ")
-	_check(not DistrictCatalog.EAST.primary_neon.is_equal_approx(DistrictCatalog.WEST.primary_neon), "east/west art palettes differ")
-	_check(DistrictCatalog.CEILING.building_height_scale > DistrictCatalog.EAST.building_height_scale, "district skyline profiles differ")
+	var floor := DistrictCatalog.get_by_id(&"neon_market")
+	var ceiling := DistrictCatalog.get_by_id(&"sky_temple")
+	var east := DistrictCatalog.get_by_id(&"industrial_arc")
+	var west := DistrictCatalog.get_by_id(&"data_quarter")
+	_check(floor != null and ceiling != null and floor.display_name != ceiling.display_name, "floor and ceiling identities differ")
+	_check(east != null and west != null and not east.primary_neon.is_equal_approx(west.primary_neon), "east/west art palettes differ")
+	_check(ceiling != null and east != null and ceiling.building_height_scale > east.building_height_scale, "district skyline profiles differ")
 
 	_finish()
 

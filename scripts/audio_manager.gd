@@ -23,11 +23,59 @@ func play_pickup() -> void:
 func play_enemy_down() -> void:
 	_play_tone(120.0, 0.13, -18.0)
 
+
+func play_explosion() -> void:
+	_play_tone(82.0, 0.18, -9.0)
+	_queue_tone(0.025, 46.0, 0.28, -10.0)
+	_queue_tone(0.045, 760.0, 0.07, -15.0)
+
+
+func play_lockdown() -> void:
+	_play_tone(150.0, 0.16, -14.0)
+	_queue_tone(0.11, 92.0, 0.20, -13.0)
+
+
+func play_reinforcement() -> void:
+	_play_tone(620.0, 0.10, -15.0)
+	_queue_tone(0.10, 820.0, 0.10, -14.0)
+	_queue_tone(0.20, 1040.0, 0.14, -13.0)
+
+
+func play_objective_destroyed() -> void:
+	_play_tone(260.0, 0.10, -15.0)
+	_queue_tone(0.08, 520.0, 0.11, -14.0)
+	_queue_tone(0.16, 920.0, 0.14, -12.0)
+
+
+func play_uplink_complete() -> void:
+	_play_tone(420.0, 0.12, -15.0)
+	_queue_tone(0.10, 680.0, 0.12, -14.0)
+	_queue_tone(0.20, 980.0, 0.18, -12.0)
+
+
+func play_boss_phase() -> void:
+	_play_tone(110.0, 0.22, -12.0)
+	_queue_tone(0.10, 165.0, 0.26, -11.0)
+
+
+func play_extraction_ready() -> void:
+	_play_tone(540.0, 0.13, -14.0)
+	_queue_tone(0.12, 760.0, 0.14, -13.0)
+	_queue_tone(0.24, 1080.0, 0.22, -11.0)
+
+
 func play_victory() -> void:
 	_play_tone(880.0, 0.32, -10.0)
 
 func play_defeat() -> void:
 	_play_tone(92.0, 0.38, -10.0)
+
+func _queue_tone(delay: float, frequency: float, duration: float, volume_db: float) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var timer := get_tree().create_timer(maxf(0.0, delay))
+	timer.timeout.connect(_play_tone.bind(frequency, duration, volume_db))
+
 
 func _play_tone(frequency: float, duration: float, volume_db: float) -> void:
 	if DisplayServer.get_name() == "headless":

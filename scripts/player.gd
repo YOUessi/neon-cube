@@ -15,6 +15,8 @@ signal died
 @export var air_accel := 10.0
 @export var gravity_strength := 24.0
 @export var jump_speed := 8.0
+@export var max_step_height := 0.52
+@export var step_probe_distance := 0.72
 @export var mouse_sensitivity := 0.0022
 @export var gravity_align_speed := 12.0
 @export var max_health := 100.0
@@ -55,6 +57,7 @@ func _ready() -> void:
 	magazine_size = starting_weapon.magazine_size
 	reserve_ammo = starting_weapon.initial_reserve
 	up_direction = -gravity_down
+	floor_snap_length = maxf(floor_snap_length, max_step_height + 0.08)
 	_rng.seed = 2049
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -113,6 +116,8 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() and Input.is_action_just_pressed("jump"):
 		fall_speed = -jump_speed
 	velocity = horizontal + gravity_down * fall_speed
+	if wish.length_squared() > 0.001 and is_on_floor():
+		_try_auto_step(wish)
 	move_and_slide()
 
 	if Input.is_action_pressed("fire"):
@@ -130,6 +135,86 @@ func _physics_process(delta: float) -> void:
 		global_position = Vector3(0, -cube_half_extent + 2.0, 0)
 		velocity = Vector3.ZERO
 		gravity_down = Vector3.DOWN
+
+func _try_auto_step(wish: Vector3) -> bool:
+	if max_step_height <= 0.0 or step_probe_distance <= 0.0:
+		return false
+	if not is_on_floor() or wish.length_squared() <= 0.001:
+		return false
+
+	var up := -gravity_down.normalized()
+	var direction := wish.normalized()
+	var space := get_world_3d().direct_space_state
+
+	# First recover the exact surface point under the player. This keeps the
+	# stair logic independent from which cube face currently acts as the floor.
+	var floor_query := PhysicsRayQueryParameters3D.create(
+		global_position,
+		global_position + gravity_down.normalized() * 1.35
+	)
+	floor_query.exclude = [get_rid()]
+	floor_query.collision_mask = collision_mask
+	var floor_hit := space.intersect_ray(floor_query)
+	if floor_hit.is_empty():
+		return false
+	var floor_normal: Vector3 = floor_hit.get("normal", up)
+	if floor_normal.dot(up) < 0.55:
+		return false
+	var floor_point: Vector3 = floor_hit.get("position", global_position)
+
+	# A low ray must see a riser, while a ray just above max_step_height must
+	# remain clear. This prevents the helper from climbing normal cover/walls.
+	var low_origin := floor_point + up * 0.14
+	var low_query := PhysicsRayQueryParameters3D.create(
+		low_origin,
+		low_origin + direction * step_probe_distance
+	)
+	low_query.exclude = [get_rid()]
+	low_query.collision_mask = collision_mask
+	if space.intersect_ray(low_query).is_empty():
+		return false
+
+	var high_origin := floor_point + up * (max_step_height + 0.16)
+	var high_query := PhysicsRayQueryParameters3D.create(
+		high_origin,
+		high_origin + direction * step_probe_distance
+	)
+	high_query.exclude = [get_rid()]
+	high_query.collision_mask = collision_mask
+	if not space.intersect_ray(high_query).is_empty():
+		return false
+
+	# Probe vertically down onto the candidate tread and measure its height
+	# relative to the current floor along the local cube-face up vector.
+	var landing_probe_origin := (
+		floor_point
+		+ direction * step_probe_distance
+		+ up * (max_step_height + 0.22)
+	)
+	var landing_query := PhysicsRayQueryParameters3D.create(
+		landing_probe_origin,
+		landing_probe_origin + gravity_down.normalized() * (max_step_height + 0.30)
+	)
+	landing_query.exclude = [get_rid()]
+	landing_query.collision_mask = collision_mask
+	var landing_hit := space.intersect_ray(landing_query)
+	if landing_hit.is_empty():
+		return false
+	var landing_normal: Vector3 = landing_hit.get("normal", up)
+	if landing_normal.dot(up) < 0.55:
+		return false
+	var landing_point: Vector3 = landing_hit.get("position", floor_point)
+	var step_height := (landing_point - floor_point).dot(up)
+	if step_height <= 0.04 or step_height > max_step_height + 0.02:
+		return false
+
+	var lift := up * (step_height + 0.025)
+	if test_move(global_transform, lift):
+		return false
+
+	global_position += lift
+	return true
+
 
 func _weapon_spec(index: int) -> WeaponDefinition:
 	return WeaponCatalog.get_definition(index)
@@ -250,15 +335,18 @@ func _spawn_tracer(from: Vector3, to: Vector3, color: Color) -> void:
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(0.018, 0.018, length)
 	tracer.mesh = mesh
-	tracer.global_position = (from + to) * 0.5
-	tracer.look_at(to, Vector3.UP)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.emission_enabled = true
 	mat.emission = color
 	mat.emission_energy_multiplier = 8.0
 	tracer.material_override = mat
-	get_tree().current_scene.add_child(tracer)
+	var host: Node = get_tree().current_scene
+	if host == null:
+		host = get_tree().root
+	host.add_child(tracer)
+	tracer.global_position = (from + to) * 0.5
+	tracer.look_at(to, Vector3.UP)
 	var tween := create_tween()
 	tween.tween_property(tracer, "scale", Vector3(1.0, 1.0, 0.15), 0.055)
 	tween.tween_callback(tracer.queue_free)

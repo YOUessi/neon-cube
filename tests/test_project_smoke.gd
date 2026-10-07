@@ -16,6 +16,7 @@ func _run() -> void:
 	_check(game.player != null, "main scene creates a player")
 	_check(is_instance_valid(game.player), "player remains valid after startup")
 	_check(game.game_state == NeonGame.GameState.PLAYING, "headless baseline starts gameplay")
+	_check(game.performance_monitor == null, "headless gameplay skips runtime frame-budget monitor")
 	_check(
 		game.get_tree().get_nodes_in_group("enemies").size() == game.mission_runtime.current_encounter().enemy_kinds.size(),
 		"initial story encounter spawned"
