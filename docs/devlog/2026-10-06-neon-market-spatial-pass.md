@@ -2389,3 +2389,11 @@ Mission 01 的 Arena 已经有明确掩体、垂直空间和目标机制，但�
 ### 回归
 
 新增 `tests/test_explosive_power_cells.gd`：验证 5 个 authored cell、各自 cube face、武器致命伤害触发爆炸、近距离 Enemy 受伤、范围外 Enemy 不受伤、玩家同样承担爆炸风险。测试加入统一 `scripts/run_tests.sh`。
+
+
+### 2026-10-07 追加：Power Cell Combat Readability Pass
+
+Mac Metal 重新渲染 Mission Gallery 后，Gravity Breach 的 AMBER Power Cell 足够醒目，但 Market / Data / Extraction 中的 CYAN/MAGENTA cell 容易与关卡已有霓虹色混在一起。仅调整 Gallery 相机不能解决真实试玩中的识别问题，因此改的是游戏内视觉语言。
+
+Power Cell 现在增加统一的黄色危险识别层：0.82m 地面危险环、四向 warning ticks、`VOLATILE // SHOOT` Billboard 标签和局部 OmniLight；内部 core 仍保留各区域 accent color。Core、危险环和信号灯以 5.5Hz 做轻量呼吸脉冲。这样即使环境本身大量使用 CYAN/MAGENTA，爆炸物仍使用统一 AMBER warning language，不依赖玩家记忆具体模型。
+

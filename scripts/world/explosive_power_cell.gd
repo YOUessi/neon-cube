@@ -8,8 +8,14 @@ signal detonated(cell)
 @export var blast_damage := 95.0
 @export var accent_color := Color(1.0, 0.48, 0.08, 1.0)
 
+const WARNING_COLOR := Color(1.0, 0.66, 0.08, 1.0)
+
 var _health := 36.0
 var _detonated := false
+var _visual_time := 0.0
+var _core_material: StandardMaterial3D
+var _warning_material: StandardMaterial3D
+var _warning_light: OmniLight3D
 
 
 func _ready() -> void:
@@ -18,6 +24,19 @@ func _ready() -> void:
 	_ensure_collision()
 	if DisplayServer.get_name() != "headless":
 		_build_visual()
+
+
+func _process(delta: float) -> void:
+	if DisplayServer.get_name() == "headless" or _detonated:
+		return
+	_visual_time += maxf(0.0, delta)
+	var pulse := 0.5 + 0.5 * sin(_visual_time * 5.5)
+	if _core_material != null:
+		_core_material.emission_energy_multiplier = 6.8 + pulse * 4.6
+	if _warning_material != null:
+		_warning_material.emission_energy_multiplier = 4.8 + pulse * 4.2
+	if _warning_light != null:
+		_warning_light.light_energy = 0.75 + pulse * 0.65
 
 
 func take_damage(
@@ -163,8 +182,35 @@ func _build_visual() -> void:
 	core_mesh.radial_segments = 20
 	core.mesh = core_mesh
 	core.position = Vector3(0, 0.70, 0)
-	core.material_override = _material(accent_color * 0.06, accent_color, 7.5)
+	_core_material = _material(accent_color * 0.06, accent_color, 8.6)
+	core.material_override = _core_material
 	add_child(core)
+
+	var floor_ring := MeshInstance3D.new()
+	floor_ring.name = "FloorWarningRing"
+	var floor_ring_mesh := TorusMesh.new()
+	floor_ring_mesh.inner_radius = 0.64
+	floor_ring_mesh.outer_radius = 0.82
+	floor_ring_mesh.rings = 32
+	floor_ring_mesh.ring_segments = 12
+	floor_ring.mesh = floor_ring_mesh
+	floor_ring.position = Vector3(0, 0.045, 0)
+	_warning_material = _material(WARNING_COLOR * 0.06, WARNING_COLOR, 6.4)
+	floor_ring.material_override = _warning_material
+	add_child(floor_ring)
+
+	for axis in [Vector3.RIGHT, Vector3.FORWARD]:
+		for side in [-1.0, 1.0]:
+			var tick := MeshInstance3D.new()
+			tick.name = "WarningTick"
+			var tick_mesh := BoxMesh.new()
+			tick_mesh.size = Vector3(0.34, 0.035, 0.10)
+			tick.mesh = tick_mesh
+			tick.position = axis * side * 0.92 + Vector3.UP * 0.05
+			if absf(axis.z) > 0.5:
+				tick.rotation.y = PI * 0.5
+			tick.material_override = _warning_material
+			add_child(tick)
 
 	for y in [0.18, 1.22]:
 		var band := MeshInstance3D.new()
@@ -181,14 +227,23 @@ func _build_visual() -> void:
 
 	var label := Label3D.new()
 	label.name = "VolatileLabel"
-	label.text = "VOLATILE"
-	label.font_size = 22
-	label.outline_size = 5
-	label.modulate = accent_color
-	label.outline_modulate = Color(0.004, 0.006, 0.015, 0.96)
-	label.position = Vector3(0, 1.62, 0)
+	label.text = "VOLATILE // SHOOT"
+	label.font_size = 28
+	label.outline_size = 7
+	label.modulate = WARNING_COLOR
+	label.outline_modulate = Color(0.004, 0.006, 0.015, 0.98)
+	label.position = Vector3(0, 1.72, 0)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	add_child(label)
+
+	_warning_light = OmniLight3D.new()
+	_warning_light.name = "WarningLight"
+	_warning_light.position = Vector3(0, 1.0, 0)
+	_warning_light.light_color = WARNING_COLOR
+	_warning_light.light_energy = 1.0
+	_warning_light.omni_range = 4.2
+	_warning_light.shadow_enabled = false
+	add_child(_warning_light)
 
 
 func _spawn_explosion_vfx() -> void:
