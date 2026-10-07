@@ -2397,3 +2397,7 @@ Mac Metal 重新渲染 Mission Gallery 后，Gravity Breach 的 AMBER Power Cell
 
 Power Cell 现在增加统一的黄色危险识别层：0.82m 地面危险环、四向 warning ticks、`VOLATILE // SHOOT` Billboard 标签和局部 OmniLight；内部 core 仍保留各区域 accent color。Core、危险环和信号灯以 5.5Hz 做轻量呼吸脉冲。这样即使环境本身大量使用 CYAN/MAGENTA，爆炸物仍使用统一 AMBER warning language，不依赖玩家记忆具体模型。
 
+
+### Extraction Power Cell 摆位复核
+
+Mac Metal Gallery 对比试拍 `u=-12.8`、`u=-9.0`、`u=-7.5` 后，最终采用 `u=-7.5, v=-13.5`。旧位置位于最终 Yard 左侧边缘，在正常推进视角和自动视觉验收中都容易被遮挡；新位置位于最后 2+2 Encounter 的中央侧翼、仍在 Beacon 前方，标签和危险环可直接被玩家识别，同时与 authored health cache 保持分离。

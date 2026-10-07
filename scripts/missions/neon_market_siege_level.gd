@@ -1769,7 +1769,7 @@ func _build_extraction() -> void:
 	_add_prop(yard, "ExtractionLight_A", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -18.0, -17.0, 0.0, 1.25, 0.0)
 	_add_prop(yard, "ExtractionLight_B", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -6.0, -8.0, 0.0, 1.25, 180.0)
 	_add_prop(yard, "ExtractionFence", "res://assets/third_party/quaternius_cyberpunk/fence.gltf", down, -16.5, -7.5, 0.0, 1.5, 90.0)
-	_add_explosive_cell(yard, "PowerCell_Extraction", down, -12.8, -13.5, AMBER)
+	_add_explosive_cell(yard, "PowerCell_Extraction", down, -7.5, -13.5, AMBER)
 
 	var route := _section(root, "ExtractionRoute")
 	_add_face_box(route, "ExtractionLane", down, -5.0, -20.0, 0.02, Vector3(14.0, 0.05, 10.0), DARK, AMBER, false)
