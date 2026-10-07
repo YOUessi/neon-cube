@@ -2353,3 +2353,16 @@ settle helper 临时设置 `max_step_height=0` 来禁止自动迈步，但 Enemy
 修复：恢复 runtime 参数后清空 settle 阶段产生的 active/blocked route state，并重置 route progress；正式测试开始后再用真实参数重新选择 waypoint。
 
 这两项均是测试 fixture 初始状态修复，不修改游戏运行时 stair/route 阈值。
+
+
+### 2026-10-07 最终根因修正：所谓 isolated fixture 仍共享 root World3D
+
+在 `6e9ebbf` 之后，Bottom stair fixture 仍出现 `low_probe_clear`，且 settle 后位置同时发生 X/Z 偏移。把台阶延后到 settle 之后再创建仍然复现，证明残余位移并不是台阶自身造成。
+
+最终检查发现：`test_enemy_routing.gd` 开头为了验证 archetype / leash 创建的 `player`、普通 `enemy`、`boss`、`perched` 一直保留到所有 stair/route 子测试结束。后续每个测试虽然各自新建了一个 `Node3D world`，但 Node3D 并不会创建独立的 Godot 物理世界；所有这些 CharacterBody3D 仍共享 root World3D。
+
+其中前置普通 Enemy 就位于 `(0, -29, 0)` 附近，与 Bottom stair fixture 的 Enemy 几乎重叠，settle 时发生 Enemy-vs-Enemy capsule depenetration，把测试体推离台阶 probe 范围。这也解释了诊断里同时出现 X/Z 偏移，而不是仅沿台阶法向移动。
+
+最终修复：完成前置 archetype / leash contract 断言后，立即 queue_free 这四个 root actor，并等待一个 process frame，再进入 stair / authored-route integration fixtures。运行时代码、stair solver 和 route solver 均不需要为这个失败修改。
+
+Mac Godot 4.3 复测：Bottom、LEFT、BACK 三面 stair，perch leash，Data Maintenance Bridge pursuit，Boss Gantry pursuit，route stall recovery 全部 PASS；`tests/test_enemy_routing.gd` 整体 PASS。

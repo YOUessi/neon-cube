@@ -51,6 +51,16 @@ func _run() -> void:
 	var unrestricted_velocity := perched._clamp_tactical_leash_velocity(outward_velocity)
 	_check(unrestricted_velocity.is_equal_approx(outward_velocity), "zero-radius leash leaves ordinary enemy momentum unchanged")
 
+	# The contract-check actors above live in the root World3D, so they share
+	# physics space with every later fixture even when those fixtures sit under
+	# separate Node3D parents. Release them before stair/route integration tests
+	# so their capsules cannot depenetrate or block fixture bodies.
+	enemy.queue_free()
+	boss.queue_free()
+	perched.queue_free()
+	player.queue_free()
+	await process_frame
+
 	await _test_enemy_auto_step_bottom_face()
 	await _test_enemy_auto_step_side_face()
 	await _test_enemy_auto_step_back_face()
@@ -59,11 +69,6 @@ func _run() -> void:
 	await _test_boss_gantry_authored_route_pursuit()
 	await _test_route_stall_recovery()
 
-	enemy.queue_free()
-	boss.queue_free()
-	perched.queue_free()
-	player.queue_free()
-	await process_frame
 	_finish()
 
 func _test_enemy_auto_step_bottom_face() -> void:
