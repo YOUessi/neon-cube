@@ -23,6 +23,13 @@ func play_pickup() -> void:
 func play_enemy_down() -> void:
 	_play_tone(120.0, 0.13, -18.0)
 
+
+func play_explosion() -> void:
+	_play_tone(82.0, 0.18, -9.0)
+	_queue_tone(0.025, 46.0, 0.28, -10.0)
+	_queue_tone(0.045, 760.0, 0.07, -15.0)
+
+
 func play_lockdown() -> void:
 	_play_tone(150.0, 0.16, -14.0)
 	_queue_tone(0.11, 92.0, 0.20, -13.0)

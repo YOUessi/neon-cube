@@ -24,6 +24,7 @@ TESTS=(
   "tests/test_mission_progress_store.gd"
   "tests/test_checkpoint_world_restore.gd"
   "tests/test_authored_level_pickups.gd"
+  "tests/test_explosive_power_cells.gd"
   "tests/test_profile_store.gd"
   "tests/test_performance_budget.gd"
   "tests/test_input_bootstrap.gd"

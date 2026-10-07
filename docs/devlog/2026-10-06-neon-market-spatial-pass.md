@@ -2366,3 +2366,26 @@ settle helper 临时设置 `max_step_height=0` 来禁止自动迈步，但 Enemy
 最终修复：完成前置 archetype / leash contract 断言后，立即 queue_free 这四个 root actor，并等待一个 process frame，再进入 stair / authored-route integration fixtures。运行时代码、stair solver 和 route solver 均不需要为这个失败修改。
 
 Mac Godot 4.3 复测：Bottom、LEFT、BACK 三面 stair，perch leash，Data Maintenance Bridge pursuit，Boss Gantry pursuit，route stall recovery 全部 PASS；`tests/test_enemy_routing.gd` 整体 PASS。
+
+
+## 2026-10-07 追加：Explosive Power Cells / 环境爆炸物
+
+### 为什么做
+
+Mission 01 的 Arena 已经有明确掩体、垂直空间和目标机制，但大多数环境仍然只是静态碰撞。为了让玩家真正利用空间进行战斗，本阶段加入可被武器命中的环境爆炸物，而不是再增加一个新的触发区。
+
+### ExplosivePowerCell
+
+新增 `scripts/world/explosive_power_cell.gd`：StaticBody3D 可直接被现有 hitscan 武器命中，因为 Player 已经会对所有实现 `take_damage()` 的射线 collider 调用伤害接口。
+
+默认参数：36 HP、4.6m 爆炸半径、95 基础爆炸伤害。爆炸伤害按距离衰减；近距离足以击杀 grunt/runner，对 tank 造成显著伤害，同时也会伤害玩家，因此既是进攻工具也是风险源。
+
+爆炸使用 PhysicsShapeQuery 找到范围内 CharacterBody/PowerCell，并用 raycast 做遮挡检查，因此实体掩体可以阻挡爆风；Power Cell 之间允许连锁引爆。渲染模式下带高亮 VOLATILE 外观、扩张 blast pulse 和独立合成爆炸音效；headless 只保留碰撞与伤害逻辑。
+
+### Mission 01 布置
+
+共 5 个 authored Power Cell：Market Crossfire 2 个、Gravity Breach 1 个、Data Lane 1 个、Extraction Yard 1 个。Boss Arena 暂不放置，避免环境爆炸直接削弱 Null Warden 的三阶段战斗设计。
+
+### 回归
+
+新增 `tests/test_explosive_power_cells.gd`：验证 5 个 authored cell、各自 cube face、武器致命伤害触发爆炸、近距离 Enemy 受伤、范围外 Enemy 不受伤、玩家同样承担爆炸风险。测试加入统一 `scripts/run_tests.sh`。

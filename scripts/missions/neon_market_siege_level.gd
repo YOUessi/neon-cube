@@ -1074,6 +1074,7 @@ func spatial_summary() -> Dictionary:
 		"data_maintenance_bridge": get_tree().get_nodes_in_group("data_maintenance_bridge").size(),
 		"boss_service_gantry": get_tree().get_nodes_in_group("boss_service_gantry").size(),
 		"extraction_dock": get_tree().get_nodes_in_group("extraction_dock").size(),
+		"explosive_power_cell": get_tree().get_nodes_in_group("explosive_power_cell").size(),
 	}
 
 
@@ -1183,6 +1184,9 @@ func _build_neon_market() -> void:
 			false
 		)
 
+	_add_explosive_cell(crossfire, "PowerCell_Market_A", down, 12.0, 4.0, MAGENTA)
+	_add_explosive_cell(crossfire, "PowerCell_Market_B", down, 16.8, 7.0, CYAN)
+
 	var catwalk := _section(hall, "ElevatedLane")
 	for i in range(5):
 		var step_height := 0.35 + float(i) * 0.38
@@ -1247,6 +1251,7 @@ func _build_gravity_breach() -> void:
 			true,
 			&"combat_cover"
 		)
+	_add_explosive_cell(arena, "PowerCell_Breach", down, -8.0, -16.8, AMBER)
 	_add_face_label(arena, "BreachSign", down, -8.0, -18.5, 3.0, "INDUSTRIAL ARC // BREACH CONTROL", CYAN)
 	_add_face_trim(arena, "BreachAxisA", down, -8.0, -12.0, 0.08, Vector3(0.08, 0.035, 13.5), CYAN)
 	_add_face_trim(arena, "BreachAxisB", down, -8.0, -12.0, 0.085, Vector3(13.5, 0.035, 0.08), AMBER)
@@ -1442,6 +1447,7 @@ func _build_data_lane() -> void:
 	_add_prop(lane, "RelayConsole_A", "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, 1.2, 2.5, 0.0, 1.25, 90.0)
 	_add_prop(lane, "RelayConsole_B", "res://assets/third_party/quaternius_cyberpunk/computer.gltf", down, 14.2, 12.5, 0.0, 1.25, -90.0)
 	_add_prop(lane, "RelayAntenna", "res://assets/third_party/quaternius_cyberpunk/antenna.gltf", down, 13.5, 2.5, 0.0, 1.5, 0.0)
+	_add_explosive_cell(lane, "PowerCell_Data", down, 8.0, 6.0, CYAN)
 
 	var maintenance := _section(root, "MaintenanceBridge")
 	var bridge_deck := _add_face_box(
@@ -1763,6 +1769,7 @@ func _build_extraction() -> void:
 	_add_prop(yard, "ExtractionLight_A", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -18.0, -17.0, 0.0, 1.25, 0.0)
 	_add_prop(yard, "ExtractionLight_B", "res://assets/third_party/quaternius_cyberpunk/street_light.gltf", down, -6.0, -8.0, 0.0, 1.25, 180.0)
 	_add_prop(yard, "ExtractionFence", "res://assets/third_party/quaternius_cyberpunk/fence.gltf", down, -16.5, -7.5, 0.0, 1.5, 90.0)
+	_add_explosive_cell(yard, "PowerCell_Extraction", down, -12.8, -13.5, AMBER)
 
 	var route := _section(root, "ExtractionRoute")
 	_add_face_box(route, "ExtractionLane", down, -5.0, -20.0, 0.02, Vector3(14.0, 0.05, 10.0), DARK, AMBER, false)
@@ -2735,6 +2742,23 @@ func _decorate_combat_cover(node: Node3D, size: Vector3, accent: Color) -> void:
 		)
 		bolt.material_override = _material(accent * 0.12, accent, 2.2)
 		node.add_child(bolt)
+
+
+func _add_explosive_cell(
+	parent: Node3D,
+	name: String,
+	down: Vector3,
+	u: float,
+	v: float,
+	accent: Color
+) -> ExplosivePowerCell:
+	var cell := ExplosivePowerCell.new()
+	cell.name = name
+	cell.position = _face_point(down, u, v, 0.02)
+	cell.basis = CubeGravity.tangent_basis(down)
+	cell.accent_color = accent
+	parent.add_child(cell)
+	return cell
 
 
 func _add_prop(
